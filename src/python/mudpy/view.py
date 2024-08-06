@@ -337,6 +337,8 @@ def slip3D(rupt,marker_size=60,clims=None,plot_onset=False,cmap=whitejet):
     #Plot it
     fig = plt.figure(figsize=(14, 4))
     ax = fig.add_subplot(111, projection='3d')
+    if max(lon) > 179 and min(lon) < -179:  # If the fault crosses the dateline
+        lon = [lon + 360 if lon < 0 else lon for lon in lon]
     if clims==None:
         p=ax.scatter(lon, lat, depth, c=plot_variable,cmap=cmap, marker='o',s=marker_size,lw=0)
     else:

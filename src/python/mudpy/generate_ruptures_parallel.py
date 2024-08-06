@@ -97,7 +97,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             while success==False:
                 #Select only a subset of the faults based on magnitude scaling
                 current_target_Mw=target_Mw[kmag]
-                ifaults,hypo_fault,Lmax,Wmax,Leff,Weff,option,Lmean,Wmean=fakequakes.select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,num_modes,scaling_law,
+                ifaults,hypo_fault,Lmax,Wmax,Leff,Weff,option,Lmean,Wmean, _, _, _=fakequakes.select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,num_modes,scaling_law,
                                     force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction)
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]

@@ -10,8 +10,8 @@ from obspy.core import UTCDateTime
 
 
 ########                            GLOBALS                             ########
-home='/Users/dmelgar/fakequakes/'
-project_name='Hayward'
+home='C:/Users/jmc753/Work/MudPy/examples/fakequakes/planar/'
+project_name='testing'
 run_name='hayward'
 ################################################################################
 
@@ -19,19 +19,19 @@ run_name='hayward'
 ##############             What do you want to do??           ##################
 init=0
 make_ruptures=1
-make_GFs=0
+make_GFs=1
 make_synthetics=0
 make_waveforms=0
 # Things that only need to be done once
-load_distances=0
-G_from_file=0
+load_distances=1
+G_from_file=1
 ###############################################################################
 
 
 #############                 Run-time parameters            ##################
 ncpus=8
 
-model_name='gil7.mod'   # Velocity model
+model_name='bbp_norcal.mod'   # Velocity model
 fault_name='hayward.fault'    # Fault geometry
 slab_name=None    # Slab 1.0 Ascii file, set to None for simple geometry
 mesh_name=None    # GMSH output file, set to None for simple geometry
@@ -83,7 +83,7 @@ if make_ruptures==1:
             mesh_name,load_distances,distances_name,UTM_zone,target_Mw,model_name,
             hurst,Ldip,Lstrike,num_modes,Nrealizations,rake,buffer_factor,
             rise_time_depths,time_epi,max_slip,source_time_function,lognormal,
-            slip_standard_deviation,scaling_law)
+            slip_standard_deviation,scaling_law,ncpus)
                 
 # Prepare waveforms and synthetics       
 if make_GFs==1 or make_synthetics==1:
