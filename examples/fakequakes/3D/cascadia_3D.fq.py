@@ -18,13 +18,13 @@ run_name='hikkerk3D'
 
 ##############             What do you want to do??           ##################
 init=0
-make_ruptures=0
-make_GFs=1
-make_synthetics=1
+make_ruptures=1
+make_GFs=0
+make_synthetics=0
 make_waveforms=0
 make_hf_waveforms=0
 match_filter=0
-make_statics=1
+make_statics=0
 # Things that only need to be done once
 load_distances=1
 G_from_file=0
@@ -32,7 +32,7 @@ G_from_file=0
 
 
 #############                 Run-time parameters            ##################
-ncpus=20
+ncpus=10
 hot_start=0
 model_name='hikkerk.mod'   # Velocity model
 moho_depth_in_km=25.0
@@ -49,8 +49,8 @@ GF_list='hikkerk_gnss.gflist'
 G_name=run_name  #Name of G matrix for waveforms
 G_name_static=run_name+'_statics' #Name of G matrix for statics
 
-Nrealizations=4 # Number of fake ruptures to generate per magnitude bin
-target_Mw=np.arange(8.2,8.8,0.2) # Of what approximate magnitudes
+Nrealizations=10 # Number of fake ruptures to generate per magnitude bin
+target_Mw=np.arange(6.5,9.2,0.1) # Of what approximate magnitudes
 max_slip=100 #Maximum sip (m) allowed in the model
 max_slip_rule=True #restrict max slip to 3 times Allen & Hayes 2017
 
@@ -71,7 +71,7 @@ order=4
 fcorner=1.0
 
 # Correlation function parameters
-hurst=0.75 # Melgar and Hayes 2019 found Hurst exponent is probably closer to 0.4
+hurst=0.4 # Melgar and Hayes 2019 found Hurst exponent is probably closer to 0.4
 Ldip='auto' # Correlation length scaling, 'auto' uses Melgar & Hayes 2019
 Lstrike='auto' # MB2002 uses Mai & Beroza 2002
 lognormal=True # Keep this as true
@@ -88,7 +88,7 @@ high_stress_depth=30 # SMGA must be below this depth (measured in km)
 rake=90 # average rake
 rise_time = 'MH2017'
 rise_time_depths=[10,15] #Transition depths for rise time scaling (if slip shallower than first index, rise times are twice as long as calculated)
-mean_slip_name=None
+mean_slip_name=None  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 shear_wave_fraction=0.8
 
 #Enforcement of rules on area scaling and hypo location
