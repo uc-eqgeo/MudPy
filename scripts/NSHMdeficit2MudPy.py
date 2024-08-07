@@ -14,8 +14,8 @@ slip_deficit_csv = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\NSHM_
 # GeoJSON file containing the centroids of each subduction zone patch (i.e. as created by occ-coseismic scripts (see Delano et al 2024))
 patch_centroid_json = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\NSHM_geometries\\sz_all_rectangle_centroids.geojson'
 
-# VTK file containing the subduction zone geometry
-vtk_file = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\hik_kerk3k_with_rake.vtk'
+# VTK file containing the subduction zone geometry USED IN FAKEQUAKES (i.e. the rectangular patches derived from the RSQSIM mesh)
+vtk_file = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk'
 
 # Mean slip file to be written
 mean_slip_file = 'C:\\Users\\jmc753\\Work\\MudPy\\examples\\fakequakes\\3D\\hikkerk3D_test\\data\\model_info\\slip_deficit_trenchlock.slip'
@@ -34,8 +34,12 @@ cells = vtk.cells[0].data
 n_cells = cells.shape[0]
 cell_centers = np.zeros((n_cells, 3))
 for ii in range(n_cells):
-    p1, p2, p3 = vtk.cells[0].data[ii, :]
-    cell_centers[ii, :] = np.mean(np.vstack([vtk.points[p1, :], vtk.points[p2, :], vtk.points[p3, :]]), axis=0)
+    if vtk.cells[0].data[ii, :].shape[0] == 3:
+        p1, p2, p3 = vtk.cells[0].data[ii, :]
+        cell_centers[ii, :] = np.mean(np.vstack([vtk.points[p1, :], vtk.points[p2, :], vtk.points[p3, :]]), axis=0)
+    else:
+        p1, p2, p3, p4 = vtk.cells[0].data[ii, :]
+        cell_centers[ii, :] = np.mean(np.vstack([vtk.points[p1, :], vtk.points[p2, :], vtk.points[p3, :], vtk.points[p4, :]]), axis=0)
 
 # Find nearest centroid to each cell center
 centroid_kd_tree = KDTree(centroid_coords)
@@ -51,4 +55,4 @@ with open(mean_slip_file, 'w') as fid:
         lat, lon = transformer.transform(cell[1], cell[0])
         z = cell[2]
         deficit = slip_deficit['Slip Rate (mm/yr)'].loc[nearest_indices[ix]]
-        fid.write(f"{ix}\t{lon:.6f}\t{lat:.6f}\t{-z:.6f}\t{strike}\t{dip}\t{rise}\t{dura}\t{ss_slip}\t{deficit:.6f}\t0\t0\t0\n")
+        fid.write(f"{ix+1}\t{lon:.6f}\t{lat:.6f}\t{-z:.6f}\t{strike}\t{dip}\t{rise}\t{dura}\t{ss_slip}\t{deficit:.6f}\t0\t0\t0\n")
