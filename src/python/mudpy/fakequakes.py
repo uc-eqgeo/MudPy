@@ -1440,7 +1440,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                     mean_slip=mean_slip[ifaults]
                     
                     #get the area in those selected faults
-                    area=fault_array[:,-2]*fault_array[:,-1]
+                    area=fault_array[:,8]*fault_array[:,9]
                     
                     #get the moment in those selected faults
                     moment_on_selected=(area*mu*mean_slip).sum()
