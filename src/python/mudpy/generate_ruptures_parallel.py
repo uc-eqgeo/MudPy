@@ -290,13 +290,13 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 
                 avg_vrupt = np.mean(vrupt)
             else:
-                abg_vrupt = 0
+                avg_vrupt = 0
             
             #Write to file
             run_number=str(ncpus*realization+rank).rjust(6,'0')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
             #                             'No,   lon,    lat,  z(km),strike,   dip, rise,  dura,  ss(m),ds(m),ss_len(m),ds_len(m),rupt_time(s),rigidity(Pa)
-            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%.9e\t%.4e\t%.4e\t%10.2f\t%10.2f\t%.9e\t%.6e\t%.6e',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
+            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%.9e\t%.4e\t%.4e\t%10.2f\t%10.2f\t%.9e\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             # savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e',header='No,lon,lat,z(km),strike,dip,rise,dura,ss-slip(m),ds-slip(m),ss_len(m),ds_len(m),rupt_time(s),rigidity(Pa)')
 
             #Write log file
