@@ -367,7 +367,10 @@ if __name__ == '__main__':
         Lstrike=sys.argv[15]
         num_modes=int(sys.argv[16])
         Nrealizations=int(sys.argv[17])
-        rake=float(sys.argv[18])
+        if sys.argv[18].replace('.','1').isnumeric():
+            rake=float(sys.argv[18])
+        else:
+            rake=sys.argv[18]
         rise_time=sys.argv[19]
         rise_time_depths0=int(sys.argv[20])
         rise_time_depths1=int(sys.argv[21])
