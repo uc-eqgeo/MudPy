@@ -1073,9 +1073,9 @@ def get_stochastic_rake(rake,Nsamples,sigma_rake=10,max_variation=45):
     
     #make sure we don't exceed the limits
     i=where(stoc_rake>max_rake)[0]
-    stoc_rake[i]=max_rake
+    stoc_rake[i]=max_rake[i]
     i=where(stoc_rake<min_rake)[0]
-    stoc_rake[i]=min_rake
+    stoc_rake[i]=min_rake[i]
     
     return stoc_rake                                                                                                
    
@@ -1384,9 +1384,9 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 print('... ... working on rupture '+str(kfault)+' of '+str(Nrealizations))
             
             #Prepare output
-            fault_out=zeros((len(whole_fault),14))
+            fault_out=zeros((len(whole_fault),16))
             fault_out[:,0:8]=whole_fault[:,0:8]
-            fault_out[:,10:12]=whole_fault[:,8:]   
+            fault_out[:,10:12]=whole_fault[:,8:10]   
             
             # Define the subfault hypocenter (if hypocenter is prescribed)
             if hypocenter is None:
@@ -1518,8 +1518,13 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                     success=False
                     print('... ... ... max slip condition violated due to force_magnitude=True, recalculating...')
             
-            #Get stochastic rake vector
+            #Get stochastic rake vector if only one rake is given, else variable fault rakes
+            if isinstance(rake,(int,float)):
+                rake = zeros(len(slip))+rake
+            else:
+                rake = whole_fault[ifaults,10]
             stoc_rake=get_stochastic_rake(rake,len(slip))
+            fault_out[ifaults,15]=stoc_rake
             
             #Place slip values in output variable
             fault_out[ifaults,8]=slip*cos(deg2rad(stoc_rake))
@@ -1542,10 +1547,13 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             if force_hypocenter==False: #Use random hypo, otehrwise force hypo to user specified
                 hypocenter=whole_fault[hypo_fault,1:4]
             
-            t_onset, _=get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
-                                      rise_time_depths,M0,velmod,shear_wave_fraction)
+            t_onset,length2fault=get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
+                                                   rise_time_depths,M0,velmod,shear_wave_fraction)
             fault_out[:,12]=0
             fault_out[ifaults,12]=t_onset
+
+            fault_out[:,14]=0
+            fault_out[ifaults,14]=length2fault/t_onset
             
             #Calculate location of moment centroid
             centroid_lon,centroid_lat,centroid_z=get_centroid(fault_out)
@@ -1553,7 +1561,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             #Write to file
             run_number=str(realization).rjust(6,'0')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
-            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)')
+            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\tRake(deg)')
             
             #Write log file
             logfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.log'

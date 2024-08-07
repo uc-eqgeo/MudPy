@@ -88,9 +88,9 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 #print '... ... working on ruptures '+str(ncpus*realization+rank)+' of '+str(Nrealizations*size-1)
             
             #Prepare output
-            fault_out=zeros((len(whole_fault),15))
+            fault_out=zeros((len(whole_fault),16))
             fault_out[:,0:8]=whole_fault[:,0:8]
-            fault_out[:,10:12]=whole_fault[:,8:]   
+            fault_out[:,10:12]=whole_fault[:,8:10]   
             
             #Sucess criterion
             success=False
@@ -211,8 +211,13 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                     print('... ... ... max slip condition violated due to force_magnitude=True, recalculating...')
             
             
-            #Get stochastic rake vector
+            #Get stochastic rake vector if only one rake is given, else variable fault rakes
+            if isinstance(rake,(int,float)):
+                rake = zeros(len(slip))+rake
+            else:
+                rake = whole_fault[ifaults,10]
             stoc_rake=fakequakes.get_stochastic_rake(rake,len(slip))
+            fault_out[ifaults,15]=stoc_rake
             
             #Place slip values in output variable
             fault_out[ifaults,8]=slip*cos(deg2rad(stoc_rake))
@@ -287,7 +292,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             run_number=str(ncpus*realization+rank).rjust(6,'0')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
             #                             'No,   lon,    lat,  z(km),strike,   dip, rise,  dura,  ss(m),ds(m),ss_len(m),ds_len(m),rupt_time(s),rigidity(Pa)
-            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%.9e\t%.4e\t%.4e\t%10.2f\t%10.2f\t%.9e\t%.6e\t%.6e',header='No,lon,lat,z(km),strike,dip,rise,dura,ss-slip(m),ds-slip(m),ss_len(m),ds_len(m),rupt_time(s),rigidity(Pa),velocity(km/s)')
+            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%.9e\t%.4e\t%.4e\t%10.2f\t%10.2f\t%.9e\t%.6e\t%.6e',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             # savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e',header='No,lon,lat,z(km),strike,dip,rise,dura,ss-slip(m),ds-slip(m),ss_len(m),ds_len(m),rupt_time(s),rigidity(Pa)')
 
             #Write log file
