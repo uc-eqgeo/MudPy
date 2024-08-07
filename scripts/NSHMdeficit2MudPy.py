@@ -46,9 +46,9 @@ transformer = Transformer.from_crs("epsg:2193", "epsg:4326")
 strike, dip, rise, dura, ss_slip = 0, 0, 0, 0, 0
 with open(mean_slip_file, 'w') as fid:
     # Write Headers. Only column that is actually used are slips (and even then, 1 i set to zero)
-    fid.write('#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\n')
+    fid.write('#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel\n')
     for ix, cell in enumerate(cell_centers):
         lat, lon = transformer.transform(cell[1], cell[0])
         z = cell[2]
         deficit = slip_deficit['Slip Rate (mm/yr)'].loc[nearest_indices[ix]]
-        fid.write(f"{ix}\t{lon:.6f}\t{lat:.6f}\t{z:.6f}\t{strike}\t{dip}\t{rise}\t{dura}\t{ss_slip}\t{deficit:.6f}\n")
+        fid.write(f"{ix}\t{lon:.6f}\t{lat:.6f}\t{-z:.6f}\t{strike}\t{dip}\t{rise}\t{dura}\t{ss_slip}\t{deficit:.6f}\t0\t0\t0\n")
