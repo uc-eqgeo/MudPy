@@ -12,7 +12,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size):
+        max_slip_rule,rank,size,calculate_rupture_onset):
     
     '''
     Depending on user selected flags parse the work out to different functions
@@ -257,15 +257,16 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             else: #regular EQs, do nothing
                 pass
             
-            t_onset,length2fault=fakequakes.get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
-                                                              rise_time_depths, M0,velmod,
-                                                              shear_wave_fraction_shallow=shear_wave_fraction_shallow,
-                                                              shear_wave_fraction_deep=shear_wave_fraction_deep)
-            fault_out[:,12]=0
-            fault_out[ifaults,12]=t_onset
-            
-            fault_out[:,14]=0
-            fault_out[ifaults,14]=length2fault/t_onset
+            if calculate_rupture_onset==True:
+                t_onset,length2fault=fakequakes.get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
+                                                                rise_time_depths, M0,velmod,
+                                                                shear_wave_fraction_shallow=shear_wave_fraction_shallow,
+                                                                shear_wave_fraction_deep=shear_wave_fraction_deep)
+                fault_out[:,12]=0
+                fault_out[ifaults,12]=t_onset
+                
+                fault_out[:,14]=0
+                fault_out[ifaults,14]=length2fault/t_onset
             
             
             #Calculate location of moment centroid
@@ -280,13 +281,16 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             lat_array = fault_out[:,2]
             vrupt = []
             
-            for i in range(len(fault_array)):
-                if t_onset[i] > 0:
-                    # r = geopy.distance.geodesic((hypocenter[1], hypocenter[0]), (lat_array[i], lon_array[i])).km
-                    # vrupt.append(r/t_onset[i])
-                    vrupt.append(length2fault[i]/t_onset[i])
-            
-            avg_vrupt = np.mean(vrupt)
+            if calculate_rupture_onset==True:
+                for i in range(len(fault_array)):
+                    if t_onset[i] > 0:
+                        # r = geopy.distance.geodesic((hypocenter[1], hypocenter[0]), (lat_array[i], lon_array[i])).km
+                        # vrupt.append(r/t_onset[i])
+                        vrupt.append(length2fault[i]/t_onset[i])
+                
+                avg_vrupt = np.mean(vrupt)
+            else:
+                abg_vrupt = 0
             
             #Write to file
             run_number=str(ncpus*realization+rank).rjust(6,'0')
@@ -422,6 +426,11 @@ if __name__ == '__main__':
             max_slip_rule=True
         if max_slip_rule=='False':
             max_slip_rule=False
+        calculate_rupture_onset=sys.argv[40]
+        if calculate_rupture_onset=='True':
+            calculate_rupture_onset=True
+        if calculate_rupture_onset=='False':
+            calculate_rupture_onset=False
         
         run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
         load_distances,distances_name,UTM_zone,tMw,model_name,hurst,Ldip,Lstrike,
@@ -429,7 +438,7 @@ if __name__ == '__main__':
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size)
+        max_slip_rule,rank,size,calculate_rupture_onset)
     else:
         print("ERROR: You're not allowed to run "+sys.argv[1]+" from the shell or it does not exist")
         

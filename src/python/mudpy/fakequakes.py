@@ -1262,7 +1262,8 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
 		max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
 		force_magnitude=False,force_area=False,mean_slip_name=None,hypocenter=None,
 		slip_tol=1e-2,force_hypocenter=False,no_random=False,use_hypo_fraction=True,
-		shear_wave_fraction_shallow=0.49,shear_wave_fraction_deep=0.8,max_slip_rule=True):
+		shear_wave_fraction_shallow=0.49,shear_wave_fraction_deep=0.8,max_slip_rule=True,
+        calculate_rupture_onset=True):
     '''
     Set up rupture generation-- use ncpus if available
     '''
@@ -1288,7 +1289,8 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
     Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
     max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
     force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-    no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule)
+    no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
+    calculate_rupture_onset=calculate_rupture_onset)
 
 
 
@@ -1299,7 +1301,8 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule):
+        no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
+        calculate_rupture_onset=True):
     
     from numpy import ceil
     from os import environ
@@ -1324,13 +1327,14 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule)
+        no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule,
+        calculate_rupture_onset=calculate_rupture_onset)
     else:
         #Make mpi system call
         print("MPI: Starting " + str(Nrealizations_parallel*ncpus) + " FakeQuakes Rupture Generations on ", ncpus, "CPUs")
         mud_source=environ['MUD']+'/src/python/mudpy/'
 
-        mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name+' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time)+' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude)+' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule)
+        mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name+' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time)+' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude)+' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule)+' '+str(calculate_rupture_onset)
         mpi=split(mpi)
         p=subprocess.Popen(mpi)
         p.communicate()
@@ -1343,7 +1347,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,shypo,use_hypo_fraction,shear_wave_fraction,max_slip_rule):
+        no_random,shypo,use_hypo_fraction,shear_wave_fraction,max_slip_rule, calculate_rupture_onset=True):
     
     '''
     Depending on user selected flags parse the work out to different functions
@@ -1547,13 +1551,14 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             if force_hypocenter==False: #Use random hypo, otehrwise force hypo to user specified
                 hypocenter=whole_fault[hypo_fault,1:4]
             
-            t_onset,length2fault=get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
-                                                   rise_time_depths,M0,velmod,shear_wave_fraction)
-            fault_out[:,12]=0
-            fault_out[ifaults,12]=t_onset
+            if calculate_rupture_onset==True:
+                t_onset,length2fault=get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
+                                                    rise_time_depths,M0,velmod,shear_wave_fraction)
+                fault_out[:,12]=0
+                fault_out[ifaults,12]=t_onset
 
-            fault_out[:,14]=0
-            fault_out[ifaults,14]=length2fault/t_onset
+                fault_out[:,14]=0
+                fault_out[ifaults,14]=length2fault/t_onset
             
             #Calculate location of moment centroid
             centroid_lon,centroid_lat,centroid_z=get_centroid(fault_out)
