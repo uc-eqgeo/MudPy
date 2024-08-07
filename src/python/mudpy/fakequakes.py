@@ -1561,7 +1561,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             #Write to file
             run_number=str(realization).rjust(6,'0')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
-            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\tRake(deg)')
+            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             
             #Write log file
             logfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.log'

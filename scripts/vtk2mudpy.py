@@ -39,8 +39,8 @@ for ii in range(n_cells):
     p1, p2, p3 = vtk.cells[0].data[ii, :]
     cell_centers[ii, :] = np.mean(np.vstack([vtk.points[p1, :], vtk.points[p2, :], vtk.points[p3, :]]), axis=0)
 
-hikurangi_kd_tree = KDTree(cell_centers)
-_, nearest_indices = hikurangi_kd_tree.query(patch_centers)
+mesh_kd_tree = KDTree(cell_centers)
+_, nearest_indices = mesh_kd_tree.query(patch_centers)
 
 rakes = vtk.cell_data['rake'][0][nearest_indices]
 dips = [math.degrees(dip) for dip in vtk.cell_data['dip'][0][nearest_indices]]
@@ -49,15 +49,17 @@ strikes = vtk.cell_data['strike_direction'][0][nearest_indices, :2]
 ll = np.zeros((patch_centers.shape[0], 2))
 
 write = True
+
+out_file = f"C:\\Users\\jmc753\\Work\\MudPy\\examples\\fakequakes\\3D\\hikkerk3D_test\\data\\model_info\\{sub_type}.fault"
 if write:
-    with open(f'{mesh_folder}\\subduction_quads\\{sub_type}.fault', 'w')as fid:
-        fid.write('# No.  lon       lat          z    strike    dip    typ rt  length  width\n')
-        fid.write('#     (deg)      (deg)       (km)  (deg)    (deg)             (m)    (m)\n')
+    with open(out_file, 'w')as fid:
+        fid.write('# No.  lon       lat          z    strike    dip    typ rt  length  width   rake\n')
+        fid.write('#     (deg)      (deg)       (km)  (deg)    (deg)             (m)    (m)    (deg)\n')
         for ix, coords in enumerate(patch_centers):
             ulon, ulat, z = coords
             transformer = Transformer.from_crs("epsg:2193", "epsg:4326")
             lat, lon = transformer.transform(ulat, ulon)
-            fid.write(f"{ix + 1}\t{lon:.6f}\t{lat:.6f}\t{abs(z) / 1000:.3f}\t{vector_to_bearing(strikes[ix]):.2f}\t{dips[ix]:.2f}\t0.5\t1.0\t{length}\t{width}\n")
+            fid.write(f"{ix + 1}\t{lon:.6f}\t{lat:.6f}\t{abs(z) / 1000:.3f}\t{vector_to_bearing(strikes[ix]):.2f}\t{dips[ix]:.2f}\t0.5\t1.0\t{length}\t{width}\t{rakes[ix]:.2f}\n")
             if lon < 0:
                 lon += 360
             ll[ix, :] = np.array([lon, lat])
