@@ -50,7 +50,7 @@ G_name=run_name  #Name of G matrix for waveforms
 G_name_static=run_name+'_statics' #Name of G matrix for statics
 
 Nrealizations=10 # Number of fake ruptures to generate per magnitude bin
-target_Mw=np.arange(6.5,9.2,0.1) # Of what approximate magnitudes
+target_Mw=np.arange(9.0,9.2,0.1) # Of what approximate magnitudes
 max_slip=100 #Maximum sip (m) allowed in the model
 max_slip_rule=True #restrict max slip to 3 times Allen & Hayes 2017
 
@@ -88,7 +88,7 @@ high_stress_depth=30 # SMGA must be below this depth (measured in km)
 rake=90 # average rake
 rise_time = 'MH2017'
 rise_time_depths=[10,15] #Transition depths for rise time scaling (if slip shallower than first index, rise times are twice as long as calculated)
-mean_slip_name=None  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
+mean_slip_name=home+project_name+'model_info\\'+'slip_deficit_trenchlock.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 shear_wave_fraction=0.8
 
 #Enforcement of rules on area scaling and hypo location
