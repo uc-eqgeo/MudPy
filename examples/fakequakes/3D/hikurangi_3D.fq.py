@@ -74,6 +74,7 @@ fcorner=1.0
 hurst=0.4 # Melgar and Hayes 2019 found Hurst exponent is probably closer to 0.4
 Ldip='auto' # Correlation length scaling, 'auto' uses Melgar & Hayes 2019
 Lstrike='auto' # MB2002 uses Mai & Beroza 2002
+NZNSHM_scaling = True # Enforce New Zealand NSHM scaling law of Mw = log10(area) + 4.0
 lognormal=True # Keep this as true
 slip_standard_deviation=0.46 # Value from Melgar & Hayes 2019
 
@@ -89,7 +90,6 @@ rake='vary' # average rake, or 'vary' for variable rake based off fault model
 rise_time = 'MH2017'
 rise_time_depths=[10,15] #Transition depths for rise time scaling (if slip shallower than first index, rise times are twice as long as calculated)
 mean_slip_name=home+project_name+'/data/model_info/'+'slip_deficit_trenchlock.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
-mean_slip_name=None
 shear_wave_fraction=0.8
 calculate_rupture_onset=False # Calcualte rupture onset times. Slow, and useful for some applications, but not really for just generating ruptures
 
@@ -116,7 +116,7 @@ if make_ruptures==1:
             force_magnitude=force_magnitude,force_area=force_area,hypocenter=hypocenter,
             force_hypocenter=force_hypocenter,
             max_slip_rule=max_slip_rule,use_hypo_fraction=use_hypo_fraction, 
-            calculate_rupture_onset=calculate_rupture_onset)
+            calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling)
 #           shear_wave_fraction=shear_wave_fraction,
 
                 
