@@ -12,7 +12,7 @@ from obspy.core import UTCDateTime
 ########                            GLOBALS                             ########
 home='C:/Users/jmc753/Work/MudPy/examples/fakequakes/3D/'
 project_name='hikkerk3D_test'
-run_name='hikkerk3D_testing'
+run_name='hikkerk3D_scaling_tests'
 ################################################################################
 
 
@@ -49,8 +49,8 @@ GF_list='hikkerk_gnss.gflist'
 G_name=run_name  #Name of G matrix for waveforms
 G_name_static=run_name+'_statics' #Name of G matrix for statics
 
-Nrealizations=3 # Number of fake ruptures to generate per magnitude bin
-target_Mw=np.arange(9.0,9.3,0.1) # Of what approximate magnitudes
+Nrealizations=1 # Number of fake ruptures to generate per magnitude bin
+target_Mw=np.arange(7.8,9.3,0.1) # Of what approximate magnitudes
 max_slip=100 #Maximum sip (m) allowed in the model
 max_slip_rule=True #restrict max slip to 3 times Allen & Hayes 2017
 
@@ -89,6 +89,7 @@ rake='vary' # average rake, or 'vary' for variable rake based off fault model
 rise_time = 'MH2017'
 rise_time_depths=[10,15] #Transition depths for rise time scaling (if slip shallower than first index, rise times are twice as long as calculated)
 mean_slip_name=home+project_name+'/data/model_info/'+'slip_deficit_trenchlock.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
+mean_slip_name=None
 shear_wave_fraction=0.8
 calculate_rupture_onset=False # Calcualte rupture onset times. Slow, and useful for some applications, but not really for just generating ruptures
 

@@ -519,7 +519,7 @@ def rectify_slip(slip_unrectified,percent_reject=10):
 
 def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     force_area,no_shallow_epi=True,hypo_depth=10,param_norm=(0.0451,0.1681),no_random=False,
-    subfault_hypocenter=None,use_hypo_fraction=True,option=0):
+    subfault_hypocenter=None,use_hypo_fraction=True,option=0, NZNSHM_scaling=True):
     '''
     Select a random fault to be the hypocenter then based on scaling laws and a 
     target magnitude select only faults within the expected area plus some 
@@ -625,7 +625,13 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
                       a=length*width
                       width=60+10**normal(0,width_std)
                       length=a/width
-        
+
+    if NZNSHM_scaling==True:
+        total_area = length*width
+        target_area = 10**(target_Mw - 4.0)
+        area_scaling = (target_area/total_area)**0.5
+        length *= area_scaling
+        width *= area_scaling
     # #so which subfault ended up being the middle?
     # center_subfault=hypo_fault  # I'm not sure why this is getting defined here?
         
@@ -1263,7 +1269,7 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
 		force_magnitude=False,force_area=False,mean_slip_name=None,hypocenter=None,
 		slip_tol=1e-2,force_hypocenter=False,no_random=False,use_hypo_fraction=True,
 		shear_wave_fraction_shallow=0.49,shear_wave_fraction_deep=0.8,max_slip_rule=True,
-        calculate_rupture_onset=True):
+        calculate_rupture_onset=True, NZNSHM_scaling=False):
     '''
     Set up rupture generation-- use ncpus if available
     '''
@@ -1290,7 +1296,7 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
     max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
     force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
     no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
-    calculate_rupture_onset=calculate_rupture_onset)
+    calculate_rupture_onset=calculate_rupture_onset,NZNSHM_scaling=NZNSHM_scaling)
 
 
 
@@ -1302,7 +1308,7 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
-        calculate_rupture_onset=True):
+        calculate_rupture_onset=True, NZNSHM_scaling=False):
     
     from numpy import ceil
     from os import environ
@@ -1328,13 +1334,13 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule,
-        calculate_rupture_onset=calculate_rupture_onset)
+        calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scalin=NZNSHM_scaling)
     else:
         #Make mpi system call
         print("MPI: Starting " + str(Nrealizations_parallel*ncpus) + " FakeQuakes Rupture Generations on ", ncpus, "CPUs")
         mud_source=environ['MUD']+'/src/python/mudpy/'
 
-        mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name+' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time)+' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude)+' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule)+' '+str(calculate_rupture_onset)
+        mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name+' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time)+' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude)+' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule)+' '+str(calculate_rupture_onset)+' '+str(NZNSHM_scaling)
         mpi=split(mpi)
         p=subprocess.Popen(mpi)
         p.communicate()
@@ -1347,7 +1353,8 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,shypo,use_hypo_fraction,shear_wave_fraction,max_slip_rule, calculate_rupture_onset=True):
+        no_random,shypo,use_hypo_fraction,shear_wave_fraction,max_slip_rule, calculate_rupture_onset=True,
+        NZNSHM_scaling=False):
     
     '''
     Depending on user selected flags parse the work out to different functions
@@ -1410,7 +1417,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 current_target_Mw=target_Mw[kmag]
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff, _, _, _=select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,
                             num_modes,scaling_law,force_area,no_shallow_epi=False,
-                            no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction)
+                            no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction, NZNSHM_scaling=NZNSHM_scaling)
                 
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]

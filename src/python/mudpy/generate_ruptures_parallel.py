@@ -12,7 +12,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size,calculate_rupture_onset):
+        max_slip_rule,rank,size,calculate_rupture_onset, NZNSHM_scaling):
     
     '''
     Depending on user selected flags parse the work out to different functions
@@ -98,7 +98,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 #Select only a subset of the faults based on magnitude scaling
                 current_target_Mw=target_Mw[kmag]
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff,option,Lmean,Wmean=fakequakes.select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,num_modes,scaling_law,
-                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction)
+                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction, NZNSHM_scaling=NZNSHM_scaling)
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]
                 Ddip_selected=Ddip[ifaults,:][:,ifaults]
@@ -434,6 +434,11 @@ if __name__ == '__main__':
             calculate_rupture_onset=True
         if calculate_rupture_onset=='False':
             calculate_rupture_onset=False
+        NZNSHM_scaling=sys.argv[41]
+        if NZNSHM_scaling=='True':
+            NZNSHM_scaling=True
+        if NZNSHM_scaling=='False':
+            NZNSHM_scaling=False
         
         run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
         load_distances,distances_name,UTM_zone,tMw,model_name,hurst,Ldip,Lstrike,
@@ -441,7 +446,7 @@ if __name__ == '__main__':
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size,calculate_rupture_onset)
+        max_slip_rule,rank,size,calculate_rupture_onset,NZNSHM_scaling)
     else:
         print("ERROR: You're not allowed to run "+sys.argv[1]+" from the shell or it does not exist")
         
