@@ -12,7 +12,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size):
+        max_slip_rule,rank,size,calculate_rupture_onset, NZNSHM_scaling):
     
     '''
     Depending on user selected flags parse the work out to different functions
@@ -88,9 +88,9 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 #print '... ... working on ruptures '+str(ncpus*realization+rank)+' of '+str(Nrealizations*size-1)
             
             #Prepare output
-            fault_out=zeros((len(whole_fault),15))
+            fault_out=zeros((len(whole_fault),16))
             fault_out[:,0:8]=whole_fault[:,0:8]
-            fault_out[:,10:12]=whole_fault[:,8:]   
+            fault_out[:,10:12]=whole_fault[:,8:10]   
             
             #Sucess criterion
             success=False
@@ -98,7 +98,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 #Select only a subset of the faults based on magnitude scaling
                 current_target_Mw=target_Mw[kmag]
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff,option,Lmean,Wmean=fakequakes.select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,num_modes,scaling_law,
-                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction)
+                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction, NZNSHM_scaling=NZNSHM_scaling)
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]
                 Ddip_selected=Ddip[ifaults,:][:,ifaults]
@@ -131,7 +131,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                     mean_slip=mean_slip[ifaults]
                     
                     #get the area in those selected faults
-                    area=fault_array[:,-2]*fault_array[:,-1]
+                    area=fault_array[:,8]*fault_array[:,9]
                     
                     #get the moment in those selected faults
                     moment_on_selected=(area*mu*mean_slip).sum()
@@ -211,8 +211,13 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                     print('... ... ... max slip condition violated due to force_magnitude=True, recalculating...')
             
             
-            #Get stochastic rake vector
+            #Get stochastic rake vector if only one rake is given, else variable fault rakes
+            if isinstance(rake,(int,float)):
+                rake = zeros(len(slip))+rake
+            else:
+                rake = whole_fault[ifaults,10]
             stoc_rake=fakequakes.get_stochastic_rake(rake,len(slip))
+            fault_out[ifaults,15]=stoc_rake
             
             #Place slip values in output variable
             fault_out[ifaults,8]=slip*cos(deg2rad(stoc_rake))
@@ -252,15 +257,16 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             else: #regular EQs, do nothing
                 pass
             
-            t_onset,length2fault=fakequakes.get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
-                                                              rise_time_depths, M0,velmod,
-                                                              shear_wave_fraction_shallow=shear_wave_fraction_shallow,
-                                                              shear_wave_fraction_deep=shear_wave_fraction_deep)
-            fault_out[:,12]=0
-            fault_out[ifaults,12]=t_onset
-            
-            fault_out[:,14]=0
-            fault_out[ifaults,14]=length2fault/t_onset
+            if calculate_rupture_onset==True:
+                t_onset,length2fault=fakequakes.get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
+                                                                rise_time_depths, M0,velmod,
+                                                                shear_wave_fraction_shallow=shear_wave_fraction_shallow,
+                                                                shear_wave_fraction_deep=shear_wave_fraction_deep)
+                fault_out[:,12]=0
+                fault_out[ifaults,12]=t_onset
+                
+                fault_out[:,14]=0
+                fault_out[ifaults,14]=length2fault/t_onset
             
             
             #Calculate location of moment centroid
@@ -275,19 +281,22 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             lat_array = fault_out[:,2]
             vrupt = []
             
-            for i in range(len(fault_array)):
-                if t_onset[i] > 0:
-                    # r = geopy.distance.geodesic((hypocenter[1], hypocenter[0]), (lat_array[i], lon_array[i])).km
-                    # vrupt.append(r/t_onset[i])
-                    vrupt.append(length2fault[i]/t_onset[i])
-            
-            avg_vrupt = np.mean(vrupt)
+            if calculate_rupture_onset==True:
+                for i in range(len(fault_array)):
+                    if t_onset[i] > 0:
+                        # r = geopy.distance.geodesic((hypocenter[1], hypocenter[0]), (lat_array[i], lon_array[i])).km
+                        # vrupt.append(r/t_onset[i])
+                        vrupt.append(length2fault[i]/t_onset[i])
+                
+                avg_vrupt = np.mean(vrupt)
+            else:
+                avg_vrupt = 0
             
             #Write to file
             run_number=str(ncpus*realization+rank).rjust(6,'0')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
             #                             'No,   lon,    lat,  z(km),strike,   dip, rise,  dura,  ss(m),ds(m),ss_len(m),ds_len(m),rupt_time(s),rigidity(Pa)
-            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%.9e\t%.4e\t%.4e\t%10.2f\t%10.2f\t%.9e\t%.6e\t%.6e',header='No,lon,lat,z(km),strike,dip,rise,dura,ss-slip(m),ds-slip(m),ss_len(m),ds_len(m),rupt_time(s),rigidity(Pa),velocity(km/s)')
+            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%.9e\t%.4e\t%.4e\t%10.2f\t%10.2f\t%.9e\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             # savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e',header='No,lon,lat,z(km),strike,dip,rise,dura,ss-slip(m),ds-slip(m),ss_len(m),ds_len(m),rupt_time(s),rigidity(Pa)')
 
             #Write log file
@@ -358,7 +367,10 @@ if __name__ == '__main__':
         Lstrike=sys.argv[15]
         num_modes=int(sys.argv[16])
         Nrealizations=int(sys.argv[17])
-        rake=float(sys.argv[18])
+        if sys.argv[18].replace('.','1').isnumeric():
+            rake=float(sys.argv[18])
+        else:
+            rake=sys.argv[18]
         rise_time=sys.argv[19]
         rise_time_depths0=int(sys.argv[20])
         rise_time_depths1=int(sys.argv[21])
@@ -417,6 +429,16 @@ if __name__ == '__main__':
             max_slip_rule=True
         if max_slip_rule=='False':
             max_slip_rule=False
+        calculate_rupture_onset=sys.argv[40]
+        if calculate_rupture_onset=='True':
+            calculate_rupture_onset=True
+        if calculate_rupture_onset=='False':
+            calculate_rupture_onset=False
+        NZNSHM_scaling=sys.argv[41]
+        if NZNSHM_scaling=='True':
+            NZNSHM_scaling=True
+        if NZNSHM_scaling=='False':
+            NZNSHM_scaling=False
         
         run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
         load_distances,distances_name,UTM_zone,tMw,model_name,hurst,Ldip,Lstrike,
@@ -424,7 +446,7 @@ if __name__ == '__main__':
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size)
+        max_slip_rule,rank,size,calculate_rupture_onset,NZNSHM_scaling)
     else:
         print("ERROR: You're not allowed to run "+sys.argv[1]+" from the shell or it does not exist")
         
