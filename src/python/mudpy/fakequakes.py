@@ -1334,7 +1334,7 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule,
-        calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scalin=NZNSHM_scaling)
+        calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling)
     else:
         #Make mpi system call
         print("MPI: Starting " + str(Nrealizations_parallel*ncpus) + " FakeQuakes Rupture Generations on ", ncpus, "CPUs")
