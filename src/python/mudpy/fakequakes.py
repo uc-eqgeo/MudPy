@@ -1360,7 +1360,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
     Depending on user selected flags parse the work out to different functions
     '''
     
-    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin
+    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin, hstack
     from time import gmtime, strftime
     from obspy.taup import TauPyModel
 
@@ -1575,7 +1575,10 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
             save_mem = True
             if save_mem:
-                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%.2f',header='No\tlon\tlat\tz(km)\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trake(deg)')
+                slip = ((fault_out[:,8] ** 2 + fault_out[:,9] ** 2) ** 0.5).reshape(fault_out.shape[0], 1)
+                fault_out = fault_out[:,[0,1,2,3,15]]
+                fault_out = hstack([fault_out, slip])
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.2f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)\t')
             else:
                 savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             
