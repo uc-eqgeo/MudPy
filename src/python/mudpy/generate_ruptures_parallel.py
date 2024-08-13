@@ -18,7 +18,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
     Depending on user selected flags parse the work out to different functions
     '''
     
-    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin
+    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin,hstack
     from time import gmtime, strftime
     from numpy.random import shuffle
     from mudpy import fakequakes
@@ -293,12 +293,17 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 avg_vrupt = 0
             
             #Write to file
-            run_number=str(ncpus*realization+rank).rjust(6,'0')
+            run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(kfault).rjust(6,'0')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
-            #                             'No,   lon,    lat,  z(km),strike,   dip, rise,  dura,  ss(m),ds(m),ss_len(m),ds_len(m),rupt_time(s),rigidity(Pa)
-            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%.9e\t%.4e\t%.4e\t%10.2f\t%10.2f\t%.9e\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
-            # savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e',header='No,lon,lat,z(km),strike,dip,rise,dura,ss-slip(m),ds-slip(m),ss_len(m),ds_len(m),rupt_time(s),rigidity(Pa)')
-
+            save_mem = True
+            if save_mem:
+                slip = ((fault_out[:,8] ** 2 + fault_out[:,9] ** 2) ** 0.5).reshape(fault_out.shape[0], 1)
+                fault_out = fault_out[:,[0,1,2,3,15]]
+                fault_out = hstack([fault_out, slip])
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.2f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)\t')
+            else:
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
+            
             #Write log file
             logfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.log'
             f=open(logfile,'w')
@@ -306,6 +311,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             f.write('Project name: '+project_name+'\n')
             f.write('Run name: '+run_name+'\n')
             f.write('Run number: '+run_number+'\n')
+            f.write('Realization: '+str(realization).rjust(6,'0')+'\n')
             f.write('Velocity model: '+model_name+'\n')
             f.write('No. of KL modes: '+str(num_modes)+'\n')
             f.write('Hurst exponent: '+str(hurst)+'\n')
