@@ -629,7 +629,7 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     if NZNSHM_scaling==True:
         total_area = length*width
         target_area = 10**(target_Mw - 4.0)
-        area_scaling = (target_area/total_area)**0.5
+        area_scaling = (target_area / total_area)**0.5
         length *= area_scaling
         width *= area_scaling
     # #so which subfault ended up being the middle?
@@ -1571,9 +1571,13 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             centroid_lon,centroid_lat,centroid_z=get_centroid(fault_out)
             
             #Write to file
-            run_number=str(realization).rjust(6,'0')
+            run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(kfault).rjust(6,'0')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
-            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
+            save_mem = True
+            if save_mem:
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%.2f',header='No\tlon\tlat\tz(km)\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trake(deg)')
+            else:
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             
             #Write log file
             logfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.log'
@@ -1582,6 +1586,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             f.write('Project name: '+project_name+'\n')
             f.write('Run name: '+run_name+'\n')
             f.write('Run number: '+run_number+'\n')
+            f.write('Realization: '+str(realization).rjust(6,'0')+'\n')
             f.write('Velocity model: '+model_name+'\n')
             f.write('No. of KL modes: '+str(num_modes)+'\n')
             f.write('Hurst exponent: '+str(hurst)+'\n')
@@ -1592,8 +1597,8 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             f.write('Maximum width Wmax: %.2f km\n' % Wmax)
             f.write('Effective length Leff: %.2f km\n' % Leff)
             f.write('Effective width Weff: %.2f km\n' % Weff)
-            f.write('Target magnitude: Mw %.4f\n' % target_Mw[kmag])
-            f.write('Actual magnitude: Mw %.4f\n' % Mw)
+            f.write('Target magnitude: Mw %.6f\n' % target_Mw[kmag])
+            f.write('Actual magnitude: Mw %.6f\n' % Mw)
             f.write('Hypocenter (lon,lat,z[km]): (%.6f,%.6f,%.2f)\n' %(hypocenter[0],hypocenter[1],hypocenter[2]))
             f.write('Hypocenter time: %s\n' % time_epi)
             f.write('Centroid (lon,lat,z[km]): (%.6f,%.6f,%.2f)\n' %(centroid_lon,centroid_lat,centroid_z))
