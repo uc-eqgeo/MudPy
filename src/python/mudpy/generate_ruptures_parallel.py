@@ -26,6 +26,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
     from obspy.taup import TauPyModel
     import geopy.distance
     import warnings
+    import os
 
     #I don't condone it but this cleans up the warnings
     warnings.filterwarnings("ignore")
@@ -83,6 +84,12 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         if rank==0:
             print('... Calculating ruptures for target magnitude Mw = '+str(target_Mw[kmag]))
         for kfault in range(Nrealizations):
+            run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(Nrealizations * rank + kfault).rjust(6,'0')
+            outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
+            no_overwriting = True
+            if os.path.exists(outfile) and no_overwriting:  # Skip premade files
+                realization += 1
+                continue
             if kfault%1==0 and rank==0:
                 print('... ... working on ruptures '+str(ncpus*realization)+' to ' + str(ncpus*(realization+1)-1) + ' of '+str(Nrealizations*size*len(target_Mw)))
                 #print '... ... working on ruptures '+str(ncpus*realization+rank)+' of '+str(Nrealizations*size-1)
@@ -300,7 +307,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 slip = ((fault_out[:,8] ** 2 + fault_out[:,9] ** 2) ** 0.5).reshape(fault_out.shape[0], 1)
                 fault_out = fault_out[:,[0,1,2,3,15]]
                 fault_out = hstack([fault_out, slip])
-                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.2f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)\t')
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.2f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)')
             else:
                 savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             
