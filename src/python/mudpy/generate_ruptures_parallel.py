@@ -293,7 +293,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 avg_vrupt = 0
             
             #Write to file
-            run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(kfault).rjust(6,'0')
+            run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(Nrealizations * rank + kfault).rjust(6,'0')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
             save_mem = True
             if save_mem:
@@ -311,7 +311,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             f.write('Project name: '+project_name+'\n')
             f.write('Run name: '+run_name+'\n')
             f.write('Run number: '+run_number+'\n')
-            f.write('Realization: '+str(realization).rjust(6,'0')+'\n')
+            f.write('Realization: '+str(ncpus*realization+rank).rjust(6,'0')+'\n')
             f.write('Velocity model: '+model_name+'\n')
             f.write('No. of KL modes: '+str(num_modes)+'\n')
             f.write('Hurst exponent: '+str(hurst)+'\n')
