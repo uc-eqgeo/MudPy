@@ -10,14 +10,14 @@ mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 mesh_name = 'hik_kerk3k_with_rake.vtk'
 
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
-#vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
+vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
 rupture_dir = 'C:\\Users\\jmc753\\Work\\MudPy\\examples\\fakequakes\\3D\\hikkerk3D_test\\output\\ruptures'
 
-rupture_list = glob(f'{rupture_dir}\\*.rupt')
+rupture_list = glob(f'{rupture_dir}\\*1184.inv')
 
 # Create interpolation object for mapping ruptures to the mesh
 transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
-for rupture_file in rupture_list:
+for rupture_file in rupture_list[::-1]:
     rupture = np.loadtxt(rupture_file)
 
     patch_coords = np.zeros_like(rupture[:, :4])
@@ -50,7 +50,8 @@ for rupture_file in rupture_list:
 
     rupture_mesh = meshio.Mesh(points=points, cells=[(element, cells)], cell_data={'ss': [ss], 'ds': [ds], 'total': [total]})
 
-    rupture_mesh.write(f'{rupture_file[:-5]}{suffix}.vtk', file_format="vtk")
-    print(f'Written {rupture_file[:-5]}{suffix}.vtk')
+    outfile = f"{rupture_file.replace('scaling.', 'scaling+').split('.')[0].replace('scaling+', 'scaling.')}{suffix}.vtk"
+    rupture_mesh.write(outfile, file_format="vtk")
+    print(f"Written {outfile}")
 
 print('Complete :)')
