@@ -11,8 +11,10 @@ from obspy.core import UTCDateTime
 
 ########                            GLOBALS                             ########
 home='C:/Users/jmc753/Work/MudPy/examples/fakequakes/3D/'
-project_name='hikkerk3D_test'
-run_name='hikkerk3D_scaling_tests'
+home='Z:/McGrath/HikurangiFakeQuakes/'
+project_name='hikkerk3D' # Directory name
+run_name='hikkerk3D' # Name for this run
+run_base_name='hikkerk3D'
 ################################################################################
 
 
@@ -32,7 +34,7 @@ G_from_file=0
 
 
 #############                 Run-time parameters            ##################
-ncpus=1
+ncpus=10
 hot_start=0
 model_name='hikkerk.mod'   # Velocity model
 moho_depth_in_km=25.0
@@ -49,8 +51,8 @@ GF_list='hikkerk_gnss.gflist'
 G_name=run_name  #Name of G matrix for waveforms
 G_name_static=run_name+'_statics' #Name of G matrix for statics
 
-Nrealizations=1 # Number of fake ruptures to generate per magnitude bin
-target_Mw=np.arange(7.8,9.3,0.1) # Of what approximate magnitudes
+Nrealizations=100 # Number of fake ruptures to generate per magnitude bin
+target_Mw=np.round(np.arange(6.5,9.5,0.01),4) # Of what approximate magnitudes
 max_slip=100 #Maximum sip (m) allowed in the model
 max_slip_rule=True #restrict max slip to 3 times Allen & Hayes 2017
 
@@ -90,6 +92,7 @@ rake='vary' # average rake, or 'vary' for variable rake based off fault model
 rise_time = 'MH2017'
 rise_time_depths=[10,15] #Transition depths for rise time scaling (if slip shallower than first index, rise times are twice as long as calculated)
 mean_slip_name=home+project_name+'/data/model_info/'+'slip_deficit_trenchlock.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
+#mean_slip_name=None
 shear_wave_fraction=0.8
 calculate_rupture_onset=False # Calcualte rupture onset times. Slow, and useful for some applications, but not really for just generating ruptures
 
@@ -107,17 +110,30 @@ if init==1:
     fakequakes.init(home,project_name)
     
 #Generate rupture models
-if make_ruptures==1: 
-    fakequakes.generate_ruptures(home,project_name,run_name,fault_name,slab_name,
-            mesh_name,load_distances,distances_name,UTM_zone,target_Mw,model_name,
-            hurst,Ldip,Lstrike,num_modes,Nrealizations,rake,rise_time,
-            rise_time_depths,time_epi,max_slip,source_time_function,lognormal,
-            slip_standard_deviation,scaling_law,ncpus,mean_slip_name=mean_slip_name,
-            force_magnitude=force_magnitude,force_area=force_area,hypocenter=hypocenter,
-            force_hypocenter=force_hypocenter,
-            max_slip_rule=max_slip_rule,use_hypo_fraction=use_hypo_fraction, 
-            calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling)
-#           shear_wave_fraction=shear_wave_fraction,
+if make_ruptures==1:
+    mean_slip_name_list = [mean_slip_name]
+    NZNSHM_scaling_list = [True]
+    for mean_slip_name in mean_slip_name_list:
+        for NZNSHM_scaling in NZNSHM_scaling_list:
+            if mean_slip_name is None:
+                tag = '_nolocking'
+            else:
+                tag = '_locking'
+            if NZNSHM_scaling:
+                tag += '_NZNSHMscaling'
+            else:
+                tag += '_noNZNSHMscaling'
+            run_name = run_base_name + tag
+            fakequakes.generate_ruptures(home,project_name,run_name,fault_name,slab_name,
+                    mesh_name,load_distances,distances_name,UTM_zone,target_Mw,model_name,
+                    hurst,Ldip,Lstrike,num_modes,Nrealizations,rake,rise_time,
+                    rise_time_depths,time_epi,max_slip,source_time_function,lognormal,
+                    slip_standard_deviation,scaling_law,ncpus,mean_slip_name=mean_slip_name,
+                    force_magnitude=force_magnitude,force_area=force_area,hypocenter=hypocenter,
+                    force_hypocenter=force_hypocenter,
+                    max_slip_rule=max_slip_rule,use_hypo_fraction=use_hypo_fraction, 
+                    calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling)
+        #           shear_wave_fraction=shear_wave_fraction,
 
                 
 # Prepare waveforms and synthetics       

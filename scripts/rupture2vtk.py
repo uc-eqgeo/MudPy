@@ -3,6 +3,7 @@ import meshio
 from pyproj import Transformer
 from scipy.spatial import KDTree
 from glob import glob
+import os
 
 
 mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
@@ -12,12 +13,15 @@ mesh_name = 'hik_kerk3k_with_rake.vtk'
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
 rupture_dir = 'C:\\Users\\jmc753\\Work\\MudPy\\examples\\fakequakes\\3D\\hikkerk3D_test\\output\\ruptures'
+rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures"
 
-rupture_list = glob(f'{rupture_dir}\\*1184.inv')
+n_ruptures = 1333
+rupture_list = glob(f'{rupture_dir}\\..\\n{n_ruptures}*.inv')
 
 # Create interpolation object for mapping ruptures to the mesh
 transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
 for rupture_file in rupture_list[::-1]:
+    rupture_file = os.path.abspath(rupture_file)
     rupture = np.loadtxt(rupture_file)
 
     patch_coords = np.zeros_like(rupture[:, :4])

@@ -87,7 +87,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(Nrealizations * rank + kfault).rjust(6,'0')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
             no_overwriting = True
-            if os.path.exists(outfile) and no_overwriting:  # Skip premade files
+            if os.path.exists(outfile) and os.path.exists(outfile.replace('.rupt', '.log')) and no_overwriting:  # Skip premade files
                 realization += 1
                 continue
             if kfault%1==0 and rank==0:
