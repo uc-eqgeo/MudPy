@@ -519,22 +519,23 @@ def rectify_slip(slip_unrectified,percent_reject=10):
 
 def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     force_area,no_shallow_epi=True,hypo_depth=10,param_norm=(0.0451,0.1681),no_random=False,
-    subfault_hypocenter=None,use_hypo_fraction=True,option=0):
+    subfault_hypocenter=None,use_hypo_fraction=True,option=0,patch_coupling=None):
     '''
     Select a random fault to be the hypocenter then based on scaling laws and a 
     target magnitude select only faults within the expected area plus some 
     buffer factor
     '''
     
-    from numpy.random import randint,normal
-    from numpy import array,where,argmin,arange,log10
+    from numpy.random import randint,normal,choice
+    from numpy import array,where,argmin,arange,log10,sqrt
     from scipy.stats import norm,expon
     from random import choice
     
     
     #Select random subfault as center of the locus of L and W
-    if subfault_hypocenter is None: 
-        hypo_fault=randint(0,len(whole_fault)-1)
+    if subfault_hypocenter is None:
+        # Weight choice of subfault by coupling coefficient
+        hypo_fault=choice(arange(len(whole_fault)), p=0.1 + sqrt(patch_coupling) * 0.9)
     else: #get subfault closest to hypo
         hypo_fault=subfault_hypocenter
     
@@ -1262,7 +1263,8 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
 		max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
 		force_magnitude=False,force_area=False,mean_slip_name=None,hypocenter=None,
 		slip_tol=1e-2,force_hypocenter=False,no_random=False,use_hypo_fraction=True,
-		shear_wave_fraction_shallow=0.49,shear_wave_fraction_deep=0.8,max_slip_rule=True):
+		shear_wave_fraction_shallow=0.49,shear_wave_fraction_deep=0.8,max_slip_rule=True,
+        nucleate_on_coupling=False):
     '''
     Set up rupture generation-- use ncpus if available
     '''
@@ -1288,7 +1290,8 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
     Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
     max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
     force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-    no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule)
+    no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
+    nucleate_on_coupling)
 
 
 
@@ -1299,7 +1302,8 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule):
+        no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
+        nucleate_on_coupling):
     
     from numpy import ceil
     from os import environ
@@ -1324,13 +1328,18 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule)
+        no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule,
+        nucleate_on_coupling)
     else:
         #Make mpi system call
         print("MPI: Starting " + str(Nrealizations_parallel*ncpus) + " FakeQuakes Rupture Generations on ", ncpus, "CPUs")
         mud_source=environ['MUD']+'/src/python/mudpy/'
 
-        mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name+' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time)+' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude)+' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule)
+        mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name \
+            +' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time) \
+            +' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude) \
+            +' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule) \
+            +' '+str(nucleate_on_coupling)
         mpi=split(mpi)
         p=subprocess.Popen(mpi)
         p.communicate()
@@ -1343,13 +1352,14 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,shypo,use_hypo_fraction,shear_wave_fraction,max_slip_rule):
+        no_random,shypo,use_hypo_fraction,shear_wave_fraction,max_slip_rule,
+        nucleate_on_coupling):
     
     '''
     Depending on user selected flags parse the work out to different functions
     '''
     
-    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin
+    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin,ones
     from time import gmtime, strftime
     from obspy.taup import TauPyModel
 
@@ -1398,6 +1408,19 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 # Re-define hypocenter as the coordinates of the hypocenter subfault in
                 # case the original hypocenter did not perfectly align with a subfault
                 hypocenter = whole_fault[shypo,1:4]
+            
+            if nucleate_on_coupling:
+                mean_fault=genfromtxt(mean_slip_name)
+                try:
+                    with open(mean_slip_name, 'r') as f:
+                        coupling_ix = f.readline().strip('\n').split('\t').index('coupling')
+                    patch_coupling = mean_fault[:,coupling_ix]
+                except ValueError:
+                    raise ValueError(f'No coupling column found in {mean_slip_name} file')
+                if max(patch_coupling) > 1:
+                    raise ValueError('Should not have coupling values greater than 1')
+            else:
+                patch_coupling = ones(len(whole_fault[:,1]))
 
             #Sucess criterion
             success=False
@@ -1406,7 +1429,8 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 current_target_Mw=target_Mw[kmag]
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff, _, _, _=select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,
                             num_modes,scaling_law,force_area,no_shallow_epi=False,
-                            no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction)
+                            no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,
+                            patch_coupling=patch_coupling)
                 
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]

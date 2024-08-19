@@ -12,13 +12,13 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size):
+        max_slip_rule,rank,size,nucleate_on_coupling):
     
     '''
     Depending on user selected flags parse the work out to different functions
     '''
     
-    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin
+    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin,ones
     from time import gmtime, strftime
     from numpy.random import shuffle
     from mudpy import fakequakes
@@ -74,6 +74,18 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         # case the original hypocenter did not perfectly align with a subfault
         hypocenter = whole_fault[shypo,1:4]
     
+    if nucleate_on_coupling:
+        mean_fault=genfromtxt(mean_slip_name)
+        try:
+            with open(mean_slip_name, 'r') as f:
+                coupling_ix = f.readline().strip('\n').split('\t').index('coupling')
+            patch_coupling = mean_fault[:,coupling_ix]
+        except ValueError:
+            raise ValueError(f'No coupling column found in {mean_slip_name} file')
+        if max(patch_coupling) > 1:
+            raise ValueError('Should not have coupling values greater than 1')
+    else:
+        patch_coupling = ones(len(whole_fault[:,1]))
 
     #Now loop over the number of realizations
     realization=0
@@ -98,7 +110,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 #Select only a subset of the faults based on magnitude scaling
                 current_target_Mw=target_Mw[kmag]
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff,option,Lmean,Wmean=fakequakes.select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,num_modes,scaling_law,
-                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction)
+                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,patch_coupling=patch_coupling)
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]
                 Ddip_selected=Ddip[ifaults,:][:,ifaults]
@@ -417,6 +429,7 @@ if __name__ == '__main__':
             max_slip_rule=True
         if max_slip_rule=='False':
             max_slip_rule=False
+        nucleate_on_coupling=sys.argv[40]
         
         run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
         load_distances,distances_name,UTM_zone,tMw,model_name,hurst,Ldip,Lstrike,
@@ -424,7 +437,7 @@ if __name__ == '__main__':
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size)
+        max_slip_rule,rank,size,nucleate_on_coupling)
     else:
         print("ERROR: You're not allowed to run "+sys.argv[1]+" from the shell or it does not exist")
         
