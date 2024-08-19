@@ -89,6 +89,7 @@ rake=90 # average rake
 rise_time = 'MH2017'
 rise_time_depths=[10,15] #Transition depths for rise time scaling (if slip shallower than first index, rise times are twice as long as calculated)
 mean_slip_name=home+project_name+'model_info\\'+'slip_deficit_trenchlock.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
+nucleate_on_coupling=False  # Increase chance that hypocenter will occur on a locked patch
 shear_wave_fraction=0.8
 
 #Enforcement of rules on area scaling and hypo location
@@ -113,7 +114,8 @@ if make_ruptures==1:
             slip_standard_deviation,scaling_law,ncpus,mean_slip_name=mean_slip_name,
             force_magnitude=force_magnitude,force_area=force_area,hypocenter=hypocenter,
             force_hypocenter=force_hypocenter,
-            max_slip_rule=max_slip_rule,use_hypo_fraction=use_hypo_fraction)
+            max_slip_rule=max_slip_rule,use_hypo_fraction=use_hypo_fraction,
+            nucleate_on_coupling=nucleate_on_coupling)
 #           shear_wave_fraction=shear_wave_fraction,
 
                 

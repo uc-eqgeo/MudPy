@@ -12,13 +12,13 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size,calculate_rupture_onset, NZNSHM_scaling):
+        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset, NZNSHM_scaling):
     
     '''
     Depending on user selected flags parse the work out to different functions
     '''
     
-    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin,hstack
+    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin,ones,hstack
     from time import gmtime, strftime
     from numpy.random import shuffle
     from mudpy import fakequakes
@@ -75,6 +75,20 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         # case the original hypocenter did not perfectly align with a subfault
         hypocenter = whole_fault[shypo,1:4]
     
+    if nucleate_on_coupling:
+        mean_fault=genfromtxt(mean_slip_name)
+        try:
+            with open(mean_slip_name, 'r') as f:
+                coupling_ix = f.readline().strip('\n').split('\t').index('coupling')
+            patch_coupling = mean_fault[:,coupling_ix]
+        except ValueError:
+            print(f'No coupling column found in {mean_slip_name} file. Building coupling from slip_deficit. Assume max deficit is fully locked')
+            slip_deficit=(mean_fault[:,8]**2+mean_fault[:,9]**2)**0.5
+            patch_coupling = slip_deficit / slip_deficit.max()
+        if max(patch_coupling) > 1:
+            raise ValueError('Should not have coupling values greater than 1. Quitting...')
+    else:
+        patch_coupling = ones(len(whole_fault[:,1]))
 
     #Now loop over the number of realizations
     realization=0
@@ -105,7 +119,8 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 #Select only a subset of the faults based on magnitude scaling
                 current_target_Mw=target_Mw[kmag]
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff,option,Lmean,Wmean=fakequakes.select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,num_modes,scaling_law,
-                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction, NZNSHM_scaling=NZNSHM_scaling)
+                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling)
+
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]
                 Ddip_selected=Ddip[ifaults,:][:,ifaults]
@@ -442,12 +457,13 @@ if __name__ == '__main__':
             max_slip_rule=True
         if max_slip_rule=='False':
             max_slip_rule=False
-        calculate_rupture_onset=sys.argv[40]
+        nucleate_on_coupling=sys.argv[40]
+        calculate_rupture_onset=sys.argv[41]
         if calculate_rupture_onset=='True':
             calculate_rupture_onset=True
         if calculate_rupture_onset=='False':
             calculate_rupture_onset=False
-        NZNSHM_scaling=sys.argv[41]
+        NZNSHM_scaling=sys.argv[42]
         if NZNSHM_scaling=='True':
             NZNSHM_scaling=True
         if NZNSHM_scaling=='False':
@@ -459,7 +475,7 @@ if __name__ == '__main__':
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size,calculate_rupture_onset,NZNSHM_scaling)
+        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset,NZNSHM_scaling)
     else:
         print("ERROR: You're not allowed to run "+sys.argv[1]+" from the shell or it does not exist")
         
