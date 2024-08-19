@@ -81,9 +81,11 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 coupling_ix = f.readline().strip('\n').split('\t').index('coupling')
             patch_coupling = mean_fault[:,coupling_ix]
         except ValueError:
-            raise ValueError(f'No coupling column found in {mean_slip_name} file')
+            print(f'No coupling column found in {mean_slip_name} file. Building coupling from slip_deficit. Assume max deficit is fully locked')
+            slip_deficit=(mean_fault[:,8]**2+mean_fault[:,9]**2)**0.5
+            patch_coupling = slip_deficit / slip_deficit.max()
         if max(patch_coupling) > 1:
-            raise ValueError('Should not have coupling values greater than 1')
+            raise ValueError('Should not have coupling values greater than 1. Quitting...')
     else:
         patch_coupling = ones(len(whole_fault[:,1]))
 
