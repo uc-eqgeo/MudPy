@@ -6,7 +6,7 @@ import pandas as pd
 import os
 from scipy.optimize import lsq_linear
 
-rupture_step = 3999
+rupture_step = 36000
 
 rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures'
 rupture_list = glob(f'{rupture_dir}\\hikkerk3D_locking_NZNSHMscaling*.rupt')[::rupture_step]
@@ -25,6 +25,8 @@ deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
 
 rate_weight = 1
 GR_weight = 1
+
+pygmo = False
 
 if rate_weight == 0:
     create_G = False
@@ -51,7 +53,8 @@ class deficitInversion:
             ruptures_df = pd.read_csv(rupture_list[0])
             self.n_ruptures = ruptures_df.shape[0]
             self.Mw = ruptures_df['mw'].values
-            self.Mw_bins = np.unique(np.floor(np.array(ruptures_df['target'].values) * 10) / 10)
+            self.target = ruptures_df['target'].values
+            self.Mw_bins = np.unique(np.floor(np.array(self.target) * 10) / 10)
             if self.rate_weight > 0:
                 self.slip = ruptures_df.iloc[:, 2:].values.T * 1000  # Slip in mm, convert from m to mm
             else:
@@ -95,7 +98,8 @@ class deficitInversion:
                         Mw.append(float(line.strip('\n').split()[-1]))
         print('')
         self.Mw = np.array(Mw)
-        target_Mw = np.floor(np.array(target) * 10) / 10  # Get the fakequake rupture target magnitude, rounded to deal with floating point errors
+        self.target = np.array(target)
+        target_Mw = np.floor(np.array(self.target) * 10) / 10  # Get the fakequake rupture target magnitude, rounded to deal with floating point errors
         self.Mw_bins = np.unique(target_Mw)  # Use the unique target magnitudes as the bins for GR-rate
 
     def make_gr_matrix(self):
@@ -114,11 +118,9 @@ class deficitInversion:
         rates = upper_bound[:-1] - upper_bound[1:]  # Calculate the rate difference between each magnitude bin
         rates = np.append(rates, upper_bound[-1])  # Add the rate of the largest magnitude bin
         window = int(self.n_ruptures / 100)  # Window size for moving average
-        for ii in range(window - 1):  # Pad the rates with the first value to allow for the moving average to work
-            rates[ii] = np.convolve(rates[:ii + 1], np.ones(ii + 1), "valid")[0] / (ii + 1)
-        rates[window - 1:-window] = np.convolve(rates[:-window], np.ones(window), "valid") / window  # Calculate the average rate over 20 bins
-        # for ii in range(window - 1):  # Pad the rates with the first value to allow for the moving average to work
-        #     rates[-(ii + 1)] = np.convolve(rates[:-(ii + 1)], np.ones(ii + 1), "valid")[0] / (ii + 1)
+        rates[window-1:] = np.convolve(rates, np.ones(window), "valid") / (window)  # Calculate moving average
+        # Calculate moving average of first n values that are excluded by convole
+        rates[:window] = (np.convolve(rates[::-1], np.ones(window), "valid") / (window))[-window:][::-1]
         upper_bound = rates[sort_ix]
         #upper_bound = [100] * self.n_ruptures
         return (lower_bound, upper_bound)
@@ -141,26 +143,6 @@ class deficitInversion:
 #        return pg.estimate_gradient(lambda x: self.fitness(x), x)
 
 inversion = deficitInversion(rupture_list, deficit, b, N, rate_weight, GR_weight, from_csv)
-
-# Choose optimisation algorithm
-nl = pg.scipy_optimize(method="L-BFGS-B")
-
-# Tolerance to make algorithm stop trying to improve result
-nl.ftol_abs = 0.0001
-
-# Set up basin-hopping metaalgorithm
-algo = pg.algorithm(uda=pg.mbh(nl, stop=5, perturb=1.))
-
-algo = pg.algorithm(pg.de(gen = 20000))
-
-# Lots of output to check on progress
-algo.set_verbosity(100)
-
-print(algo)
-
-# set up inversion class to run algorithm on
-print('Setting up inversion...')
-pop = pg.population(prob=inversion, size=20)
 
 # Initially set recurrance rate to NSHM GR-rate for each rupture magnitude
 print('Calculating initial rupture rates...')
@@ -189,13 +171,14 @@ if any(initial_rates < lower_lim):
 #initial_rates = initial_rates * 0 + 1e-6
 # Output the initial conditions
 outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_input_ruptures.txt'
-out = np.zeros((inversion.n_ruptures, 6))
+out = np.zeros((inversion.n_ruptures, 7))
 out[:, 0] = np.arange(inversion.n_ruptures)
 out[:, 1] = inversion.Mw
-out[:, 2] = initial_rates
-out[:, 3], out[:, 4] = lower_lim, upper_lim
-out[:, 5] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
-np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6f\t%.6f\t%.6f\t%.6f", header='No\tMw\tinitial_rate\tlower\tupper\ttarget_rate')
+out[:, 2] = inversion.target
+out[:, 3] = initial_rates
+out[:, 4], out[:, 5] = lower_lim, upper_lim
+out[:, 6] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
+np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.4f\t%.6f\t%.6f\t%.6f\t%.6f", header='No\tMw\ttarget\tinitial_rate\tlower\tupper\ttarget_rate')
 
 outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_input_bins.txt'
 out = np.zeros((len(inversion.Mw_bins), 5))
@@ -216,24 +199,46 @@ outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_initial_deficit.inv'
 np.savetxt(outfile, output, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
            header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
 
-# Tell population object what starting values will be
-pop.push_back(initial_rates)
+if pygmo:
+    print('Optimising with pygmo...')
+    # Choose optimisation algorithm
+    nl = pg.scipy_optimize(method="L-BFGS-B")
 
-# Run algorithm
-print(f'Inverting {inversion.n_ruptures} ruptures...')
-start = time()
-#pop = algo.evolve(pop)
-print(f'Inversion complete. Time taken: {time() - start:.2f}s')
+    # Tolerance to make algorithm stop trying to improve result
+    nl.ftol_abs = 0.0001
 
-# Best slip distribution
-#preferred_rate = pop.champion_x
+    # Set up basin-hopping metaalgorithm
+    algo = pg.algorithm(uda=pg.mbh(nl, stop=5, perturb=1.))
 
+    algo = pg.algorithm(pg.de(gen = 20000))
 
-mega_matrix = np.vstack([inversion.slip, inversion.gr_matrix * GR_weight])
-full_rates = np.hstack([inversion.deficit, inversion.GR_rate * GR_weight])
-preferred_rate = lsq_linear(mega_matrix, full_rates, bounds=(lower_lim, upper_lim), verbose=2, method='bvls').x
+    # Lots of output to check on progress
+    algo.set_verbosity(100)
 
-#preferred_rate = np.linalg.lstsq(mega_matrix, full_rates)[0]
+    print(algo)
+
+    # set up inversion class to run algorithm on
+    print('Setting up inversion...')
+    pop = pg.population(prob=inversion, size=20)
+    # Tell population object what starting values will be
+    pop.push_back(initial_rates)
+
+    # Run algorithm
+    print(f'Inverting {inversion.n_ruptures} ruptures...')
+    start = time()
+    pop = algo.evolve(pop)
+    print(f'Inversion complete. Time taken: {time() - start:.2f}s')
+
+    # Best slip distribution
+    preferred_rate = pop.champion_x
+else:
+    print('Inverting with scipy...')
+    mega_matrix = np.vstack([inversion.slip, inversion.gr_matrix * GR_weight])
+    full_rates = np.hstack([inversion.deficit, inversion.GR_rate * GR_weight])
+    preferred_rate = lsq_linear(mega_matrix, full_rates, bounds=(lower_lim, upper_lim), verbose=2, method='bvls').x
+
+print(f'Inversion of {inversion.n_ruptures} ruptures complete...')
+
 # Reconstruct the slip deficit
 reconstructed_deficit = np.matmul(inversion.slip, preferred_rate)
 

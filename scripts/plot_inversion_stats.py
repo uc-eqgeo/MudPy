@@ -10,7 +10,7 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 
-n_ruptures = 4000
+n_ruptures = 36000
 min_Mw, max_Mw = 6.0, 9.5
 
 outdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output"
@@ -44,7 +44,7 @@ if plot_results:
 plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='red', label='Target GR Relation')
 plt.plot(ruptures['Mw'], np.log10(ruptures['lower'] + 1e-12), color='green', linestyle=':')
 plt.plot(ruptures['Mw'], np.log10(ruptures['upper']), color='green', linestyle=':')
-plt.plot(bins['Mw_bin'], np.log10(bins['upper']), color='green', linestyle='-.')  # Binned upper bound
+plt.plot(bins['Mw_bin'], np.log10(bins['upper']), color='green', linestyle='-.', label='Upper Limit')  # Binned upper bound
 # sns.scatterplot(x=ruptures['Mw'], y=np.log10(initial_rate + 1e-10), s=20, label='Initial', edgecolors=None)
 # if plot_results:
 #     sns.scatterplot(x=ruptures['Mw'], y=np.log10(inverted_rate + 1e-10), s=10, label='Inverted', edgecolors=None)
