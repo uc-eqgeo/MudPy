@@ -147,10 +147,10 @@ inversion = deficitInversion(rupture_list, deficit, b, N, rate_weight, GR_weight
 # Initially set recurrance rate to NSHM GR-rate for each rupture magnitude
 print('Calculating initial rupture rates...')
 sorted_ix = np.argsort(inversion.Mw)[::-1]  # Sort based on largest magnitude first
-Nvalue = 16.5  # N-value for Mw 5 events (set to different to the NSHM)
-Bvalue = 0.95  # B-value for GR-rate (set to different to the NSHM)
-a = np.log10(Nvalue) + (Bvalue * 5)  # Calculate a-value for GR-rate
-GR_rate = 10 ** (a - (Bvalue * inversion.Mw))  # Calculate N value for each rupture magnitude (number of events >= Mw per year)
+# N = 16.5  # N-value for Mw 5 events (set to different to the NSHM)
+# b = 0.95  # B-value for GR-rate (set to different to the NSHM)
+a = np.log10(N) + (b * 5)  # Calculate a-value for GR-rate
+GR_rate = 10 ** (a - (b * inversion.Mw))  # Calculate N value for each rupture magnitude (number of events >= Mw per year)
 freq = np.zeros_like(GR_rate)
 cum_freq = np.zeros_like(GR_rate)
 initial_rates = np.zeros_like(GR_rate)
@@ -168,9 +168,9 @@ if any(initial_rates > upper_lim):
 if any(initial_rates < lower_lim):
     lower_lim = np.array(lower_lim)
     initial_rates[np.where(initial_rates < lower_lim)[0]] = lower_lim[np.where(initial_rates < lower_lim)[0]]
-#initial_rates = initial_rates * 0 + 1e-6
+initial_rates = initial_rates * 0 + 1e-3
 # Output the initial conditions
-outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_input_ruptures.txt'
+outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_ruptures.txt'
 out = np.zeros((inversion.n_ruptures, 7))
 out[:, 0] = np.arange(inversion.n_ruptures)
 out[:, 1] = inversion.Mw
@@ -180,7 +180,7 @@ out[:, 4], out[:, 5] = lower_lim, upper_lim
 out[:, 6] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
 np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.4f\t%.6f\t%.6f\t%.6f\t%.6f", header='No\tMw\ttarget\tinitial_rate\tlower\tupper\ttarget_rate')
 
-outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_input_bins.txt'
+outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_bins.txt'
 out = np.zeros((len(inversion.Mw_bins), 5))
 out[:, 0] = np.arange(len(inversion.Mw_bins))
 out[:, 1] = inversion.Mw_bins
@@ -195,7 +195,7 @@ output[:, 3] /= 1000  # Convert to km
 output[:, 8:10] = np.zeros_like(output[:, 8:10])
 output[:, 8] = deficit
 output[:, 9] = initial_slip
-outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_initial_deficit.inv'
+outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_initial_deficit.inv'
 np.savetxt(outfile, output, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
            header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
 
@@ -204,6 +204,7 @@ for n_iterations in iteration_list:
         print(f'Optimising {n_iterations} generations with pygmo...')
         # Choose optimisation algorithm
         nl = pg.scipy_optimize(method="L-BFGS-B")
+
         # Tolerance to make algorithm stop trying to improve result
         nl.ftol_abs = 0.0001
 
