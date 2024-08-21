@@ -6,17 +6,23 @@ import pandas as pd
 import os
 from scipy.optimize import lsq_linear
 
-rupture_step = 36000
+n_ruptures = 45000
 
 rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures'
-rupture_list = glob(f'{rupture_dir}\\hikkerk3D_locking_NZNSHMscaling*.rupt')[::rupture_step]
 
-if os.path.exists(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{rupture_step}.csv'))):
+if os.path.exists(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv'))):
    from_csv = True
-   rupture_list = [os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{rupture_step}.csv'))]
+   ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv')))
 else:
-    from_csv = False
-    rupture_list = glob(f'{rupture_dir}\\hikkerk3D_locking_NZNSHMscaling*.rupt')[::rupture_step]
+    csv_list = glob(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n*.csv')))
+    n_rupts = [int(csv.split('_n')[-1].split('.')[0]) for csv in csv_list]
+    n_rupts.sort()
+    n_rupts = [n for n in n_rupts if n > n_ruptures][0]
+    if len(n_rupts) > 0:
+        ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_rupts[0]}.csv')))
+        ruptures_df = ruptures_df.sample(n_ruptures).sort_values('mw')
+    else:
+        raise Exception(f"No csv files found with {n_ruptures} ruptures")
 
 deficit_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\slip_deficit_trenchlock.slip'
 
@@ -25,8 +31,9 @@ deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
 
 rate_weight = 1
 GR_weight = 1
+iteration_list = [1000]
 
-pygmo = False
+pygmo = True
 
 if rate_weight == 0:
     create_G = False
@@ -34,73 +41,34 @@ else:
     create_G = True
 
 b, N = 1.1, 21.5
+max_Mw = 9.0  # Maximum magnitude to use to match GR-Rate
 
 class deficitInversion:
-    def __init__(self, rupture_list: list, deficit: np.ndarray, b: float, N: float, rate_weight: float, GR_weight: float, from_csv: bool = False):
+    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, GR_weight: float, max_Mw: float, from_csv: bool = False):
 
         self.name = "Slip Deficit Inversion"
         self.deficit = deficit  # Slip deficit (on same grid as ruptures)
-        self.ruptures = rupture_list  # List of ruptures from fakequakes
         self.n_patches = deficit.shape[0]  # Number of patches
         self.b = b  # b-value for GR-rate
         self.N5 = N  # N value for Mw 5 events
         self.a = np.log10(self.N5) + (b * 5)  # a-value for GR-rate calculated from b and the N-value for Mw 5 events
         self.rate_weight = rate_weight  # Weighting for rate misfit over GR-rate misfit
         self.GR_weight = GR_weight  # Weighting for GR-rate misfit
+        self.max_Mw = max_Mw  # Maximum magnitude to use for GR-rate
 
-        if from_csv:
-            print(f"Reading rupture dataframe...")
-            ruptures_df = pd.read_csv(rupture_list[0])
-            self.n_ruptures = ruptures_df.shape[0]
-            self.Mw = ruptures_df['mw'].values
-            self.target = ruptures_df['target'].values
-            self.Mw_bins = np.unique(np.floor(np.array(self.target) * 10) / 10)
-            if self.rate_weight > 0:
-                self.slip = ruptures_df.iloc[:, 2:].values.T * 1000  # Slip in mm, convert from m to mm
-            else:
-                self.slip = np.zeros((self.n_patches, self.n_ruptures))
+        print(f"Reading rupture dataframe...")
+        self.n_ruptures = ruptures_df.shape[0]
+        self.Mw = ruptures_df['mw'].values
+        self.target = ruptures_df['target'].values
+        self.Mw_bins = np.unique(np.floor(np.array(self.target) * 10) / 10)
+        self.Mw_bins = np.append(self.Mw_bins, self.Mw_bins[-1] + 0.1)  # Add an extra bin for the maximum magnitude
+        if self.rate_weight > 0:
+            self.slip = ruptures_df.iloc[:, 2:].values.T * 1000  # Slip in mm, convert from m to mm
         else:
-            self.n_ruptures = len(rupture_list)  # Number of ruptures
-            if self.rate_weight > 0:
-                self.slip = self.create_g_matrix()  # I*J matrix of rupture slip, where I is the number of patches and J is the number of ruptures
-            else:
-                self.slip = np.zeros((self.n_patches, self.n_ruptures))
-            self.find_magnitudes()  # Magnitude of each rupture and magnitude_bins
+            self.slip = np.zeros((self.n_patches, self.n_ruptures))
         
         self.make_gr_matrix()
         self.GR_rate = 10 ** (self.a - (self.b * self.Mw_bins))  # N-value for each magnitude bin
-
-    def create_g_matrix(self):
-        print(f"Creating rupture G matrix... ({0}/{self.n_ruptures})", end='\r')
-        G = np.zeros((self.n_patches, self.n_ruptures))
-        start = time()
-        for ix, rupture_file in enumerate(self.ruptures):
-            rupture = pd.read_csv(rupture_file, sep='\t')
-            if 'total-slip(m)' in rupture.columns:
-                G[:, ix] = rupture['total-slip(m)'][:self.n_patches] * 1000 # Save storage space fakequakes output, convert from m to mm
-            else:
-                G[:, ix] = (rupture['ss-slip(m)'] ** 2 + rupture['ds-slip(m)'] ** 2) ** 0.5 * 1000  # Default fakequakes output, convert from m to mm
-            print(f"Creating rupture G matrix... ({ix + 1}/{self.n_ruptures}) {(time() - start)/(ix + 1):.5f}", end='\r')
-        print('')
-        return G
-
-    def find_magnitudes(self):
-        Mw = []  # Actual magnitude of each rupture
-        target = []  # requested magnitude of the rupture when entered into fakeqaukes
-        for ix, rupture in enumerate(self.ruptures):
-            print(f"Finding rupture magnitudes... ({ix}/{self.n_ruptures})", end='\r')
-            with open(rupture.replace('.rupt', '.log')) as fid:
-                lines = fid.readlines()
-                for line in lines:
-                    if 'Target magnitude' in line:
-                        target.append(float(line.strip('\n').split()[-1]))
-                    if 'Actual magnitude' in line:
-                        Mw.append(float(line.strip('\n').split()[-1]))
-        print('')
-        self.Mw = np.array(Mw)
-        self.target = np.array(target)
-        target_Mw = np.floor(np.array(self.target) * 10) / 10  # Get the fakequake rupture target magnitude, rounded to deal with floating point errors
-        self.Mw_bins = np.unique(target_Mw)  # Use the unique target magnitudes as the bins for GR-rate
 
     def make_gr_matrix(self):
         print(f"Making GR Matrix...")
@@ -110,39 +78,41 @@ class deficitInversion:
         self.gr_matrix = gr_matrix.astype('int')
 
     def get_bounds(self):
+        """
+        Upper bound is going to be calculated using the same b-value, but assuming that 100 5Mw events occur per year
+        Assuming that the ruptures are uniformly distributed across the Mw bins, a rupture rate for each Mw bin can be calculated
+        Using linear interpolation, the rupture rate for each rupture is then assigned
+        This method *should* be reasonable, as it is less impacted by variations in the actual input magnitude distribution
+
+        Lower bound is 0
+        """
         lower_bound = [0] * self.n_ruptures  # Allow rupture to not occur
-        a = np.log10(100) + (self.b * 5)
-        # upper_bound = 10 ** (a - (self.b * self.Mw))  # Upperbound from 100 5Mw events a year, and 90% b-value (Currently this will overshoot, as is the bin rate not indivdual rupture rate)
-        unique_mag, sort_ix = np.unique(self.Mw, return_inverse=True)
-        upper_bound = 10 ** (a - (self.b * unique_mag))  # Upperbound from 100 5Mw events a year, and 90% b-value (Currently this will overshoot, as is the bin rate not indivdual rupture rate)
-        rates = upper_bound[:-1] - upper_bound[1:]  # Calculate the rate difference between each magnitude bin
-        rates = np.append(rates, upper_bound[-1])  # Add the rate of the largest magnitude bin
-        window = int(self.n_ruptures / 100)  # Window size for moving average
-        rates[window-1:] = np.convolve(rates, np.ones(window), "valid") / (window)  # Calculate moving average
-        # Calculate moving average of first n values that are excluded by convole
-        rates[:window] = (np.convolve(rates[::-1], np.ones(window), "valid") / (window))[-window:][::-1]
-        upper_bound = rates[sort_ix]
-        #upper_bound = [100] * self.n_ruptures
+
+        samples_Mw = np.linspace(min(self.Mw), max(self.Mw), self.n_ruptures)[::-1] # Create a range of magnitudes to sample from, in decreasing magnitude order
+        a = np.log10(100) + (b * 5)  # Upperbound from 100 5Mw events a year (Currently this will overshoot, as is the bin rate not indivdual rupture rate)
+        GR_rate = 10 ** (a - (b * samples_Mw))  # Calculate N value for each rupture magnitude (number of events >= Mw per year)
+        sample_rates = np.zeros_like(GR_rate)
+        for ix in range(self.n_ruptures):
+            sample_rates[ix] = GR_rate[ix] - np.sum(sample_rates[(ix + 1):]) # Calculate initial rate as (N-value - rate of higher magnitude)
+        upper_bound = np.interp(self.Mw, samples_Mw[::-1], sample_rates[::-1])  # Interpolate the sample rates to the actual rupture magnitudes
+
         return (lower_bound, upper_bound)
     
     def fitness(self, x: np.ndarray):
+        # Calculate slip-deficit component
         total_slip = np.matmul(self.slip, x)  # Calculate slip by multiplying slip ratrix by rupture rate vector
         rms = np.sqrt(np.mean((self.deficit - total_slip) ** 2))  # Calculate root mean square misfit of slip
+        
+        # Calculate GR-rate component
         inv_GR = np.matmul(self.gr_matrix, x)  # Calculate GR-rate for each magnitude bin based on inverted slip rates
-        GR_rms = np.sqrt(np.mean((inv_GR - self.GR_rate) ** 2))  # Penalise for deviating from GR-rate
-        #GR_rms = np.sqrt(np.mean((np.log10(inv_GR) - np.log10(self.GR_rate)) ** 2))  # Penalise for deviating from GR-rate
+        GR_ix = self.Mw_bins <= self.max_Mw  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
+        #GR_rms = np.sqrt(np.mean((inv_GR - self.GR_rate) ** 2))  # Penalise for deviating from GR-rate
+        GR_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_ix]) - np.log10(self.GR_rate[GR_ix])) ** 2))  # Penalise for deviating from log(N)
         cum_rms = (rms * self.rate_weight) + (GR_rms * self.GR_weight)  # Allow for variable weighting between slip deficit and GR-rate
 
-        mega_matrix = np.vstack([inversion.slip, inversion.gr_matrix])
-        full_rates = np.hstack([inversion.deficit, inversion.GR_rate])
-        total_results = np.matmul(mega_matrix, x)
-        cum_rms = np.sqrt(np.mean((full_rates - total_results) ** 2))
-
         return np.array([cum_rms])
-#    def gradient(self, x):
-#        return pg.estimate_gradient(lambda x: self.fitness(x), x)
 
-inversion = deficitInversion(rupture_list, deficit, b, N, rate_weight, GR_weight, from_csv)
+inversion = deficitInversion(ruptures_df, deficit, b, N, rate_weight, GR_weight, max_Mw, from_csv)
 
 # Initially set recurrance rate to NSHM GR-rate for each rupture magnitude
 print('Calculating initial rupture rates...')
