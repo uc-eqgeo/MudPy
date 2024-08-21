@@ -199,45 +199,52 @@ outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_initial_deficit.inv'
 np.savetxt(outfile, output, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
            header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
 
-if pygmo:
-    print('Optimising with pygmo...')
-    # Choose optimisation algorithm
-    nl = pg.scipy_optimize(method="L-BFGS-B")
+for n_iterations in iteration_list:
+    if pygmo:
+        print(f'Optimising {n_iterations} generations with pygmo...')
+        # Choose optimisation algorithm
+        nl = pg.scipy_optimize(method="L-BFGS-B")
+        # Tolerance to make algorithm stop trying to improve result
+        nl.ftol_abs = 0.0001
 
-    # Tolerance to make algorithm stop trying to improve result
-    nl.ftol_abs = 0.0001
+        # # Set up basin-hopping metaalgorithm
+        # algo = pg.algorithm(uda=pg.mbh(nl, stop=5, perturb=1.))
 
-    # Set up basin-hopping metaalgorithm
-    algo = pg.algorithm(uda=pg.mbh(nl, stop=5, perturb=1.))
+        # # set up differential evolution algorithm
+        # algo = pg.algorithm(pg.de(gen = 20000))
 
-    algo = pg.algorithm(pg.de(gen = 20000))
+        # set up self adaptive differential evolution algorithm
+        algo = pg.algorithm(pg.sade(gen = n_iterations))
 
-    # Lots of output to check on progress
-    algo.set_verbosity(100)
+        # Lots of output to check on progress
+        algo.set_verbosity(100)
 
-    print(algo)
+        print(algo)
 
-    # set up inversion class to run algorithm on
-    print('Setting up inversion...')
-    pop = pg.population(prob=inversion, size=20)
-    # Tell population object what starting values will be
-    pop.push_back(initial_rates)
+        # set up inversion class to run algorithm on
+        print('Setting up inversion...')
+        pop = pg.population(prob=inversion, size=20)
+        # Tell population object what starting values will be
+        pop.push_back(initial_rates)
 
-    # Run algorithm
-    print(f'Inverting {inversion.n_ruptures} ruptures...')
-    start = time()
-    pop = algo.evolve(pop)
-    print(f'Inversion complete. Time taken: {time() - start:.2f}s')
+        # Run algorithm
+        print(f'Inverting {inversion.n_ruptures} ruptures...')
+        start = time()
+        pop = algo.evolve(pop)
 
-    # Best slip distribution
-    preferred_rate = pop.champion_x
-else:
-    print('Inverting with scipy...')
-    mega_matrix = np.vstack([inversion.slip, inversion.gr_matrix * GR_weight])
-    full_rates = np.hstack([inversion.deficit, inversion.GR_rate * GR_weight])
-    preferred_rate = lsq_linear(mega_matrix, full_rates, bounds=(lower_lim, upper_lim), verbose=2, method='bvls').x
+        # Best slip distribution
+        preferred_rate = pop.champion_x
+    else:
+        print('Prepping megamatrix...')
+        mega_matrix = np.vstack([inversion.slip, inversion.gr_matrix * GR_weight])
+        full_rates = np.hstack([inversion.deficit, inversion.GR_rate * GR_weight])
+        print(f'Inverting {inversion.n_ruptures} ruptures with max_iter {n_iterations} on scipy...')
+        start = time()
+        results = lsq_linear(mega_matrix, full_rates, bounds=(lower_lim, upper_lim), verbose=2, method='bvls', max_iter=n_iterations)
+        preferred_rate = results.x
+        misfit = results.fun
 
-print(f'Inversion of {inversion.n_ruptures} ruptures complete...')
+    print(f'Inversion of {inversion.n_ruptures} ruptures complete in {time() - start:.2f}s...')
 
     # Reconstruct the slip deficit
     reconstructed_deficit = np.matmul(inversion.slip, preferred_rate)
