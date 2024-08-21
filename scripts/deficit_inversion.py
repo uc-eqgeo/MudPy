@@ -239,39 +239,42 @@ else:
 
 print(f'Inversion of {inversion.n_ruptures} ruptures complete...')
 
-# Reconstruct the slip deficit
-reconstructed_deficit = np.matmul(inversion.slip, preferred_rate)
+    # Reconstruct the slip deficit
+    reconstructed_deficit = np.matmul(inversion.slip, preferred_rate)
 
-# Output results
-outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_inverted_ruptures.txt'
-out = np.zeros((inversion.n_ruptures, 7))
-out[:, 0] = np.arange(inversion.n_ruptures)
-out[:, 1] = inversion.Mw
-out[:, 2] = initial_rates
-out[:, 3] = preferred_rate
-out[:, 4] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
-out[:, 5], out[:, 6] = lower_lim, upper_lim
-np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f", header='No\tMw\tinitial_rate\tinverted_rate\ttarget_rate\tlower\tupper')
+    # Output results
+    outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_ruptures.txt'
+    out = np.zeros((inversion.n_ruptures, 7))
+    out[:, 0] = np.arange(inversion.n_ruptures)
+    out[:, 1] = inversion.Mw
+    out[:, 2] = initial_rates
+    out[:, 3] = preferred_rate
+    out[:, 4] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
+    out[:, 5], out[:, 6] = lower_lim, upper_lim
+    np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f", header='No\tMw\tinitial_rate\tinverted_rate\ttarget_rate\tlower\tupper')
 
-outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_inverted_bins.txt'
-out = np.zeros((len(inversion.Mw_bins), 4))
-out[:, 0] = np.arange(len(inversion.Mw_bins))
-out[:, 1] = inversion.Mw_bins
-out[:, 2] = np.matmul(inversion.gr_matrix, initial_rates)
-out[:, 3] = np.matmul(inversion.gr_matrix, preferred_rate)
-np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6f\t%.6f", header='No\tMw_bin\tinput_N\tinverted_N')
+    outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_bins.txt'
+    out = np.zeros((len(inversion.Mw_bins), 4))
+    out[:, 0] = np.arange(len(inversion.Mw_bins))
+    out[:, 1] = inversion.Mw_bins
+    out[:, 2] = np.matmul(inversion.gr_matrix, initial_rates)
+    out[:, 3] = np.matmul(inversion.gr_matrix, preferred_rate)
+    np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6f\t%.6f", header='No\tMw_bin\tinput_N\tinverted_N')
 
-# Output deficits
-deficit = np.genfromtxt(deficit_file)
-deficit[:, 3] /= 1000  # Convert to km
+    # Output deficits
+    deficit = np.genfromtxt(deficit_file)
+    deficit[:, 3] /= 1000  # Convert to km
 
-deficit[:, 9] = reconstructed_deficit
-outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_deficit.inv'
-np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.0f\t%.0f\t%.0f",
-           header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
+    deficit[:, 9] = reconstructed_deficit
+    outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_deficit.inv'
+    np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.0f\t%.0f\t%.0f",
+            header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
 
-deficit[:, 8] = reconstructed_deficit / inversion.deficit  # Fractional misfit
-deficit[:, 9] = reconstructed_deficit - inversion.deficit  # Absolute misfit
-outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_misfit.inv'
-np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
-           header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tmisfit_perc(mm/yr)\tmisfit_mag(mm/yr)\trupt_time\trigid\tvel')
+    deficit[:, 8] = reconstructed_deficit / inversion.deficit  # Fractional misfit
+    if pygmo:
+        deficit[:, 9] = reconstructed_deficit - inversion.deficit  # Absolute misfit
+    else:
+        deficit[:, 9] = misfit[:inversion.n_patches]  # Absolute misfit
+    outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_misfit.inv'
+    np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
+            header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tmisfit_perc(mm/yr)\tmisfit_mag(mm/yr)\trupt_time\trigid\tvel')
