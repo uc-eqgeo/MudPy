@@ -53,8 +53,8 @@ write = True
 out_file = f"C:\\Users\\jmc753\\Work\\MudPy\\examples\\fakequakes\\3D\\hikkerk3D_test\\data\\model_info\\{sub_type}.fault"
 if write:
     with open(out_file, 'w')as fid:
-        fid.write('# No.  lon       lat          z    strike    dip    typ rt  length  width   rake\n')
-        fid.write('#     (deg)      (deg)       (km)  (deg)    (deg)             (m)    (m)    (deg)\n')
+        fid.write('# No.\tlon\tlat\tz\tstrike\tdip\ttyp\trt\tlength\twidth\trake\n')
+        fid.write('#\t(deg)\t(deg)\t(km)\t(deg)\t(deg)\t()\t()\t(m)\t(m)\t(deg)\n')
         for ix, coords in enumerate(patch_centers):
             ulon, ulat, z = coords
             transformer = Transformer.from_crs("epsg:2193", "epsg:4326")

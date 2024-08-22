@@ -1,28 +1,41 @@
 import pygmo as pg
 import numpy as np
 from glob import glob
-from time import time
+from time import time, sleep
 import pandas as pd
 import os
 from scipy.optimize import lsq_linear
+from scipy.sparse import bsr_array
 
-n_ruptures = 45000
+hours = 0
+for hour in range(hours):
+    print(f"Sleeping for {hours - hour} hours... (Started at {time()})")
+    sleep(3600)
+n_ruptures = 5000
+inversion_name = 'start_rand'
 
 rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures'
 
+outdir = os.path.abspath(os.path.join(rupture_dir, '..', inversion_name))
+if not os.path.exists(outdir):
+    os.mkdir(outdir)
+
 if os.path.exists(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv'))):
    from_csv = True
+   print(f"Loading ruptures from rupture_df_n{n_ruptures}.csv...")
    ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv')))
 else:
     csv_list = glob(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n*.csv')))
     n_rupts = [int(csv.split('_n')[-1].split('.')[0]) for csv in csv_list]
     n_rupts.sort()
-    n_rupts = [n for n in n_rupts if n > n_ruptures][0]
+    n_rupts = [n for n in n_rupts if n > n_ruptures]
     if len(n_rupts) > 0:
+        print(f"Loading ruptures from rupture_df_n{n_rupts[0]}.csv...")
         ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_rupts[0]}.csv')))
+        print(f"Randomly select {n_ruptures} from {n_rupts[0]} availiable...")
         ruptures_df = ruptures_df.sample(n_ruptures).sort_values('mw')
     else:
-        raise Exception(f"No csv files found with {n_ruptures} ruptures")
+        raise Exception(f"No csv files found with at least {n_ruptures} ruptures")
 
 deficit_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\slip_deficit_trenchlock.slip'
 
@@ -30,8 +43,8 @@ deficit = np.genfromtxt(deficit_file)
 deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
 
 rate_weight = 1
-GR_weight = 1
-iteration_list = [1000]
+GR_weight = 2
+iteration_list = [20000]
 
 pygmo = True
 
@@ -44,7 +57,7 @@ b, N = 1.1, 21.5
 max_Mw = 9.0  # Maximum magnitude to use to match GR-Rate
 
 class deficitInversion:
-    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, GR_weight: float, max_Mw: float, from_csv: bool = False):
+    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, GR_weight: float, max_Mw: float):
 
         self.name = "Slip Deficit Inversion"
         self.deficit = deficit  # Slip deficit (on same grid as ruptures)
@@ -62,20 +75,26 @@ class deficitInversion:
         self.target = ruptures_df['target'].values
         self.Mw_bins = np.unique(np.floor(np.array(self.target) * 10) / 10)
         self.Mw_bins = np.append(self.Mw_bins, self.Mw_bins[-1] + 0.1)  # Add an extra bin for the maximum magnitude
-        if self.rate_weight > 0:
-            self.slip = ruptures_df.iloc[:, 2:].values.T * 1000  # Slip in mm, convert from m to mm
-        else:
-            self.slip = np.zeros((self.n_patches, self.n_ruptures))
-        
+        self.sparse_slip = bsr_array(ruptures_df.iloc[:, 2:].values.T * 1000)  # Slip in mm, convert from m to mm, place in sparse matrix
+
         self.make_gr_matrix()
         self.GR_rate = 10 ** (self.a - (self.b * self.Mw_bins))  # N-value for each magnitude bin
+
+        # Properties to call matricies as full arrays
+        @property
+        def slip(self):
+            return np.array(self.sparse_slip)
+
+        @property
+        def gr_matrix(self):
+            return np.array(self.gr_matrix)
 
     def make_gr_matrix(self):
         print(f"Making GR Matrix...")
         gr_matrix = np.zeros((len(self.Mw_bins), self.n_ruptures)).astype('bool')  # Make an I-J matrix for calculating GR rates, where I is number of magnitude bins and J is number of ruptures
         for ix, bin in enumerate(self.Mw_bins):
             gr_matrix[ix, :] = (self.Mw >= bin)
-        self.gr_matrix = gr_matrix.astype('int')
+        self.sparse_gr_matrix = bsr_array(gr_matrix.astype('int'))  # Convert GR matrix to sparse matrix
 
     def get_bounds(self):
         """
@@ -86,7 +105,7 @@ class deficitInversion:
 
         Lower bound is 0
         """
-        lower_bound = [0] * self.n_ruptures  # Allow rupture to not occur
+        lower_bound = [-30] * self.n_ruptures  # Allow rupture to not occur
 
         samples_Mw = np.linspace(min(self.Mw), max(self.Mw), self.n_ruptures)[::-1] # Create a range of magnitudes to sample from, in decreasing magnitude order
         a = np.log10(100) + (b * 5)  # Upperbound from 100 5Mw events a year (Currently this will overshoot, as is the bin rate not indivdual rupture rate)
@@ -95,24 +114,30 @@ class deficitInversion:
         for ix in range(self.n_ruptures):
             sample_rates[ix] = GR_rate[ix] - np.sum(sample_rates[(ix + 1):]) # Calculate initial rate as (N-value - rate of higher magnitude)
         upper_bound = np.interp(self.Mw, samples_Mw[::-1], sample_rates[::-1])  # Interpolate the sample rates to the actual rupture magnitudes
-
-        return (lower_bound, upper_bound)
+        return (lower_bound, np.log10(upper_bound))
     
     def fitness(self, x: np.ndarray):
         # Calculate slip-deficit component
-        total_slip = np.matmul(self.slip, x)  # Calculate slip by multiplying slip ratrix by rupture rate vector
-        rms = np.sqrt(np.mean((self.deficit - total_slip) ** 2))  # Calculate root mean square misfit of slip
-        
+        if self.rate_weight > 0:
+            total_slip = self.sparse_slip @ (10 ** x)  # Calculate slip by multiplying slip ratrix by rupture rate vector (sparse matricies can't use matmul)
+            rms = np.sqrt(np.mean((self.deficit - total_slip) ** 2))  # Calculate root mean square misfit of slip
+        else:
+            rms = 0
+
         # Calculate GR-rate component
-        inv_GR = np.matmul(self.gr_matrix, x)  # Calculate GR-rate for each magnitude bin based on inverted slip rates
-        GR_ix = self.Mw_bins <= self.max_Mw  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
-        #GR_rms = np.sqrt(np.mean((inv_GR - self.GR_rate) ** 2))  # Penalise for deviating from GR-rate
-        GR_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_ix]) - np.log10(self.GR_rate[GR_ix])) ** 2))  # Penalise for deviating from log(N)
+        if self.GR_weight > 0:
+            inv_GR = self.sparse_gr_matrix @ (10 ** x)  # Calculate GR-rate for each magnitude bin based on inverted slip rates
+            GR_ix = self.Mw_bins <= self.max_Mw  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
+            #GR_rms = np.sqrt(np.mean((inv_GR - self.GR_rate) ** 2))  # Penalise for deviating from GR-rate
+            GR_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_ix]) - np.log10(self.GR_rate[GR_ix])) ** 2))  # Penalise for deviating from log(N)
+        else:
+            GR_rms = 0
+
         cum_rms = (rms * self.rate_weight) + (GR_rms * self.GR_weight)  # Allow for variable weighting between slip deficit and GR-rate
 
         return np.array([cum_rms])
 
-inversion = deficitInversion(ruptures_df, deficit, b, N, rate_weight, GR_weight, max_Mw, from_csv)
+inversion = deficitInversion(ruptures_df, deficit, b, N, rate_weight, GR_weight, max_Mw)
 
 # Initially set recurrance rate to NSHM GR-rate for each rupture magnitude
 print('Calculating initial rupture rates...')
@@ -138,9 +163,11 @@ if any(initial_rates > upper_lim):
 if any(initial_rates < lower_lim):
     lower_lim = np.array(lower_lim)
     initial_rates[np.where(initial_rates < lower_lim)[0]] = lower_lim[np.where(initial_rates < lower_lim)[0]]
-initial_rates = initial_rates * 0 + 1e-3
+
+initial_rates = 10 ** ((upper_lim + 10) * np.random.rand(n_ruptures) - 10)  # Randomly initialise rates to values between 1e-10 and upper limit (for when working in log space)
+
 # Output the initial conditions
-outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_ruptures.txt'
+outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_ruptures.txt'
 out = np.zeros((inversion.n_ruptures, 7))
 out[:, 0] = np.arange(inversion.n_ruptures)
 out[:, 1] = inversion.Mw
@@ -148,15 +175,15 @@ out[:, 2] = inversion.target
 out[:, 3] = initial_rates
 out[:, 4], out[:, 5] = lower_lim, upper_lim
 out[:, 6] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
-np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.4f\t%.6f\t%.6f\t%.6f\t%.6f", header='No\tMw\ttarget\tinitial_rate\tlower\tupper\ttarget_rate')
+np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.4f\t%.6e\t%.6e\t%.6e\t%.6e", header='No\tMw\ttarget\tinitial_rate\tlower\tupper\ttarget_rate')
 
-outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_bins.txt'
+outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_bins.txt'
 out = np.zeros((len(inversion.Mw_bins), 5))
 out[:, 0] = np.arange(len(inversion.Mw_bins))
 out[:, 1] = inversion.Mw_bins
 out[:, 2] = np.matmul(inversion.gr_matrix, initial_rates)
 out[:, 3], out[:, 4] = np.matmul(inversion.gr_matrix, lower_lim), np.matmul(inversion.gr_matrix, upper_lim)
-np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6f\t%.6f\t%.6f", header='No\tMw_bin\tinput_N\tlower\tupper')
+np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e\t%.6e", header='No\tMw_bin\tinput_N\tlower\tupper')
 
 initial_slip = np.matmul(inversion.slip, initial_rates)  # Calculate what the slip distribution would look like from the initial rates
 # Output the deficit to be resolved for, and the inital slip distribution based on events + input rates
@@ -165,7 +192,7 @@ output[:, 3] /= 1000  # Convert to km
 output[:, 8:10] = np.zeros_like(output[:, 8:10])
 output[:, 8] = deficit
 output[:, 9] = initial_slip
-outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_initial_deficit.inv'
+outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_initial_deficit.inv'
 np.savetxt(outfile, output, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
            header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
 
@@ -178,14 +205,17 @@ for n_iterations in iteration_list:
         # Tolerance to make algorithm stop trying to improve result
         nl.ftol_abs = 0.0001
 
-        # # Set up basin-hopping metaalgorithm
+        # Set up basin-hopping metaalgorithm
         # algo = pg.algorithm(uda=pg.mbh(nl, stop=5, perturb=1.))
 
-        # # set up differential evolution algorithm
-        # algo = pg.algorithm(pg.de(gen = 20000))
+        # set up differential evolution algorithm
+        algo = pg.algorithm(pg.de(gen=n_iterations, ftol=1e-4))
 
         # set up self adaptive differential evolution algorithm
-        algo = pg.algorithm(pg.sade(gen = n_iterations))
+        #algo = pg.algorithm(pg.sade(gen=n_iterations, variant_adptv=2))
+
+        ## set up coronas simulated annealing
+        #algo = pg.algorithm(pg.simulated_annealing(Ts=10., Tf=.1, n_T_adj=10, n_range_adj=10, bin_size=10, start_range=1.))
 
         # Lots of output to check on progress
         algo.set_verbosity(100)
@@ -196,7 +226,7 @@ for n_iterations in iteration_list:
         print('Setting up inversion...')
         pop = pg.population(prob=inversion, size=20)
         # Tell population object what starting values will be
-        pop.push_back(initial_rates)
+        pop.push_back(np.log10(initial_rates))
 
         # Run algorithm
         print(f'Inverting {inversion.n_ruptures} ruptures...')
@@ -204,7 +234,7 @@ for n_iterations in iteration_list:
         pop = algo.evolve(pop)
 
         # Best slip distribution
-        preferred_rate = pop.champion_x
+        preferred_rate = 10 ** pop.champion_x
     else:
         print('Prepping megamatrix...')
         mega_matrix = np.vstack([inversion.slip, inversion.gr_matrix * GR_weight])
@@ -221,30 +251,30 @@ for n_iterations in iteration_list:
     reconstructed_deficit = np.matmul(inversion.slip, preferred_rate)
 
     # Output results
-    outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_ruptures.txt'
+    outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_ruptures.txt'
     out = np.zeros((inversion.n_ruptures, 7))
     out[:, 0] = np.arange(inversion.n_ruptures)
     out[:, 1] = inversion.Mw
     out[:, 2] = initial_rates
     out[:, 3] = preferred_rate
     out[:, 4] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
-    out[:, 5], out[:, 6] = lower_lim, upper_lim
-    np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f", header='No\tMw\tinitial_rate\tinverted_rate\ttarget_rate\tlower\tupper')
+    out[:, 5], out[:, 6] = lower_lim, 10 ** upper_lim
+    np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e", header='No\tMw\tinitial_rate\tinverted_rate\ttarget_rate\tlower\tupper')
 
-    outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_bins.txt'
+    outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_bins.txt'
     out = np.zeros((len(inversion.Mw_bins), 4))
     out[:, 0] = np.arange(len(inversion.Mw_bins))
     out[:, 1] = inversion.Mw_bins
     out[:, 2] = np.matmul(inversion.gr_matrix, initial_rates)
     out[:, 3] = np.matmul(inversion.gr_matrix, preferred_rate)
-    np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6f\t%.6f", header='No\tMw_bin\tinput_N\tinverted_N')
+    np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e", header='No\tMw_bin\tinput_N\tinverted_N')
 
     # Output deficits
     deficit = np.genfromtxt(deficit_file)
     deficit[:, 3] /= 1000  # Convert to km
 
     deficit[:, 9] = reconstructed_deficit
-    outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_deficit.inv'
+    outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_deficit.inv'
     np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.0f\t%.0f\t%.0f",
             header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
 
@@ -253,6 +283,14 @@ for n_iterations in iteration_list:
         deficit[:, 9] = reconstructed_deficit - inversion.deficit  # Absolute misfit
     else:
         deficit[:, 9] = misfit[:inversion.n_patches]  # Absolute misfit
-    outfile = rupture_dir + f'\\..\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_misfit.inv'
+    outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_misfit.inv'
     np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
             header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tmisfit_perc(mm/yr)\tmisfit_mag(mm/yr)\trupt_time\trigid\tvel')
+
+uda = algo.extract(pg.de)
+log = uda.get_log()
+import matplotlib.pyplot as plt 
+plt.semilogy([entry[0] for entry in log],[entry[2]for entry in log], 'k--') 
+plt.show()
+
+print('All Complete! :)')

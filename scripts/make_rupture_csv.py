@@ -2,6 +2,7 @@ import numpy as np
 from glob import glob
 import pandas as pd
 import os
+import shutil
 
 rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures'
 rupture_list = glob(f'{rupture_dir}\\hikkerk3D_locking_NZNSHMscaling*.rupt')
@@ -24,11 +25,17 @@ for i, ix in enumerate(np.random.permutation(n_ruptures)):
         displacement[0] = float(lines[16].strip('\n').split()[-1])
         displacement[1] = float(lines[15].strip('\n').split()[-1])
     rupture_df.loc[i] = displacement
-    if np.mod(i + 1, 1000) == 0:
-        rupture_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{i + 1}.csv')), index=False)
-        if os.path.exists(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{i - 999}.csv'))):
-            os.remove(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{i - 999}.csv')))
+    write_out = 1000
+    if np.mod(i + 1, write_out) == 0:
+        rupture_df = rupture_df.sort_values('mw', ignore_index=True)
+        if os.path.exists(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{i - write_out + 1}.csv'))):
+            shutil.copy(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{i - write_out + 1}.csv')), os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{i + 1}.csv')))
+            rupture_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{i + 1}.csv')), mode='a', index=False, header=False)
+            os.remove(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{i - write_out + 1}.csv')))
+            rupture_df = pd.DataFrame(columns=columns)
+        else:
+            rupture_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{i + 1}.csv')), index=False)
     print(f"Creating rupture dataframe... ({i + 1}/{n_ruptures})", end='\r')
 
-rupture_df = rupture_df.sort_values('mw', ignore_ix=True)
+rupture_df = rupture_df.sort_values('mw', ignore_index=True)
 rupture_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv')), index=False)
