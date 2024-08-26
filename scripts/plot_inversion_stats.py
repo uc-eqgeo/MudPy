@@ -10,14 +10,18 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 from glob import glob
+import os
+import meshio
+from pyproj import Transformer
+from scipy.spatial import KDTree
+from matplotlib.collections import PolyCollection
 
 inversion_name = 'start_rand'
-n_ruptures = 15000
+n_ruptures = 5000
 slip_weight = 1
-GR_weight = 1
-max_iter = 44500
-
-
+GR_weight = 10
+max_iter = 30000
+plot_ruptures = False
 min_Mw, max_Mw = 4.5, 9.5
 
 outdir = f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\{inversion_name}"
@@ -78,27 +82,21 @@ for run in range(n_runs):
 # %%
     if run == 0:
         # %%
-        plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='black' , label='Target GR Relation', zorder=6)
-        # plt.plot(ruptures['Mw'], np.log10(ruptures['lower'] + 1e-12), color='green', linestyle=':')
-        # plt.plot(ruptures['Mw'], np.log10(ruptures['upper']), color='green', linestyle=':')
-        # plt.plot(bins['Mw_bin'][lim_ix], np.log10(bins['upper'][lim_ix]), color='green', linestyle='-.', label='Upper Limit')  # Binned upper bound
-
-        # sns.histplot(x=ruptures['Mw'], y=np.log10(ruptures['initial_rate']), binwidth=(0.1,0.1), binrange=((5.95,9.55),(-12.05,3.05)))
+        binwidth = (0.1, 0.5)
+        plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='black', label='Target GR Relation', zorder=6)
 
         sns.scatterplot(x=ruptures['Mw'], y=np.log10(initial_rate), s=20, color='blue', label='Initial GR', edgecolors=None, zorder=4)
-        sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['initial_rate']), s=2, label='Initial rate', color='blue', edgecolors=None, zorder=1)
-        # sns.histplot(x=ruptures['Mw'], y=np.log10(ruptures['initial_rate'] + 1e-10), binwidth=(0.05, 0.1))
-        try:
-            sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['upper']), s=5, color='green', label='Individual limit', edgecolors=None, zorder=0)
-        except:
-            sns.scatterplot(x=ruptures['Mw'], y=ruptures['upper'], s=5, color='green', label='Individual limit', edgecolors=None, zorder=0)
+        sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['initial_rate']), s=1, label='Initial rate', color='blue', edgecolors=None, zorder=1)
+        sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['upper']), s=5, color='green', label='Individual limit', edgecolors=None, zorder=0)
+        sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['lower'] + 1e-30), s=5, color='green', edgecolors=None, zorder=0)
+
         if plot_results:
-            sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['inverted_rate']), s=2, label='Inverted rate', color='orange', edgecolors=None, zorder=2)
+            sns.histplot(x=ruptures['Mw'], y=np.log10(ruptures['inverted_rate']), binwidth=binwidth, zorder=0)
+            # sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['inverted_rate']), s=2, label='Inverted rate', color='orange', edgecolors=None, zorder=2)
             sns.scatterplot(x=ruptures['Mw'], y=np.log10(inverted_rate), s=10, color='red', label='Inverted GR', edgecolors=None, zorder=5)
-        # sns.scatterplot(x=bins['Mw_bin'], y=np.log10(initial_bins + 1e-12), s=20, label='Initial Bins', edgecolors=None)
         plt.ylabel('log10(N)')
         plt.xlim([min_Mw, max_Mw])
-        plt.ylim([-10, 3])
+        plt.ylim([-11, 3])
         plt.legend(loc='lower left')
         plt.title(f"# Ruptures: {n_ruptures}")
         # %%
@@ -113,19 +111,18 @@ if plot_results:
     plt.plot([-10, 1], [-10, 1], color='red', zorder=1)
     plt.xlim([-10, 1])
     plt.ylim([-10, 1])
-    #plt.xscale('log')
-    #plt.yscale('log')
     plt.xlabel('Log(Input Rate)')
     plt.ylabel('Log(Inverted Rate)')
     plt.title(f"# Ruptures: {n_ruptures}")
     plt.colorbar()
     plt.show()
 
-    binwidth = 0.1
-    sns.histplot(x=np.log10(ruptures['initial_rate']), y=np.log10(ruptures['inverted_rate']), binwidth=binwidth, binrange=(-12 - binwidth / 2, 1 + binwidth / 2), zorder=0)
-    plt.plot([-10, 1], [-10, 1], color='red', zorder=1)
-    plt.xlim([-10, 1])
-    plt.ylim([-10, 1])
+    binwidth = 0.25
+    brange = [np.floor(np.log10(ruptures['inverted_rate'].min())), 1]
+    sns.histplot(x=np.log10(ruptures['initial_rate']), y=np.log10(ruptures['inverted_rate']), binwidth=binwidth, binrange=(brange[0] - binwidth / 2, brange[1] + binwidth / 2), zorder=0)
+    plt.plot(brange, brange, color='red', zorder=1)
+    plt.xlim(brange)
+    plt.ylim(brange)
     plt.xlabel('Log(Input Rate)')
     plt.ylabel('Log(Inverted Rate)')
     plt.title(f"# Ruptures: {n_ruptures}")
@@ -138,3 +135,85 @@ if plot_extras:
     plt.ylabel('Change ratio (inv / inp)')
     plt.yscale('log')
     plt.show()
+
+
+def plot_2d_surface(mesh, title, color_by='total'):
+    # Extract points and cells from the mesh
+    points = mesh.points[:, :2]  # Assuming 2D projection (only X and Y)
+    cells = mesh.cells_dict[list(mesh.cells_dict.keys())[0]]
+    colors = mesh.cell_data[color_by][0]  # Get the 'total' scalar values
+
+    # Create polygons from cells and corresponding colors
+    polygons = [points[cell] for cell in cells]
+
+    # Plot using PolyCollection
+    fig, ax = plt.subplots()
+    collection = PolyCollection(polygons, array=colors, cmap='viridis', edgecolor=None)
+    ax.add_collection(collection)
+    ax.autoscale_view()
+
+    # Add colorbar and labels
+    plt.colorbar(collection, ax=ax, orientation='vertical', label=color_by)
+    plt.xlabel('X')
+    plt.ylabel('Y')
+    plt.title(title)
+    plt.show()
+
+
+# %%
+if plot_ruptures:
+    groups = ruptures.groupby(ruptures['Mw'].apply(lambda x: np.floor(x)))
+    rupture_dir = os.path.abspath(os.path.join(outdir, '..', 'ruptures'))
+
+    vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
+
+    # Create interpolation object for mapping ruptures to the mesh
+    transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
+
+    n_plots = 3
+    minMw_plot = 9
+    for bad in [True, False]:
+        for mw, group in groups:
+            if mw >= minMw_plot:
+                df = group.sort_values(['inverted_rate'], ascending=bad).iloc[:n_plots]
+                for id, rupt in df.iterrows():
+                    rupture_file = os.path.join(rupture_dir, f"hikkerk3D_locking_NZNSHMscaling.Mw{id}.rupt")
+                    rupture = pd.read_csv(rupture_file, sep='\t', index_col='# No')
+
+                    patch_coords = np.zeros((rupture.shape[0], 4))
+                    patch_coords[:, 0] = np.arange(rupture.shape[0])
+                    patch_coords[:, 2], patch_coords[:, 1] = transformer.transform(rupture['lat'], rupture['lon'])
+                    patch_coords[:, 3] = rupture['z(km)'] * -1
+
+                    cells = vtk.cells[0].data
+                    n_cells = cells.shape[0]
+                    cell_centers = np.zeros((n_cells, 3))
+                    for ii in range(n_cells):
+                        if vtk.cells[0].data[ii, :].shape[0] == 3:
+                            p1, p2, p3 = vtk.cells[0].data[ii, :]
+                            cell_centers[ii, :] = np.mean(np.vstack([vtk.points[p1, :], vtk.points[p2, :], vtk.points[p3, :]]), axis=0)
+                            element = 'triangle'
+                            suffix = ''
+                        else:
+                            p1, p2, p3, p4 = vtk.cells[0].data[ii, :]
+                            cell_centers[ii, :] = np.mean(np.vstack([vtk.points[p1, :], vtk.points[p2, :], vtk.points[p3, :], vtk.points[p4, :]]), axis=0)
+                            element = 'polygon'
+                            suffix = '_rect'
+
+                    hikurangi_kd_tree = KDTree(patch_coords[:, 1:])
+                    _, nearest_indices = hikurangi_kd_tree.query(cell_centers)
+
+                    points = vtk.points
+                    if 'total-slip(m)' in rupture.columns:
+                        total = rupture['total-slip(m)']
+                        ss = np.zeros_like(total)
+                        ds = np.zeros_like(total)
+                    else:
+                        ss = rupture['ss-slip(m)']
+                        ds = rupture['ds-slip(m)']
+                        total = np.sqrt(ss**2 + ds**2)
+
+                    rupture_mesh = meshio.Mesh(points=points, cells=[(element, cells)], cell_data={'ss': [ss], 'ds': [ds], 'total': [total]})
+
+                    # Plot the mesh as a 2D surface
+                    plot_2d_surface(rupture_mesh, f"{mw} Mw: {id} Bad = {bad} {1/rupt['inverted_rate']:.2f} yrs", color_by='total')

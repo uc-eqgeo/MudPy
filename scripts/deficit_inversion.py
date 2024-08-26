@@ -11,10 +11,20 @@ hours = 0
 for hour in range(hours):
     print(f"Sleeping for {hours - hour} hours... (Started at {time()})")
     sleep(3600)
-n_ruptures = 5000
 inversion_name = 'start_rand'
 
+n_ruptures = 5000
+iteration_list = [30000]
+rate_weight = 1
+GR_weight = 10
+ftol = 0.0001
+
+b, N = 1.1, 21.5
+max_Mw = 9.5  # Maximum magnitude to use to match GR-Rate
+
 rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures'
+starting_rate_file = os.path.abspath(os.path.join(rupture_dir, "..", "start_rand", "n10000_S1_GR10_nIt100000_inverted_ruptures.txt"))  # Set to None for random initialisation
+starting_rate_file = None
 
 outdir = os.path.abspath(os.path.join(rupture_dir, '..', inversion_name))
 if not os.path.exists(outdir):
@@ -42,19 +52,7 @@ deficit_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\s
 deficit = np.genfromtxt(deficit_file)
 deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
 
-rate_weight = 1
-GR_weight = 2
-iteration_list = [20000]
-
 pygmo = True
-
-if rate_weight == 0:
-    create_G = False
-else:
-    create_G = True
-
-b, N = 1.1, 21.5
-max_Mw = 9.0  # Maximum magnitude to use to match GR-Rate
 
 class deficitInversion:
     def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, GR_weight: float, max_Mw: float):
@@ -71,15 +69,11 @@ class deficitInversion:
 
         print(f"Reading rupture dataframe...")
         self.n_ruptures = ruptures_df.shape[0]
-        try:
-            self.id = ruptures_df['id'].values
-        except:
-            self.id = np.arange(self.n_ruptures)
+        self.id = ruptures_df['rupt_id'].values
         self.Mw = ruptures_df['mw'].values
         self.target = ruptures_df['target'].values
         i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(str(self.n_patches - 1)) + 1
-        self.Mw_bins = np.unique(np.floor(np.array(self.target) * 10) / 10)
-        self.Mw_bins = np.append(self.Mw_bins, self.Mw_bins[-1] + 0.1)  # Add an extra bin for the maximum magnitude
+        self.Mw_bins = np.unique(np.floor(np.array(self.Mw) * 10) / 10)  # Create bins for each 0.1 magnitude increment
 
         self.sparse_slip = bsr_array(ruptures_df.iloc[:, i0:i1].values.T * 1000)  # Slip in mm, convert from m to mm, place in sparse matrix
 
@@ -111,7 +105,7 @@ class deficitInversion:
 
         Lower bound is 0
         """
-        lower_bound = [-10] * self.n_ruptures  # Allow rupture to not occur (i.e, 10-billion year recurrance time)
+        lower_bound = [-16] * self.n_ruptures  # Allow rupture to not occur (simulated as incredibly low rate, use -16 from NSHM)
 
         samples_Mw = np.linspace(min(self.Mw), max(self.Mw), self.n_ruptures)[::-1] # Create a range of magnitudes to sample from, in decreasing magnitude order
         a = np.log10(100) + (b * 5)  # Upperbound from 100 5Mw events a year (Currently this will overshoot, as is the bin rate not indivdual rupture rate)
@@ -120,7 +114,9 @@ class deficitInversion:
         for ix in range(self.n_ruptures):
             sample_rates[ix] = GR_rate[ix] - np.sum(sample_rates[(ix + 1):]) # Calculate initial rate as (N-value - rate of higher magnitude)
         upper_bound = np.interp(self.Mw, samples_Mw[::-1], sample_rates[::-1])  # Interpolate the sample rates to the actual rupture magnitudes
-        return (lower_bound, np.log10(upper_bound))
+        upper_bound = np.log10(upper_bound)  # Convert to log space
+
+        return (lower_bound, upper_bound)
     
     def fitness(self, x: np.ndarray):
         # Calculate slip-deficit component
@@ -149,8 +145,13 @@ inversion = deficitInversion(ruptures_df, deficit, b, N, rate_weight, GR_weight,
 print('Calculating initial rupture rates...')
 lower_lim, upper_lim = inversion.get_bounds()
 lower_lim, upper_lim = np.array(lower_lim).astype(np.float64), np.array(upper_lim).astype(np.float64)
-
-initial_rates = 10 ** ((upper_lim + 10) * np.random.rand(n_ruptures) - 10)  # Randomly initialise rates to values between 1e-10 and upper limit (for when working in log space)
+if starting_rate_file:
+    print(f"Loading initial rates from {starting_rate_file}")
+    initial_rates = pd.read_csv(starting_rate_file, sep='\t', index_col=0)['inverted_rate'].values[:n_ruptures]
+    if len(initial_rates) < n_ruptures:
+        raise Exception(f"Initial rates file contains {len(initial_rates)} rates, expected {n_ruptures}")
+else:
+    initial_rates = 10 ** ((upper_lim - lower_lim.min()) * np.random.rand(n_ruptures) + lower_lim.min())  # Randomly initialise rates to values between lower and upper limit (for when working in log space)
 
 # Output the initial conditions
 outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_ruptures.txt'
@@ -187,7 +188,7 @@ for n_iterations in iteration_list:
         print(f'Optimising {n_iterations} generations with pygmo...')
 
         # set up differential evolution algorithm
-        algo = pg.algorithm(pg.de(gen=n_iterations, ftol=0.0001))
+        algo = pg.algorithm(pg.de(gen=n_iterations, ftol=ftol))
 
         # set up self adaptive differential evolution algorithm
         #algo = pg.algorithm(pg.sade(gen=n_iterations, variant_adptv=2))
