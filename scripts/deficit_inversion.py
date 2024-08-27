@@ -14,14 +14,16 @@ for hour in range(hours):
     sleep(3600)
 inversion_name = 'start_rand'
 
-n_ruptures = 1000
+n_ruptures = 100
 iteration_list = [200]
 rate_weight = 1
 GR_weight = 10
 ftol = 0.0001
-n_islands = 10
+n_islands = 20
 pop_size = 20
-archipeligo = False
+archipeligo = True
+topology_name = None  # 'None', 'Ring', 'FullyConnected'
+ring_plus = 1  # Number of connections to add to ring topology
 
 b, N = 1.1, 21.5
 max_Mw = 9.5  # Maximum magnitude to use to match GR-Rate
@@ -57,7 +59,7 @@ deficit = np.genfromtxt(deficit_file)
 deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
 
 pygmo = True
-
+define_population = True
 
 class deficitInversion:
     def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, GR_weight: float, max_Mw: float):
@@ -145,31 +147,7 @@ class deficitInversion:
 
         cum_rms = (rms * self.rate_weight) + (GR_rms * self.GR_weight)  # Allow for variable weighting between slip deficit and GR-rate
 
-        return np.array([cum_rms])
-
-
-class nring():
-    """
-    Ring topology, where connections = 0 is a default ring, and connections = 1 is ring+1, etc
-    """
-
-    def __init__(self, n_islands: int = 1, connections: int = 0):
-        self.connections = connections
-        self.n_islands = n_islands
-
-    def get_connections(self, n):
-        conns = n - np.arange(1, self.connections + 2)
-        return [np.mod(conns, self.n_islands), np.ones(self.connections + 1)]
-
-    def push_back(self):
-        return
-
-    def get_name(self):
-        name = "Ring"
-        for conn in range(self.connections):
-            name += f"+{conn + 1}"
-        return name
-    
+        return np.array([cum_rms])  
 
 inversion = deficitInversion(ruptures_df, deficit, b, N, rate_weight, GR_weight, max_Mw)
 
@@ -234,32 +212,42 @@ for n_iterations in iteration_list:
         print(algo)
 
         # set up inversion class to run algorithm on
-        print('Setting up inversion...')
         if archipeligo:
-            # pop = pg.population(prob=inversion, size=20)
-            # Tell population object what starting values will be
-            # pop.push_back(np.log10(initial_rates))
-            # archi = pg.archipelago(n=20, algo=algo, pop=pop)
-            start = time()
-            topo = pg.topology(nring(n_islands, connections=1))
-            topo.push_back(10)
-            topo = pg.topology(pg.ring())
-            
-            topo = pg.free_form()
-            for ii in range(n_islands):
-                topo.add_vertex()
-            
-            n_connections = 2
-            for ii in range(n_islands):
-                conns = ii - np.arange(-n_connections, n_connections + 1)
-                conns = np.delete(conns, int(len(conns) / 2))
-                conns = np.mod(conns, n_islands)
-                for conn in conns:
-                    topo.add_edge(ii, conn)
-            topo = pg.topology(topo)
-            
-            
-            archi = pg.archipelago(n=n_islands, algo=algo, prob=pg.problem(inversion), pop_size=pop_size, t=topo)
+            print('Setting up islands...')
+            if topology_name == 'FullyConnected':
+                topo = pg.topology(pg.fully_connected())
+            elif topology_name == 'Ring':
+                if ring_plus == 0:
+                    topo = pg.topology(pg.ring())
+                else:
+                    connections = ring_plus + 1
+                    topo = pg.free_form()
+                    for ii in range(n_islands):
+                        topo.add_vertex()
+                    for ii in range(n_islands):
+                        conns = ii - np.arange(-connections, connections + 1)
+                        conns = np.delete(conns, connections)
+                        conns = np.mod(conns, n_islands)
+                        for conn in conns:
+                            topo.add_edge(ii, conn)
+                    topo = pg.topology(topo)
+            else:
+                topo = pg.topology(pg.unconnected())
+
+            print(topo)
+
+            if define_population:
+                print('Setting up archipeligo with defined starting population...')
+                pop = pg.population(prob=inversion, size=pop_size)
+                # Tell population object what starting values will be
+                pop.push_back(np.log10(initial_rates))
+                archi = pg.archipelago(n=n_islands, algo=algo, pop=pop, t=topo)
+            else:
+                print('Setting up archipeligo...')
+                archi = pg.archipelago(n=n_islands, algo=algo, prob=pg.problem(inversion), pop_size=pop_size, t=topo)
+
+            print('Evolving populations...')
+            start = time()   
             archi.evolve()
             print(archi)
             archi.wait()
