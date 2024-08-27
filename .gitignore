@@ -14,3 +14,4 @@ examples/fakequakes/3D/hikkerk3D_test/
 .env.txt
 .juypter/jupyter_notebook_config.py
 work/
+hikkerk/
