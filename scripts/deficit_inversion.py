@@ -15,11 +15,11 @@ for hour in range(hours):
 inversion_name = 'start_rand'
 
 n_ruptures = 100
-iteration_list = [200]
+iteration_list = [10]
 rate_weight = 1
 GR_weight = 10
 ftol = 0.0001
-n_islands = 20
+n_islands = 2
 pop_size = 20
 archipeligo = True
 topology_name = None  # 'None', 'Ring', 'FullyConnected'
@@ -28,7 +28,7 @@ ring_plus = 1  # Number of connections to add to ring topology
 b, N = 1.1, 21.5
 max_Mw = 9.5  # Maximum magnitude to use to match GR-Rate
 
-rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures_keep'
+rupture_dir = '/home/rccuser/MudPy/hikkerk/ruptures'
 starting_rate_file = os.path.abspath(os.path.join(rupture_dir, "..", "start_rand", "n10000_S1_GR10_nIt100000_inverted_ruptures.txt"))  # Set to None for random initialisation
 starting_rate_file = None
 
@@ -53,7 +53,7 @@ else:
     else:
         raise Exception(f"No csv files found with at least {n_ruptures} ruptures")
 
-deficit_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\slip_deficit_trenchlock.slip'
+deficit_file = '/home/rccuser/MudPy/hikkerk/model_info/slip_deficit_trenchlock.slip'
 
 deficit = np.genfromtxt(deficit_file)
 deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
@@ -149,186 +149,187 @@ class deficitInversion:
 
         return np.array([cum_rms])  
 
-inversion = deficitInversion(ruptures_df, deficit, b, N, rate_weight, GR_weight, max_Mw)
+if __name__ == "__main__":
+    inversion = deficitInversion(ruptures_df, deficit, b, N, rate_weight, GR_weight, max_Mw)
 
-# Initially set recurrance rate to NSHM GR-rate for each rupture magnitude
-print('Calculating initial rupture rates...')
-lower_lim, upper_lim = inversion.get_bounds()
-lower_lim, upper_lim = np.array(lower_lim).astype(np.float64), np.array(upper_lim).astype(np.float64)
-if starting_rate_file:
-    print(f"Loading initial rates from {starting_rate_file}")
-    initial_rates = pd.read_csv(starting_rate_file, sep='\t', index_col=0)['inverted_rate'].values[:n_ruptures]
-    if len(initial_rates) < n_ruptures:
-        raise Exception(f"Initial rates file contains {len(initial_rates)} rates, expected {n_ruptures}")
-else:
-    initial_rates = 10 ** ((upper_lim - lower_lim.min()) * np.random.rand(n_ruptures) + lower_lim.min())  # Randomly initialise rates to values between lower and upper limit (for when working in log space)
-
-# Output the initial conditions
-outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_ruptures.txt'
-out = np.zeros((inversion.n_ruptures, 7))
-out[:, 0] = np.arange(inversion.n_ruptures)
-out[:, 1] = inversion.Mw
-out[:, 2] = inversion.target
-out[:, 3] = initial_rates
-out[:, 4], out[:, 5] = lower_lim, upper_lim
-out[:, 6] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
-np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.4f\t%.6e\t%.6e\t%.6e\t%.6e", header='No\tMw\ttarget\tinitial_rate\tlower\tupper\ttarget_rate')
-
-outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_bins.txt'
-out = np.zeros((len(inversion.Mw_bins), 5))
-out[:, 0] = np.arange(len(inversion.Mw_bins))
-out[:, 1] = inversion.Mw_bins
-out[:, 2] = np.matmul(inversion.gr_matrix, initial_rates)
-out[:, 3], out[:, 4] = np.matmul(inversion.gr_matrix, 10 ** lower_lim), np.matmul(inversion.gr_matrix, 10 ** upper_lim)
-np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e\t%.6e", header='No\tMw_bin\tinput_N\tlower\tupper')
-
-initial_slip = np.matmul(inversion.slip, initial_rates)  # Calculate what the slip distribution would look like from the initial rates
-# Output the deficit to be resolved for, and the inital slip distribution based on events + input rates
-output = np.genfromtxt(deficit_file)
-output[:, 3] /= 1000  # Convert to km
-output[:, 8:10] = np.zeros_like(output[:, 8:10])
-output[:, 8] = deficit
-output[:, 9] = initial_slip
-outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_initial_deficit.inv'
-np.savetxt(outfile, output, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
-           header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
-
-for n_iterations in iteration_list:
-    if pygmo:
-        print(f'Optimising {n_iterations} generations with pygmo...')
-
-        # set up differential evolution algorithm
-        algo = pg.algorithm(pg.de(gen=n_iterations, ftol=ftol))
-
-        # set up self adaptive differential evolution algorithm
-        # algo = pg.algorithm(pg.sade(gen=n_iterations, variant_adptv=2))
-
-        # set up coronas simulated annealing
-        # algo = pg.algorithm(pg.simulated_annealing(Ts=10., Tf=.1, n_T_adj=10, n_range_adj=10, bin_size=10, start_range=1.))
-
-        # Lots of output to check on progress
-        algo.set_verbosity(100)
-
-        print(algo)
-
-        # set up inversion class to run algorithm on
-        if archipeligo:
-            print('Setting up islands...')
-            if topology_name == 'FullyConnected':
-                topo = pg.topology(pg.fully_connected())
-            elif topology_name == 'Ring':
-                if ring_plus == 0:
-                    topo = pg.topology(pg.ring())
-                else:
-                    connections = ring_plus + 1
-                    topo = pg.free_form()
-                    for ii in range(n_islands):
-                        topo.add_vertex()
-                    for ii in range(n_islands):
-                        conns = ii - np.arange(-connections, connections + 1)
-                        conns = np.delete(conns, connections)
-                        conns = np.mod(conns, n_islands)
-                        for conn in conns:
-                            topo.add_edge(ii, conn)
-                    topo = pg.topology(topo)
-            else:
-                topo = pg.topology(pg.unconnected())
-
-            print(topo)
-
-            if define_population:
-                print('Setting up archipeligo with defined starting population...')
-                pop = pg.population(prob=inversion, size=pop_size)
-                # Tell population object what starting values will be
-                pop.push_back(np.log10(initial_rates))
-                archi = pg.archipelago(n=n_islands, algo=algo, pop=pop, t=topo)
-            else:
-                print('Setting up archipeligo...')
-                archi = pg.archipelago(n=n_islands, algo=algo, prob=pg.problem(inversion), pop_size=pop_size, t=topo)
-
-            print('Evolving populations...')
-            start = time()   
-            archi.evolve()
-            print(archi)
-            archi.wait()
-
-            # Best slip distribution
-            f_ix = np.array([champion[0] for champion in archi.get_champions_f()]).argsort()
-            preferred_rate = 10 ** (np.array(archi.get_champions_x()).T[:, f_ix])
-        else:
-            n_islands = 1
-            pop = pg.population(prob=inversion, size=pop_size)
-
-            # Tell population object what starting values will be
-            pop.push_back(np.log10(initial_rates))
-
-            # Run algorithm
-            print(f'Inverting {inversion.n_ruptures} ruptures...')
-            start = time()
-            pop = algo.evolve(pop)
-
-            # Best slip distribution
-            preferred_rate = 10 ** pop.champion_x.reshape(-1,1)
+    # Initially set recurrance rate to NSHM GR-rate for each rupture magnitude
+    print('Calculating initial rupture rates...')
+    lower_lim, upper_lim = inversion.get_bounds()
+    lower_lim, upper_lim = np.array(lower_lim).astype(np.float64), np.array(upper_lim).astype(np.float64)
+    if starting_rate_file:
+        print(f"Loading initial rates from {starting_rate_file}")
+        initial_rates = pd.read_csv(starting_rate_file, sep='\t', index_col=0)['inverted_rate'].values[:n_ruptures]
+        if len(initial_rates) < n_ruptures:
+            raise Exception(f"Initial rates file contains {len(initial_rates)} rates, expected {n_ruptures}")
     else:
-        n_islands = 1
-        print('Prepping megamatrix...')
-        mega_matrix = np.vstack([inversion.slip, inversion.gr_matrix * GR_weight])
-        full_rates = np.hstack([inversion.deficit, inversion.GR_rate * GR_weight])
-        print(f'Inverting {inversion.n_ruptures} ruptures with max_iter {n_iterations} on scipy...')
-        start = time()
-        results = lsq_linear(mega_matrix, full_rates, bounds=(lower_lim, upper_lim), verbose=2, method='bvls', max_iter=n_iterations)
-        preferred_rate = results.x.reshape(-1,1)
-        misfit = results.fun
+        initial_rates = 10 ** ((upper_lim - lower_lim.min()) * np.random.rand(n_ruptures) + lower_lim.min())  # Randomly initialise rates to values between lower and upper limit (for when working in log space)
 
-    print(f'Inversion of {inversion.n_ruptures} ruptures complete in {time() - start:.2f}s...')
+    # Output the initial conditions
+    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_ruptures.txt')
+    out = np.zeros((inversion.n_ruptures, 7))
+    out[:, 0] = np.arange(inversion.n_ruptures)
+    out[:, 1] = inversion.Mw
+    out[:, 2] = inversion.target
+    out[:, 3] = initial_rates
+    out[:, 4], out[:, 5] = lower_lim, upper_lim
+    out[:, 6] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
+    np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.4f\t%.6e\t%.6e\t%.6e\t%.6e", header='No\tMw\ttarget\tinitial_rate\tlower\tupper\ttarget_rate')
 
-    # Reconstruct the slip deficit
-    reconstructed_deficit = np.matmul(inversion.slip, preferred_rate[:, 0])
-
-    # Output results
-    outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_ruptures.txt'
-    out = np.zeros((inversion.n_ruptures, n_islands + 5))
-    out[:, 0] = inversion.Mw
-    out[:, 1] = initial_rates
-    out[:, 2:2 + n_islands] = preferred_rate
-    out[:, -3] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
-    out[:, -2], out[:, -1] = 10 ** lower_lim, 10 ** upper_lim
-    # np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e", header='No\tMw\tinitial_rate\tinverted_rate\ttarget_rate\tlower\tupper')
-    columns = ["inverted_rate_" + str(n) for n in range(n_islands)]
-    columns = ["Mw", "initial_rate"] + columns + ["target_rate", "lower", "upper"]
-    out_df = pd.DataFrame(out, columns=columns, index=inversion.id)
-    out_df.to_csv(outfile, sep='\t', index=True)
-
-    outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_bins.txt'
-    out = np.zeros((len(inversion.Mw_bins), 4))
+    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_bins.txt')
+    out = np.zeros((len(inversion.Mw_bins), 5))
     out[:, 0] = np.arange(len(inversion.Mw_bins))
     out[:, 1] = inversion.Mw_bins
     out[:, 2] = np.matmul(inversion.gr_matrix, initial_rates)
-    out[:, 3] = np.matmul(inversion.gr_matrix, preferred_rate[:, 0])
-    np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e", header='No\tMw_bin\tinput_N\tinverted_N')
+    out[:, 3], out[:, 4] = np.matmul(inversion.gr_matrix, 10 ** lower_lim), np.matmul(inversion.gr_matrix, 10 ** upper_lim)
+    np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e\t%.6e", header='No\tMw_bin\tinput_N\tlower\tupper')
 
-    # Output deficits
-    deficit = np.genfromtxt(deficit_file)
-    deficit[:, 3] /= 1000  # Convert to km
+    initial_slip = np.matmul(inversion.slip, initial_rates)  # Calculate what the slip distribution would look like from the initial rates
+    # Output the deficit to be resolved for, and the inital slip distribution based on events + input rates
+    output = np.genfromtxt(deficit_file)
+    output[:, 3] /= 1000  # Convert to km
+    output[:, 8:10] = np.zeros_like(output[:, 8:10])
+    output[:, 8] = deficit
+    output[:, 9] = initial_slip
+    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_initial_deficit.inv')
+    np.savetxt(outfile, output, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
+            header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
 
-    deficit[:, 9] = reconstructed_deficit
-    outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_deficit.inv'
-    np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.0f\t%.0f\t%.0f",
-               header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
+    for n_iterations in iteration_list:
+        if pygmo:
+            print(f'Optimising {n_iterations} generations with pygmo...')
 
-    deficit[:, 8] = reconstructed_deficit / inversion.deficit  # Fractional misfit
-    if pygmo:
-        deficit[:, 9] = reconstructed_deficit - inversion.deficit  # Absolute misfit
-    else:
-        deficit[:, 9] = misfit[:inversion.n_patches]  # Absolute misfit
-    outfile = f'{outdir}\\n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_misfit.inv'
-    np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
-               header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tmisfit_perc(mm/yr)\tmisfit_mag(mm/yr)\trupt_time\trigid\tvel')
+            # set up differential evolution algorithm
+            algo = pg.algorithm(pg.de(gen=n_iterations, ftol=ftol))
 
-if not archipeligo:
-    uda = algo.extract(pg.de)
-    log = uda.get_log()
-    plt.semilogy([entry[0] for entry in log], [entry[2] for entry in log], 'k--')
-    plt.show()
+            # set up self adaptive differential evolution algorithm
+            # algo = pg.algorithm(pg.sade(gen=n_iterations, variant_adptv=2))
 
-print('All Complete! :)')
+            # set up coronas simulated annealing
+            # algo = pg.algorithm(pg.simulated_annealing(Ts=10., Tf=.1, n_T_adj=10, n_range_adj=10, bin_size=10, start_range=1.))
+
+            # Lots of output to check on progress
+            algo.set_verbosity(100)
+
+            print(algo)
+
+            # set up inversion class to run algorithm on
+            if archipeligo:
+                print('Setting up islands...')
+                if topology_name == 'FullyConnected':
+                    topo = pg.topology(pg.fully_connected())
+                elif topology_name == 'Ring':
+                    if ring_plus == 0:
+                        topo = pg.topology(pg.ring())
+                    else:
+                        connections = ring_plus + 1
+                        topo = pg.free_form()
+                        for ii in range(n_islands):
+                            topo.add_vertex()
+                        for ii in range(n_islands):
+                            conns = ii - np.arange(-connections, connections + 1)
+                            conns = np.delete(conns, connections)
+                            conns = np.mod(conns, n_islands)
+                            for conn in conns:
+                                topo.add_edge(ii, conn)
+                        topo = pg.topology(topo)
+                else:
+                    topo = pg.topology(pg.unconnected())
+
+                print(topo)
+
+                if define_population:
+                    print('Setting up archipeligo with defined starting population...')
+                    pop = pg.population(prob=inversion, size=pop_size)
+                    # Tell population object what starting values will be
+                    pop.push_back(np.log10(initial_rates))
+                    archi = pg.archipelago(n=n_islands, algo=algo, pop=pop, t=topo)
+                else:
+                    print('Setting up archipeligo...')
+                    archi = pg.archipelago(n=n_islands, algo=algo, prob=pg.problem(inversion), pop_size=pop_size, t=topo)
+
+                print('Evolving populations...')
+                start = time()   
+                archi.evolve()
+                print(archi)
+                archi.wait()
+
+                # Best slip distribution
+                f_ix = np.array([champion[0] for champion in archi.get_champions_f()]).argsort()
+                preferred_rate = 10 ** (np.array(archi.get_champions_x()).T[:, f_ix])
+            else:
+                n_islands = 1
+                pop = pg.population(prob=inversion, size=pop_size)
+
+                # Tell population object what starting values will be
+                pop.push_back(np.log10(initial_rates))
+
+                # Run algorithm
+                print(f'Inverting {inversion.n_ruptures} ruptures...')
+                start = time()
+                pop = algo.evolve(pop)
+
+                # Best slip distribution
+                preferred_rate = 10 ** pop.champion_x.reshape(-1,1)
+        else:
+            n_islands = 1
+            print('Prepping megamatrix...')
+            mega_matrix = np.vstack([inversion.slip, inversion.gr_matrix * GR_weight])
+            full_rates = np.hstack([inversion.deficit, inversion.GR_rate * GR_weight])
+            print(f'Inverting {inversion.n_ruptures} ruptures with max_iter {n_iterations} on scipy...')
+            start = time()
+            results = lsq_linear(mega_matrix, full_rates, bounds=(lower_lim, upper_lim), verbose=2, method='bvls', max_iter=n_iterations)
+            preferred_rate = results.x.reshape(-1,1)
+            misfit = results.fun
+
+        print(f'Inversion of {inversion.n_ruptures} ruptures complete in {time() - start:.2f}s...')
+
+        # Reconstruct the slip deficit
+        reconstructed_deficit = np.matmul(inversion.slip, preferred_rate[:, 0])
+
+        # Output results
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_ruptures.txt')
+        out = np.zeros((inversion.n_ruptures, n_islands + 5))
+        out[:, 0] = inversion.Mw
+        out[:, 1] = initial_rates
+        out[:, 2:2 + n_islands] = preferred_rate
+        out[:, -3] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
+        out[:, -2], out[:, -1] = 10 ** lower_lim, 10 ** upper_lim
+        # np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e", header='No\tMw\tinitial_rate\tinverted_rate\ttarget_rate\tlower\tupper')
+        columns = ["inverted_rate_" + str(n) for n in range(n_islands)]
+        columns = ["Mw", "initial_rate"] + columns + ["target_rate", "lower", "upper"]
+        out_df = pd.DataFrame(out, columns=columns, index=inversion.id)
+        out_df.to_csv(outfile, sep='\t', index=True)
+
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_bins.txt')
+        out = np.zeros((len(inversion.Mw_bins), 4))
+        out[:, 0] = np.arange(len(inversion.Mw_bins))
+        out[:, 1] = inversion.Mw_bins
+        out[:, 2] = np.matmul(inversion.gr_matrix, initial_rates)
+        out[:, 3] = np.matmul(inversion.gr_matrix, preferred_rate[:, 0])
+        np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e", header='No\tMw_bin\tinput_N\tinverted_N')
+
+        # Output deficits
+        deficit = np.genfromtxt(deficit_file)
+        deficit[:, 3] /= 1000  # Convert to km
+
+        deficit[:, 9] = reconstructed_deficit
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_deficit.inv')
+        np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.0f\t%.0f\t%.0f",
+                header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
+
+        deficit[:, 8] = reconstructed_deficit / inversion.deficit  # Fractional misfit
+        if pygmo:
+            deficit[:, 9] = reconstructed_deficit - inversion.deficit  # Absolute misfit
+        else:
+            deficit[:, 9] = misfit[:inversion.n_patches]  # Absolute misfit
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_misfit.inv')
+        np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
+                header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tmisfit_perc(mm/yr)\tmisfit_mag(mm/yr)\trupt_time\trigid\tvel')
+
+    if not archipeligo:
+        uda = algo.extract(pg.de)
+        log = uda.get_log()
+        plt.semilogy([entry[0] for entry in log], [entry[2] for entry in log], 'k--')
+        plt.show()
+
+    print('All Complete! :)')
