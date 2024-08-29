@@ -8,58 +8,34 @@ from scipy.optimize import lsq_linear
 from scipy.sparse import bsr_array
 import matplotlib.pyplot as plt
 
-hours = 0
-for hour in range(hours):
-    print(f"Sleeping for {hours - hour} hours... (Started at {time()})")
-    sleep(3600)
 inversion_name = 'start_rand'
 
-n_ruptures = 100
-iteration_list = [10]
+n_ruptures = 5000
+iteration_list = [100000]
 rate_weight = 1
 GR_weight = 10
 ftol = 0.0001
-n_islands = 2
+n_islands = 30
 pop_size = 20
 archipeligo = True
 topology_name = None  # 'None', 'Ring', 'FullyConnected'
-ring_plus = 1  # Number of connections to add to ring topology
+ring_plus = 0  # Number of connections to add to ring topology
 
 b, N = 1.1, 21.5
 max_Mw = 9.5  # Maximum magnitude to use to match GR-Rate
 
 rupture_dir = '/home/rccuser/MudPy/hikkerk/ruptures'
-starting_rate_file = os.path.abspath(os.path.join(rupture_dir, "..", "start_rand", "n10000_S1_GR10_nIt100000_inverted_ruptures.txt"))  # Set to None for random initialisation
+starting_rate_file = os.path.abspath(os.path.join(rupture_dir, "..", "start_rand", "n10000_S1_GR10_nIt100000_inverted_ruptures.csv"))  # Set to None for random initialisation
 starting_rate_file = None
 
 outdir = os.path.abspath(os.path.join(rupture_dir, '..', inversion_name))
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-if os.path.exists(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv'))):
-    from_csv = True
-    print(f"Loading ruptures from rupture_df_n{n_ruptures}.csv...")
-    ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv')))
-else:
-    csv_list = glob(os.path.abspath(os.path.join(rupture_dir, "..", "rupture_df_n*.csv")))
-    n_rupts = [int(csv.split('_n')[-1].split('.')[0]) for csv in csv_list]
-    n_rupts.sort()
-    n_rupts = [n for n in n_rupts if n > n_ruptures]
-    if len(n_rupts) > 0:
-        print(f"Loading ruptures from rupture_df_n{n_rupts[0]}.csv...")
-        ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_rupts[0]}.csv')))
-        print(f"Select {n_ruptures} from {n_rupts[0]} availiable...")
-        ruptures_df = ruptures_df.iloc[:n_ruptures]
-    else:
-        raise Exception(f"No csv files found with at least {n_ruptures} ruptures")
-
 deficit_file = '/home/rccuser/MudPy/hikkerk/model_info/slip_deficit_trenchlock.slip'
 
-deficit = np.genfromtxt(deficit_file)
-deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
-
 pygmo = True
-define_population = True
+define_population = False
 
 class deficitInversion:
     def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, GR_weight: float, max_Mw: float):
@@ -150,6 +126,26 @@ class deficitInversion:
         return np.array([cum_rms])  
 
 if __name__ == "__main__":
+    if os.path.exists(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv'))):
+        from_csv = True
+        print(f"Loading ruptures from rupture_df_n{n_ruptures}.csv...")
+        ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv')))
+    else:
+        csv_list = glob(os.path.abspath(os.path.join(rupture_dir, "..", "rupture_df_n*.csv")))
+        n_rupts = [int(csv.split('_n')[-1].split('.')[0]) for csv in csv_list]
+        n_rupts.sort()
+        n_rupts = [n for n in n_rupts if n > n_ruptures]
+        if len(n_rupts) > 0:
+            print(f"Loading ruptures from rupture_df_n{n_rupts[0]}.csv...")
+            ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_rupts[0]}.csv')))
+            print(f"Select {n_ruptures} from {n_rupts[0]} availiable...")
+            ruptures_df = ruptures_df.iloc[:n_ruptures]
+        else:
+            raise Exception(f"No csv files found with at least {n_ruptures} ruptures")
+
+    deficit = np.genfromtxt(deficit_file)
+    deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
+
     inversion = deficitInversion(ruptures_df, deficit, b, N, rate_weight, GR_weight, max_Mw)
 
     # Initially set recurrance rate to NSHM GR-rate for each rupture magnitude
@@ -165,7 +161,7 @@ if __name__ == "__main__":
         initial_rates = 10 ** ((upper_lim - lower_lim.min()) * np.random.rand(n_ruptures) + lower_lim.min())  # Randomly initialise rates to values between lower and upper limit (for when working in log space)
 
     # Output the initial conditions
-    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_ruptures.txt')
+    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_ruptures.csv')
     out = np.zeros((inversion.n_ruptures, 7))
     out[:, 0] = np.arange(inversion.n_ruptures)
     out[:, 1] = inversion.Mw
@@ -175,7 +171,7 @@ if __name__ == "__main__":
     out[:, 6] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
     np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.4f\t%.6e\t%.6e\t%.6e\t%.6e", header='No\tMw\ttarget\tinitial_rate\tlower\tupper\ttarget_rate')
 
-    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_bins.txt')
+    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_bins.csv')
     out = np.zeros((len(inversion.Mw_bins), 5))
     out[:, 0] = np.arange(len(inversion.Mw_bins))
     out[:, 1] = inversion.Mw_bins
@@ -207,19 +203,17 @@ if __name__ == "__main__":
             # set up coronas simulated annealing
             # algo = pg.algorithm(pg.simulated_annealing(Ts=10., Tf=.1, n_T_adj=10, n_range_adj=10, bin_size=10, start_range=1.))
 
-            # Lots of output to check on progress
-            algo.set_verbosity(100)
-
-            print(algo)
-
             # set up inversion class to run algorithm on
             if archipeligo:
+                # Some output to check on progress
+                algo.set_verbosity(1000)
+                print(algo)
                 print('Setting up islands...')
                 if topology_name == 'FullyConnected':
-                    topo = pg.topology(pg.fully_connected())
+                    topo = pg.topology(pg.fully_connected(n_islands))
                 elif topology_name == 'Ring':
                     if ring_plus == 0:
-                        topo = pg.topology(pg.ring())
+                        topo = pg.topology(pg.ring(n_islands))
                     else:
                         connections = ring_plus + 1
                         topo = pg.free_form()
@@ -245,18 +239,22 @@ if __name__ == "__main__":
                     archi = pg.archipelago(n=n_islands, algo=algo, pop=pop, t=topo)
                 else:
                     print('Setting up archipeligo...')
-                    archi = pg.archipelago(n=n_islands, algo=algo, prob=pg.problem(inversion), pop_size=pop_size, t=topo)
+                    prob = pg.problem(inversion)
+                    archi = pg.archipelago(n=n_islands, algo=algo, prob=prob, pop_size=pop_size, t=topo)
 
+                print(archi)
                 print('Evolving populations...')
                 start = time()   
                 archi.evolve()
-                print(archi)
                 archi.wait()
 
                 # Best slip distribution
                 f_ix = np.array([champion[0] for champion in archi.get_champions_f()]).argsort()
                 preferred_rate = 10 ** (np.array(archi.get_champions_x()).T[:, f_ix])
             else:
+                # Lots of output to check on progress
+                algo.set_verbosity(100)
+                print(algo)
                 n_islands = 1
                 pop = pg.population(prob=inversion, size=pop_size)
 
@@ -287,7 +285,7 @@ if __name__ == "__main__":
         reconstructed_deficit = np.matmul(inversion.slip, preferred_rate[:, 0])
 
         # Output results
-        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_ruptures.txt')
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_ruptures.csv')
         out = np.zeros((inversion.n_ruptures, n_islands + 5))
         out[:, 0] = inversion.Mw
         out[:, 1] = initial_rates
@@ -300,7 +298,7 @@ if __name__ == "__main__":
         out_df = pd.DataFrame(out, columns=columns, index=inversion.id)
         out_df.to_csv(outfile, sep='\t', index=True)
 
-        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_bins.txt')
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_bins.csv')
         out = np.zeros((len(inversion.Mw_bins), 4))
         out[:, 0] = np.arange(len(inversion.Mw_bins))
         out[:, 1] = inversion.Mw_bins
