@@ -134,17 +134,15 @@ if __name__ == "__main__":
     if os.path.exists(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv'))):
         from_csv = True
         print(f"Loading ruptures from rupture_df_n{n_ruptures}.csv...")
-        ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv')))
+        ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv')), nrows=n_ruptures)
     else:
         csv_list = glob(os.path.abspath(os.path.join(rupture_dir, "..", "rupture_df_n*.csv")))
         n_rupts = [int(csv.split('_n')[-1].split('.')[0]) for csv in csv_list]
         n_rupts.sort()
         n_rupts = [n for n in n_rupts if n > n_ruptures]
         if len(n_rupts) > 0:
-            print(f"Loading ruptures from rupture_df_n{n_rupts[0]}.csv...")
-            ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_rupts[0]}.csv')))
-            print(f"Select {n_ruptures} from {n_rupts[0]} availiable...")
-            ruptures_df = ruptures_df.iloc[:n_ruptures]
+            print(f"Loading {n_ruptures} ruptures from rupture_df_n{n_rupts[0]}.csv...")
+            ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_rupts[0]}.csv')), nrows=n_ruptures)
         else:
             raise Exception(f"No csv files found with at least {n_ruptures} ruptures")
 
