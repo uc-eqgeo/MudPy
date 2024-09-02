@@ -8,18 +8,19 @@ from scipy.optimize import lsq_linear
 from scipy.sparse import bsr_array
 import matplotlib.pyplot as plt
 
-inversion_name = 'start_rand'
+inversion_name = 'archi_mini'
 
 n_ruptures = 5000
-iteration_list = [100000]
+iteration_list = [1000000]
 rate_weight = 1
+norm_weight = 1
 GR_weight = 10
 ftol = 0.0001
 n_islands = 30
 pop_size = 20
 archipeligo = True
-topology_name = None  # 'None', 'Ring', 'FullyConnected'
-ring_plus = 0  # Number of connections to add to ring topology
+topology_name = 'Ring'  # 'None', 'Ring', 'FullyConnected'
+ring_plus = 1  # Number of connections to add to ring topology
 
 b, N = 1.1, 21.5
 max_Mw = 9.5  # Maximum magnitude to use to match GR-Rate
@@ -38,7 +39,7 @@ pygmo = True
 define_population = False
 
 class deficitInversion:
-    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, GR_weight: float, max_Mw: float):
+    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float, max_Mw: float):
 
         self.name = "Slip Deficit Inversion"
         self.deficit = deficit  # Slip deficit (on same grid as ruptures)
@@ -47,6 +48,7 @@ class deficitInversion:
         self.N5 = N  # N value for Mw 5 events
         self.a = np.log10(self.N5) + (b * 5)  # a-value for GR-rate calculated from b and the N-value for Mw 5 events
         self.rate_weight = rate_weight  # Weighting for rate misfit over GR-rate misfit
+        self.norm_weight = norm_weight  # Weighting of the normalised GR-rate misfit
         self.GR_weight = GR_weight  # Weighting for GR-rate misfit
         self.max_Mw = max_Mw  # Maximum magnitude to use for GR-rate
 
@@ -105,12 +107,17 @@ class deficitInversion:
         return (lower_bound, upper_bound)
 
     def fitness(self, x: np.ndarray):
-        # Calculate slip-deficit component
-        if self.rate_weight > 0:
+
+        rms, norm_rms, GR_rms = 0, 0, 0
+
+        # Calculate slip-deficit component (Based on NSHM SRM constraint weights)
+        if any([self.rate_weight > 0, self.norm_weight > 0]):
             total_slip = self.sparse_slip @ (10 ** x)  # Calculate slip by multiplying slip ratrix by rupture rate vector (sparse matricies can't use matmul)
-            rms = np.sqrt(np.mean((self.deficit - total_slip) ** 2))  # Calculate root mean square misfit of slip
-        else:
-            rms = 0
+            rate_misfit = total_slip - self.deficit
+            if self.rate_weight > 0:
+                rms = np.sqrt(np.mean(rate_misfit ** 2))  # Calculate root mean square misfit of slip - Penalises large absolute differences
+            if self.norm_weight > 0:
+                norm_rms = np.sqrt(np.mean((rate_misfit / self.deficit) ** 2))  # Calculate root mean square misfit of normalised slip - penalises large relative misfits
 
         # Calculate GR-rate component
         if self.GR_weight > 0:
@@ -118,10 +125,8 @@ class deficitInversion:
             GR_ix = self.Mw_bins <= self.max_Mw  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
             # GR_rms = np.sqrt(np.mean((inv_GR - self.GR_rate) ** 2))  # Penalise for deviating from GR-rate
             GR_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_ix]) - np.log10(self.GR_rate[GR_ix])) ** 2))  # Penalise for deviating from log(N)
-        else:
-            GR_rms = 0
 
-        cum_rms = (rms * self.rate_weight) + (GR_rms * self.GR_weight)  # Allow for variable weighting between slip deficit and GR-rate
+        cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight)  # Allow for variable weighting between slip deficit and GR-rate
 
         return np.array([cum_rms])  
 
@@ -146,7 +151,7 @@ if __name__ == "__main__":
     deficit = np.genfromtxt(deficit_file)
     deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
 
-    inversion = deficitInversion(ruptures_df, deficit, b, N, rate_weight, GR_weight, max_Mw)
+    inversion = deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, max_Mw)
 
     # Initially set recurrance rate to NSHM GR-rate for each rupture magnitude
     print('Calculating initial rupture rates...')
@@ -161,7 +166,7 @@ if __name__ == "__main__":
         initial_rates = 10 ** ((upper_lim - lower_lim.min()) * np.random.rand(n_ruptures) + lower_lim.min())  # Randomly initialise rates to values between lower and upper limit (for when working in log space)
 
     # Output the initial conditions
-    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_ruptures.csv')
+    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_input_ruptures.csv')
     out = np.zeros((inversion.n_ruptures, 7))
     out[:, 0] = np.arange(inversion.n_ruptures)
     out[:, 1] = inversion.Mw
@@ -171,7 +176,7 @@ if __name__ == "__main__":
     out[:, 6] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
     np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.4f\t%.6e\t%.6e\t%.6e\t%.6e", header='No\tMw\ttarget\tinitial_rate\tlower\tupper\ttarget_rate')
 
-    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_input_bins.csv')
+    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_input_bins.csv')
     out = np.zeros((len(inversion.Mw_bins), 5))
     out[:, 0] = np.arange(len(inversion.Mw_bins))
     out[:, 1] = inversion.Mw_bins
@@ -186,7 +191,7 @@ if __name__ == "__main__":
     output[:, 8:10] = np.zeros_like(output[:, 8:10])
     output[:, 8] = deficit
     output[:, 9] = initial_slip
-    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_initial_deficit.inv')
+    outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_initial_deficit.inv')
     np.savetxt(outfile, output, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
             header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
 
@@ -285,7 +290,7 @@ if __name__ == "__main__":
         reconstructed_deficit = np.matmul(inversion.slip, preferred_rate[:, 0])
 
         # Output results
-        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_ruptures.csv')
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_ruptures.csv')
         out = np.zeros((inversion.n_ruptures, n_islands + 5))
         out[:, 0] = inversion.Mw
         out[:, 1] = initial_rates
@@ -298,7 +303,7 @@ if __name__ == "__main__":
         out_df = pd.DataFrame(out, columns=columns, index=inversion.id)
         out_df.to_csv(outfile, sep='\t', index=True)
 
-        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_bins.csv')
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_bins.csv')
         out = np.zeros((len(inversion.Mw_bins), 4))
         out[:, 0] = np.arange(len(inversion.Mw_bins))
         out[:, 1] = inversion.Mw_bins
@@ -311,7 +316,7 @@ if __name__ == "__main__":
         deficit[:, 3] /= 1000  # Convert to km
 
         deficit[:, 9] = reconstructed_deficit
-        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_deficit.inv')
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_deficit.inv')
         np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.0f\t%.0f\t%.0f",
                 header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
 
@@ -320,7 +325,7 @@ if __name__ == "__main__":
             deficit[:, 9] = reconstructed_deficit - inversion.deficit  # Absolute misfit
         else:
             deficit[:, 9] = misfit[:inversion.n_patches]  # Absolute misfit
-        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_misfit.inv')
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_misfit.inv')
         np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
                 header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tmisfit_perc(mm/yr)\tmisfit_mag(mm/yr)\trupt_time\trigid\tvel')
 
