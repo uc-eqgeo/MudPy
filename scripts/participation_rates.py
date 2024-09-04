@@ -9,18 +9,22 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Define directories
-inversion_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\archi'
+inversion_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\archi_mini'
 
 # Define flags for results csv
 n_ruptures = 5000
 slip_weight = 1
+norm_weight = None
 gr_weight = 10
-n_its = 100000
+n_its = 1000000
 
 # %% No user inputs below here
 # Create filepaths
 rupture_csv = os.path.join(inversion_dir, '..', 'rupture_df_n15000.csv')  # CSV containing rupture slips
-inv_file = f"n{n_ruptures}_S{slip_weight}_GR{gr_weight}_nIt{n_its}_inverted_ruptures.csv"
+if norm_weight:
+    inv_file = f"n{n_ruptures}_S{slip_weight}_N{norm_weight}_GR{gr_weight}_nIt{n_its}_inverted_ruptures.csv"
+else:
+    inv_file = f"n{n_ruptures}_S{slip_weight}_GR{gr_weight}_nIt{n_its}_inverted_ruptures.csv"
 inv_file = os.path.join(inversion_dir, inv_file)
 patch_file = os.path.join(inversion_dir, '..', '..', 'data', 'model_info', 'hk.fault')
 

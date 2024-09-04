@@ -8,35 +8,40 @@ from scipy.optimize import lsq_linear
 from scipy.sparse import bsr_array
 import matplotlib.pyplot as plt
 
-inversion_name = 'archi_mini'
+inversion_name = 'archi_mini_test'
 
 n_ruptures = 5000
-iteration_list = [1000000]
+iteration_list = [1]
 rate_weight = 1
 norm_weight = 1
 GR_weight = 10
 ftol = 0.0001
 n_islands = 30
 pop_size = 20
-archipeligo = True
-topology_name = 'Ring'  # 'None', 'Ring', 'FullyConnected'
+archipeligo = False
+topology_name = 'None'  # 'None', 'Ring', 'FullyConnected'
 ring_plus = 1  # Number of connections to add to ring topology
 
 b, N = 1.1, 21.5
 max_Mw = 9.5  # Maximum magnitude to use to match GR-Rate
 
-rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures"
-starting_rate_file = os.path.abspath(os.path.join(rupture_dir, "..", "start_rand", "n10000_S1_GR10_nIt100000_inverted_ruptures.csv"))  # Set to None for random initialisation
-starting_rate_file = None
+cluster = False
+if cluster:
+    rupture_dir = "/home/rccuser/MudPy/hikkerk/output/ruptures"
+    deficit_file = "/home/rccuser/MudPy/hikkerk/model_info/slip_deficit_trenchlock.slip"
+else:
+    rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures"
+    deficit_file = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\slip_deficit_trenchlock.slip"
+
+starting_rate_file = os.path.abspath(os.path.join(rupture_dir, "..", "archi_mini", "n5000_S1_GR10_nIt1000000_inverted_ruptures.csv"))  # Set to None for random initialisation
+#starting_rate_file = None
 
 outdir = os.path.abspath(os.path.join(rupture_dir, '..', inversion_name))
 if not os.path.exists(outdir):
     os.mkdir(outdir)
 
-deficit_file = '/home/rccuser/MudPy/hikkerk/model_info/slip_deficit_trenchlock.slip'
-
 pygmo = True
-define_population = False
+define_population = True
 
 class deficitInversion:
     def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float, max_Mw: float):
@@ -157,7 +162,7 @@ if __name__ == "__main__":
     lower_lim, upper_lim = np.array(lower_lim).astype(np.float64), np.array(upper_lim).astype(np.float64)
     if starting_rate_file:
         print(f"Loading initial rates from {starting_rate_file}")
-        initial_rates = pd.read_csv(starting_rate_file, sep='\t', index_col=0)['inverted_rate'].values[:n_ruptures]
+        initial_rates = pd.read_csv(starting_rate_file, sep='\t', index_col=0)['inverted_rate_0'].values[:n_ruptures]
         if len(initial_rates) < n_ruptures:
             raise Exception(f"Initial rates file contains {len(initial_rates)} rates, expected {n_ruptures}")
     else:
