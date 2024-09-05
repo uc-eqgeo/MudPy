@@ -24,7 +24,7 @@ GR_weight = 10
 max_iter = 1000000
 plot_ruptures = False
 min_Mw, max_Mw = 4.5, 9.5
-plot_all_islands = True
+plot_all_islands = False
 zero_rate = -6  # Rate at which a ruptures is considered not to have occurred
 deficit_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\slip_deficit_trenchlock.slip'
 
@@ -147,7 +147,7 @@ if plot_results:
         plt.show()
     
 # %% Plot Island GR-relation comparisons
-    if plot_all_islands:
+if plot_results and plot_all_islands:
         plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='black', label='Target GR Relation', zorder=0)
         for ix, island in enumerate(islands[1:]):
             plt.plot(bins['Mw_bin'], np.log10(inverted_bins_list[ix + 1]))
@@ -346,7 +346,7 @@ if len(islands) > 1:
 # %% Load ruptures_df
 ruptures_df = pd.read_csv(os.path.abspath(os.path.join(outdir, "..", f'rupture_df_n15000.csv')), nrows=n_ruptures)
 # %% Plot patch specific GR relations
-patch_numbers = np.arange(14767)
+patch_numbers = np.arange(0, 14800, 1)
 island_to_use = 0
 
 if isinstance(island_to_use, (int, float)):
@@ -356,28 +356,97 @@ if not isinstance(patch_numbers, list):
     patch_numbers = list(patch_numbers)
 
 i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(ruptures_df.columns[-1]) + 1
+patch_numbers = [patch for patch in patch_numbers if patch < int(ruptures_df.columns[-1])]
 slip = ruptures_df.iloc[:, i0:i1].values.T
 slip = (slip[patch_numbers, :] > 0).astype(int)  # Array consisting of whether or not a rupture slips a patch
 
 rates = np.vstack([ruptures_list[0][island_to_use].values] * len(patch_numbers)) * slip
-rates[rates < zero_rate] = 0
+rates[rates < 10 ** zero_rate] = 0
 
 patch_gr_df = pd.DataFrame(columns=['Mw'] + patch_numbers)
 patch_gr_df['Mw'] = bins['Mw_bin']
 
+mod_gr_df = pd.DataFrame(columns=['Mw'] + patch_numbers)
+mod_gr_df['Mw'] = bins['Mw_bin']
+
+patch_ba = pd.DataFrame(columns=['Lon', 'Lat', 'b', 'a', 'N'])
+
+deficit = np.genfromtxt(deficit_file)
+
 for ix, patch in enumerate(patch_numbers):
-        patch_gr_df[patch] = np.log10(np.matmul(gr_matrix, rates[ix, :]))
+        n_value = np.matmul(gr_matrix, rates[ix, :])
+        non_inf = n_value > 0
+        sum_non_inf = np.sum(non_inf)
+        if sum_non_inf < 2:
+            continue
+        patch_gr_df.loc[non_inf, patch] = np.log10(n_value[non_inf])
+
+        b, a = np.linalg.lstsq(np.hstack([patch_gr_df['Mw'].values[non_inf].reshape(-1, 1) * -1, np.ones((sum_non_inf, 1))]), 
+                               patch_gr_df[patch].values[non_inf].astype(float).reshape(-1, 1), rcond = None)[0]
+        patch_ba.loc[patch] = {'Lon': np.mod(deficit[patch, 1], 360), 'Lat': deficit[patch, 2], 'b': b[0], 'a': a[0], 'N': 10 ** (a[0] - b[0] * 5)}
+        mod_gr_df[patch] = a - b * mod_gr_df['Mw']
 
 patch_gr_df_long = patch_gr_df.melt(id_vars=['Mw'], var_name='Patch', value_name='log10(N)')
-# %%
+mod_gr_df_long = mod_gr_df.melt(id_vars=['Mw'], var_name='Patch', value_name='log10(N)')
+
 sns.lineplot(data=patch_gr_df_long, x='Mw', y='log10(N)', hue='Patch', linewidth=0.25)
 plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='red', label='Target GR Relation', zorder=6)
 plt.ylim([zero_rate - 3, 0])
 plt.show()
-# %%
-import matplotlib.colors as mcolors
-sns.histplot(patch_gr_df_long, x='Mw', y='log10(N)', binwidth=(0.1, 0.05), cbar=True, hue_norm=mcolors.LogNorm())
+
+sns.histplot(patch_gr_df_long, x='Mw', y='log10(N)', binwidth=(0.1, 0.05), cbar=True)
 plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='red', label='Target GR Relation', zorder=6)
 plt.ylim([zero_rate - 3, 0])
 plt.show()
-# %%
+
+sns.lineplot(data=mod_gr_df_long, x='Mw', y='log10(N)', hue='Patch', linewidth=0.25)
+plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='red', label='Target GR Relation', zorder=6)
+plt.ylim([zero_rate - 3, 0])
+plt.show()
+
+sns.histplot(data=patch_ba, x='b', binwidth=0.02, binrange=(0.4, 1.5))
+plt.vlines(patch_ba['b'].mean(), 0, 1000, color='black', label=f"Mean: {patch_ba['b'].mean():.3f}")
+plt.vlines(patch_ba['b'].median(), 0, 1000, color='red', label=f"Median: {patch_ba['b'].median():.3f}")
+plt.legend()
+plt.show()
+
+plt.scatter(patch_ba['Lon'], patch_ba['Lat'], c=patch_ba['b'], s=1, vmin=0.75, vmax=1.25)
+plt.colorbar()
+plt.title('b-value distribution')
+plt.show()
+
+plt.scatter(patch_ba['Lon'], patch_ba['Lat'], c=patch_ba['N'], s=1, vmin=0)
+plt.colorbar()
+plt.title('N distribution')
+plt.show()
+
+sns.histplot(data=patch_ba, x='N', binwidth=0.1, binrange=(0, 12))
+plt.vlines(patch_ba['N'].mean(), 0, 1000, color='black', label=f"Mean: {patch_ba['N'].mean():.3f}")
+plt.vlines(patch_ba['N'].median(), 0, 1000, color='red', label=f"Median: {patch_ba['N'].median():.3f}")
+plt.legend()
+plt.show()
+# %% Plot hyopcentral locations
+island_to_use = 0
+if isinstance(island_to_use, (int, float)):
+    island_to_use = f"inverted_rate_{int(island_to_use)}"
+
+ruptures = ruptures_list[0]
+ruptures.loc[ruptures[island_to_use] > 10 ** zero_rate]
+
+ll_df = pd.DataFrame(columns=['lon', 'lat', 'depth', 'Mw', 'rate', 'log(rate)'])
+
+rupt_dir = os.path.abspath(os.path.join(outdir, '..', 'ruptures'))
+for ix, rupture in ruptures.iterrows():
+    if rupture[island_to_use] < 10 ** zero_rate:
+        continue
+    rupt_log = f"hikkerk3D_locking_NZNSHMscaling.Mw{rupture.name}.log"
+    with open(os.path.join(rupt_dir, rupt_log), 'r') as f:
+        lines = f.readlines()
+        lon, lat, depth = [float(coord.strip('()')) for coord in lines[17].split()[2].split(',')]
+        lon = np.mod(lon, 360)
+        mw = float(lines[16].split()[3].strip())
+        ll_df.loc[rupture.name] = {'lon': lon, 'lat': lat, 'depth': depth, 'Mw': mw, 'rate': rupture[island_to_use], 'log(rate)': np.log10(rupture[island_to_use])}
+
+ll_df = ll_df.sort_values('Mw', ascending=False)
+sns.scatterplot(data=ll_df, x='lon', y='lat', hue='log(rate)', size='Mw', sizes=(5, 50), palette='viridis')
+sns.histplot(data=ll_df, x='lon', y='lat', binwidth=(0.25, 0.25), cbar=True)
