@@ -25,7 +25,7 @@ ring_plus = 1  # Number of connections to add to ring topology
 b, N = 1.1, 21.5
 max_Mw = 9.5  # Maximum magnitude to use to match GR-Rate
 
-rupture_dir = '/home/rccuser/MudPy/hikkerk/ruptures'
+rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures"
 starting_rate_file = os.path.abspath(os.path.join(rupture_dir, "..", "start_rand", "n10000_S1_GR10_nIt100000_inverted_ruptures.csv"))  # Set to None for random initialisation
 starting_rate_file = None
 
@@ -293,12 +293,12 @@ if __name__ == "__main__":
         out = np.zeros((inversion.n_ruptures, n_islands + 5))
         out[:, 0] = inversion.Mw
         out[:, 1] = initial_rates
-        out[:, 2:2 + n_islands] = preferred_rate
-        out[:, -3] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
-        out[:, -2], out[:, -1] = 10 ** lower_lim, 10 ** upper_lim
+        out[:, 2] = 10 ** (inversion.a - (inversion.b * inversion.Mw))
+        out[:, 3], out[:, 4] = 10 ** lower_lim, 10 ** upper_lim
+        out[:, 5:] = preferred_rate
         # np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e\t%.6e\t%.6e\t%.6e", header='No\tMw\tinitial_rate\tinverted_rate\ttarget_rate\tlower\tupper')
         columns = ["inverted_rate_" + str(n) for n in range(n_islands)]
-        columns = ["Mw", "initial_rate"] + columns + ["target_rate", "lower", "upper"]
+        columns = ["Mw", "initial_rate", "target_rate", "lower", "upper"] + columns
         out_df = pd.DataFrame(out, columns=columns, index=inversion.id)
         out_df.to_csv(outfile, sep='\t', index=True)
 

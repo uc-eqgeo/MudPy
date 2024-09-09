@@ -20,8 +20,8 @@ inversion_name = 'start_rand'
 n_ruptures = 5000
 slip_weight = 1
 GR_weight = 10
-max_iter = 30000
-plot_ruptures = False
+max_iter = 1000
+plot_ruptures = True
 min_Mw, max_Mw = 4.5, 9.5
 
 outdir = f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\{inversion_name}"
@@ -81,14 +81,14 @@ for run in range(n_runs):
 
 # %%
     if run == 0:
-        # %%
+        ## %%
         binwidth = (0.1, 0.5)
         plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='black', label='Target GR Relation', zorder=6)
 
+        sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['upper']), s=5, color='green', label='Individual limit', edgecolors=None, zorder=1)
+        sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['lower'] + 1e-30), s=5, color='green', edgecolors=None, zorder=1)
         sns.scatterplot(x=ruptures['Mw'], y=np.log10(initial_rate), s=20, color='blue', label='Initial GR', edgecolors=None, zorder=4)
         sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['initial_rate']), s=1, label='Initial rate', color='blue', edgecolors=None, zorder=1)
-        sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['upper']), s=5, color='green', label='Individual limit', edgecolors=None, zorder=0)
-        sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['lower'] + 1e-30), s=5, color='green', edgecolors=None, zorder=0)
 
         if plot_results:
             sns.histplot(x=ruptures['Mw'], y=np.log10(ruptures['inverted_rate']), binwidth=binwidth, zorder=0)
