@@ -16,17 +16,18 @@ from pyproj import Transformer
 from scipy.spatial import KDTree
 from matplotlib.collections import PolyCollection
 
-inversion_name = 'archi_mini'
+inversion_name = 'hires_deficit'
 n_ruptures = 5000
 slip_weight = 1
-norm_weight = None
+norm_weight = 1
 GR_weight = 10
-max_iter = 1000000
+max_iter = 50000
 plot_ruptures = False
 min_Mw, max_Mw = 4.5, 9.5
 plot_all_islands = False
 zero_rate = -6  # Rate at which a ruptures is considered not to have occurred
 deficit_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\slip_deficit_trenchlock.slip'
+#deficit_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\hk_hires.slip'
 
 outdir = f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\{inversion_name}"
 
@@ -449,4 +450,7 @@ for ix, rupture in ruptures.iterrows():
 
 ll_df = ll_df.sort_values('Mw', ascending=False)
 sns.scatterplot(data=ll_df, x='lon', y='lat', hue='log(rate)', size='Mw', sizes=(5, 50), palette='viridis')
+plt.show()
 sns.histplot(data=ll_df, x='lon', y='lat', binwidth=(0.25, 0.25), cbar=True)
+plt.show()
+# %%

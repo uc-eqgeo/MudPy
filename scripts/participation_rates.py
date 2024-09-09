@@ -9,14 +9,14 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Define directories
-inversion_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\archi_mini'
+inversion_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\hires_deficit'
 
 # Define flags for results csv
 n_ruptures = 5000
 slip_weight = 1
-norm_weight = None
+norm_weight = 1
 gr_weight = 10
-n_its = 1000000
+n_its = 50000
 
 # %% No user inputs below here
 # Create filepaths
