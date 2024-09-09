@@ -8,10 +8,10 @@ from scipy.optimize import lsq_linear
 from scipy.sparse import bsr_array
 import matplotlib.pyplot as plt
 
-inversion_name = 'archi_mini'
+inversion_name = 'hires_deficit'
 
 n_ruptures = 5000
-iteration_list = [1000000]
+iteration_list = [500000]
 rate_weight = 1
 norm_weight = 1
 GR_weight = 10
@@ -19,7 +19,7 @@ ftol = 0.0001
 n_islands = 30
 pop_size = 20
 archipeligo = True
-topology_name = 'Ring'  # 'None', 'Ring', 'FullyConnected'
+topology_name = 'None'  # 'None', 'Ring', 'FullyConnected'
 ring_plus = 1  # Number of connections to add to ring topology
 
 b, N = 1.1, 21.5
@@ -34,6 +34,7 @@ if not os.path.exists(outdir):
     os.mkdir(outdir)
 
 deficit_file = '/home/rccuser/MudPy/hikkerk/model_info/slip_deficit_trenchlock.slip'
+deficit_file = '/home/rccuser/MudPy/hikkerk/model_info/hk_hires.slip'
 
 pygmo = True
 define_population = False
@@ -186,12 +187,12 @@ if __name__ == "__main__":
     # Output the deficit to be resolved for, and the inital slip distribution based on events + input rates
     output = np.genfromtxt(deficit_file)
     output[:, 3] /= 1000  # Convert to km
-    output[:, 8:10] = np.zeros_like(output[:, 8:10])
-    output[:, 8] = deficit
-    output[:, 9] = initial_slip
+    output = output[:, :6]
+    output[:, 4] = deficit
+    output[:, 5] = initial_slip
     outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_initial_deficit.inv')
-    np.savetxt(outfile, output, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
-            header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
+    np.savetxt(outfile, output, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f",
+            header='#No\tlon\tlat\tz(km)\tinital_deficit(mm/yr)\tinital_slip(mm/yr)')
 
     for n_iterations in iteration_list:
         if pygmo:
@@ -313,19 +314,23 @@ if __name__ == "__main__":
         deficit = np.genfromtxt(deficit_file)
         deficit[:, 3] /= 1000  # Convert to km
 
-        deficit[:, 9] = reconstructed_deficit
-        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_deficit.inv')
-        np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.0f\t%.0f\t%.0f",
-                header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
+        out = np.zeros_like(deficit[:, 6])
+        out[:, :4] = deficit[:, :4]
 
-        deficit[:, 8] = reconstructed_deficit / inversion.deficit  # Fractional misfit
+        deficit[:, 4] = inversion.deficit
+        deficit[:, 5] = reconstructed_deficit
+        outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_deficit.inv')
+        np.savetxt(outfile, out, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f",
+                header='#No\tlon\tlat\tz(km)\tss-deficit(mm/yr)\tds-deficit(mm/yr)')
+
+        deficit[:, 4] = reconstructed_deficit / inversion.deficit  # Fractional misfit
         if pygmo:
-            deficit[:, 9] = reconstructed_deficit - inversion.deficit  # Absolute misfit
+            deficit[:, 5] = reconstructed_deficit - inversion.deficit  # Absolute misfit
         else:
-            deficit[:, 9] = misfit[:inversion.n_patches]  # Absolute misfit
+            deficit[:, 5] = misfit[:inversion.n_patches]  # Absolute misfit
         outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_misfit.inv')
-        np.savetxt(outfile, deficit, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
-                header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tmisfit_perc(mm/yr)\tmisfit_mag(mm/yr)\trupt_time\trigid\tvel')
+        np.savetxt(outfile, out, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f",
+                header='No\tlon\tlat\tz(km)\tmisfit_perc(mm/yr)\tmisfit_mag(mm/yr)')
 
     if not archipeligo:
         uda = algo.extract(pg.de)
