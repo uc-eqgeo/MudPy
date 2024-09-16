@@ -1,3 +1,4 @@
+# %%
 import numpy as np
 import meshio
 from pyproj import Transformer
@@ -11,17 +12,23 @@ mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
 mesh_name = 'hik_kerk3k_with_rake.vtk'
 
+plot_ruptures = False
+n_ruptures = 5000
+inversion_name = 'island_merge'
+
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
 rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures"
+output_dir = f"C:\\Users\\jmc753\\Work\\MudPy\\cluster_processing\\output\\{inversion_name}"
 
-n_ruptures = 5000
-inversion_name = 'hires_deficit'
-rupture_list = glob(f'{rupture_dir}\\..\\{inversion_name}\\n{n_ruptures}*.inv')
+if plot_ruptures:
+    rupture_list = glob(f'{rupture_dir}\\*.rupt')
+else:
+    rupture_list = glob(os.path.abspath(f'{output_dir}\\n{n_ruptures}*.inv'))
 
 # Create interpolation object for mapping ruptures to the mesh
 transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
-for rupture_file in rupture_list[::-1]:
+for rupture_file in rupture_list:
     rupture_file = os.path.abspath(rupture_file)
     rupture = pd.read_csv(rupture_file, sep='\t', index_col=0).reset_index(drop=True)
 
@@ -58,12 +65,10 @@ for rupture_file in rupture_list[::-1]:
             continue
         if len(np.unique(rupture[col])) > 1:  # Don't bother with constants
             col_dict[col] = [rupture.loc[nearest_indices, col].values]
-            print(col, col_dict.keys())
+            print('Adding', col)
             if 'ss' in col:
-                print('ss:', col)
                 ss, ss_col = True, col
             elif 'ds' in col:
-                print('ds:', col)
                 ds, ds_col = True, col
 
     if all([ds, ss]):
