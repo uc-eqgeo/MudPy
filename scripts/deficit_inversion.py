@@ -34,7 +34,7 @@ else:
     deficit_file = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\slip_deficit_trenchlock.slip"
 
 starting_rate_file = os.path.abspath(os.path.join(rupture_dir, "..", "archi_mini", "n5000_S1_GR10_nIt1000000_inverted_ruptures.csv"))  # Set to None for random initialisation
-#starting_rate_file = None
+starting_rate_file = None
 
 outdir = os.path.abspath(os.path.join(rupture_dir, '..', inversion_name))
 if not os.path.exists(outdir):
@@ -68,7 +68,7 @@ class deficitInversion:
         i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(str(self.n_patches - 1)) + 1
         self.Mw_bins = np.unique(np.floor(np.array(self.Mw) * 10) / 10)  # Create bins for each 0.1 magnitude increment
 
-        self.sparse_slip = bsr_array(ruptures_df.iloc[:, i0:i1].values.T * 1000)  # Slip in mm, convert from m to mm, place in sparse matrix
+        self.sparse_slip = bsr_array(ruptures_df.iloc[:, i0:i1].values.T * 1000)  # Convert slip from m to mm, place in sparse matrix
 
         self.make_gr_matrix()
         self.GR_rate = 10 ** (self.a - (self.b * self.Mw_bins))  # N-value for each magnitude bin

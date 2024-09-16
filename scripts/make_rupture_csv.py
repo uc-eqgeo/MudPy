@@ -4,7 +4,7 @@ import pandas as pd
 import os
 import shutil
 
-rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures'
+rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures'
 rupture_list = glob(f'{rupture_dir}\\hikkerk3D_locking_NZNSHMscaling*.rupt')
 
 n_ruptures = len(rupture_list)  # Number of ruptures
@@ -38,5 +38,4 @@ for i, ix in enumerate(np.random.permutation(n_ruptures)):
         rupture_df = pd.DataFrame(columns=columns)  # Reinitialise dataframe
     print(f"Creating rupture dataframe... ({i + 1}/{n_ruptures})", end='\r')
 
-rupture_df.index.name = 'rupt_id'
-rupture_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv')))
+print(f"Completed {os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{i + 1}.csv'))}! :)")

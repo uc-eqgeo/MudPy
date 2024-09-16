@@ -15,3 +15,5 @@ examples/fakequakes/3D/hikkerk3D_test/
 .juypter/jupyter_notebook_config.py
 work/
 hikkerk/
+cluster_processing/
+rupture_df_n50000.csv
