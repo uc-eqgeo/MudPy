@@ -16,31 +16,48 @@ from pyproj import Transformer
 from scipy.spatial import KDTree
 from matplotlib.collections import PolyCollection
 
-inversion_name = 'hires_deficit'
+inversion_name = 'island_merge'
 n_ruptures = 5000
-slip_weight = 1
+slip_weight = 10
 norm_weight = 1
-GR_weight = 10
-max_iter = 50000
-plot_ruptures = False
+GR_weight = 100
+max_iter = 10e3
+b, N = 1.1, 21.5
+plot_ruptures = False   # Plot sample ruptures
 min_Mw, max_Mw = 4.5, 9.5
 plot_all_islands = False
 zero_rate = -6  # Rate at which a ruptures is considered not to have occurred
-deficit_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\slip_deficit_trenchlock.slip'
-#deficit_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\hk_hires.slip'
+write_islands = True   # Write out islands with a zero'd rate
+archi = 0
 
-outdir = f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\{inversion_name}"
+drive = 'C'
+if drive.lower() == 'c':
+    procdir = 'C:\\Users\\jmc753\\Work\\MudPy\\cluster_processing'
+elif drive.lower() == 'z':
+    procdir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D'
+
+rupt_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures'
+
+deficit_file = f"{procdir}\\model_info\\hk_hires.slip"
+outdir = f"{procdir}\\output\\{inversion_name}"
 
 plot_results = True
 if max_iter == 0:
     max_iter = '*'
 # %% Load data
-if norm_weight:
-    results_tag = f'n{n_ruptures}_S{slip_weight}_N{norm_weight}_GR{GR_weight}_nIt{max_iter}'
-else:
-    results_tag = f'n{n_ruptures}_S{slip_weight}_GR{GR_weight}_nIt{max_iter}'
+slip_weight, norm_weight, GR_weight, max_iter = [int(val) for val in [slip_weight, norm_weight, GR_weight, max_iter]]
 
-rupture_file_list = glob(f'{outdir}\\{results_tag}_inverted_ruptures.csv')
+if norm_weight is not None:
+    results_tag = f"n{n_ruptures}_S{slip_weight}_N{norm_weight}_GR{GR_weight}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{max_iter}"
+else:
+    results_tag = f"n{n_ruptures}_S{slip_weight}_GR{GR_weight}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{max_iter}"
+
+if archi is not None:
+    results_tag += f"_archi{archi}"
+
+input_tag = results_tag.replace(f'_nIt{max_iter}', '').replace(f"_archi{archi}", '')
+
+rupture_file_list = glob(f"{outdir}\\{results_tag}_inverted_ruptures.csv")
 n_iter = [int(file.split('nIt')[1].split('_')[0]) for file in rupture_file_list]
 order = np.array(n_iter).argsort()
 if len(order) != 0:
@@ -50,7 +67,7 @@ if len(order) != 0:
     for file in rupture_file_list:
         ruptures_list.append(pd.read_csv(file, sep='\t', index_col=0).sort_values('Mw'))
         bins_df = pd.read_csv(file.replace('ruptures', 'bins'), sep='\t', index_col=0)
-        bins_df['upper'] = pd.read_csv(f"{outdir}\\{results_tag.replace(f'_nIt{max_iter}','')}_input_bins.csv", sep='\t', index_col=0)['upper']
+        bins_df['upper'] = pd.read_csv(f"{outdir}\\{input_tag}_input_bins.csv", sep='\t', index_col=0)['upper']
         bins_list.append(bins_df)
         islands = ruptures_list[0].columns.tolist()
         islands = [island for island in islands if island not in ['Mw', 'initial_rate', 'target_rate', 'lower', 'upper']]
@@ -58,8 +75,8 @@ if len(order) != 0:
             islands = [islands[0]]
 else:
     plot_results = False
-    ruptures_list = [pd.read_csv(f"{outdir}\\_nIt{max_iter}_input_ruptures.csv", sep='\t', index_col=0).sort_values('Mw')]
-    bins_list = [pd.read_csv(f"{outdir}\\_nIt{max_iter}_input_bins.csv", sep='\t', index_col=0)]
+    ruptures_list = [pd.read_csv(f"{outdir}\\{input_tag}_input_ruptures.csv", sep='\t', index_col=0).sort_values('Mw')]
+    bins_list = [pd.read_csv(f"{outdir}\\{input_tag}_input_bins.csv", sep='\t', index_col=0)]
     islands = ['input_rate']
 # %%  Plot Full GR-relations
 n_runs = len(ruptures_list)
@@ -261,7 +278,6 @@ if plot_ruptures:
                     plot_2d_surface(rupture_mesh, f"{mw} Mw: {id} Bad = {bad} {1/rupt[island]:.2f} yrs", color_by='total')
 
 # %% Writing the ruptures to a file with with zero'd rates
-write_islands = False
 if plot_results and write_islands:
     ruptures_list = []
     for file in rupture_file_list:
@@ -436,7 +452,6 @@ ruptures.loc[ruptures[island_to_use] > 10 ** zero_rate]
 
 ll_df = pd.DataFrame(columns=['lon', 'lat', 'depth', 'Mw', 'rate', 'log(rate)'])
 
-rupt_dir = os.path.abspath(os.path.join(outdir, '..', 'ruptures'))
 for ix, rupture in ruptures.iterrows():
     if rupture[island_to_use] < 10 ** zero_rate:
         continue
