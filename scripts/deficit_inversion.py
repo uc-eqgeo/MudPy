@@ -8,40 +8,37 @@ from scipy.optimize import lsq_linear
 from scipy.sparse import bsr_array
 import matplotlib.pyplot as plt
 
-inversion_name = 'hires_deficit'
+inversion_name = 'hires_rupt'
 
 n_ruptures = 5000
 iteration_list = [500000]
 rate_weight = 1
-norm_weight = 1
+norm_weight = 0
 GR_weight = 10
 ftol = 0.0001
 n_islands = 30
 pop_size = 20
-archipeligo = True
+archipeligo = False
 topology_name = 'None'  # 'None', 'Ring', 'FullyConnected'
 ring_plus = 1  # Number of connections to add to ring topology
 
 b, N = 1.1, 21.5
 max_Mw = 9.5  # Maximum magnitude to use to match GR-Rate
 
-cluster = False
-if cluster:
-    rupture_dir = "/home/rccuser/MudPy/hikkerk/output/ruptures"
-    deficit_file = "/home/rccuser/MudPy/hikkerk/model_info/slip_deficit_trenchlock.slip"
+if 'rccuser' in os.getcwd():
+    procdir = "/home/rccuser/MudPy/hires_ruptures"
+    deficit_file = f"{procdir}/model_info/slip_deficit_trenchlock.slip"
+    deficit_file = f"{procdir}/model_info/hk_hires.slip"
 else:
-    rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures"
+    procdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output"
     deficit_file = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\slip_deficit_trenchlock.slip"
 
-starting_rate_file = os.path.abspath(os.path.join(rupture_dir, "..", "archi_mini", "n5000_S1_GR10_nIt1000000_inverted_ruptures.csv"))  # Set to None for random initialisation
+starting_rate_file = os.path.abspath(os.path.join(procdir, "hires_deficit", "n5000_S1_N1_GR10_nIt50000_inverted_ruptures.csv"))  # Set to None for random initialisation
 starting_rate_file = None
 
-outdir = os.path.abspath(os.path.join(rupture_dir, '..', inversion_name))
+outdir = os.path.abspath(os.path.join(procdir, inversion_name))
 if not os.path.exists(outdir):
     os.mkdir(outdir)
-
-deficit_file = '/home/rccuser/MudPy/hikkerk/model_info/slip_deficit_trenchlock.slip'
-deficit_file = '/home/rccuser/MudPy/hikkerk/model_info/hk_hires.slip'
 
 pygmo = True
 define_population = True
@@ -139,18 +136,18 @@ class deficitInversion:
         return np.array([cum_rms])  
 
 if __name__ == "__main__":
-    if os.path.exists(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv'))):
+    if os.path.exists(os.path.abspath(os.path.join(procdir, f'rupture_df_n{n_ruptures}.csv'))):
         from_csv = True
         print(f"Loading ruptures from rupture_df_n{n_ruptures}.csv...")
-        ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}.csv')), nrows=n_ruptures)
+        ruptures_df = pd.read_csv(os.path.abspath(os.path.join(procdir, f'rupture_df_n{n_ruptures}.csv')), nrows=n_ruptures)
     else:
-        csv_list = glob(os.path.abspath(os.path.join(rupture_dir, "..", "rupture_df_n*.csv")))
+        csv_list = glob(os.path.abspath(os.path.join(procdir, "rupture_df_n*.csv")))
         n_rupts = [int(csv.split('_n')[-1].split('.')[0]) for csv in csv_list]
         n_rupts.sort()
         n_rupts = [n for n in n_rupts if n > n_ruptures]
         if len(n_rupts) > 0:
             print(f"Loading {n_ruptures} ruptures from rupture_df_n{n_rupts[0]}.csv...")
-            ruptures_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_rupts[0]}.csv')), nrows=n_ruptures)
+            ruptures_df = pd.read_csv(os.path.abspath(os.path.join(procdir, f'rupture_df_n{n_rupts[0]}.csv')), nrows=n_ruptures)
         else:
             raise Exception(f"No csv files found with at least {n_ruptures} ruptures")
 
@@ -163,11 +160,15 @@ if __name__ == "__main__":
     print('Calculating initial rupture rates...')
     lower_lim, upper_lim = inversion.get_bounds()
     lower_lim, upper_lim = np.array(lower_lim).astype(np.float64), np.array(upper_lim).astype(np.float64)
+    n_start = 0
     if starting_rate_file:
         print(f"Loading initial rates from {starting_rate_file}")
         initial_rates = pd.read_csv(starting_rate_file, sep='\t', index_col=0)['inverted_rate_0'].values[:n_ruptures]
         if len(initial_rates) < n_ruptures:
             raise Exception(f"Initial rates file contains {len(initial_rates)} rates, expected {n_ruptures}")
+        if define_population:
+            # Add labeling, if using pre-defined population
+            n_start = int(starting_rate_file.split('nIt')[-1].split('_')[0])
     else:
         initial_rates = 10 ** ((upper_lim - lower_lim.min()) * np.random.rand(n_ruptures) + lower_lim.min())  # Randomly initialise rates to values between lower and upper limit (for when working in log space)
 
@@ -295,6 +296,9 @@ if __name__ == "__main__":
         # Reconstruct the slip deficit
         reconstructed_deficit = np.matmul(inversion.slip, preferred_rate[:, 0])
 
+        if n_start != 0:
+            n_iterations = f"{n_iterations + n_start}-init{int(n_start * 1e-3)}k"
+
         # Output results
         outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_inverted_ruptures.csv')
         out = np.zeros((inversion.n_ruptures, n_islands + 5))
@@ -321,23 +325,23 @@ if __name__ == "__main__":
         deficit = np.genfromtxt(deficit_file)
         deficit[:, 3] /= 1000  # Convert to km
 
-        out = np.zeros_like(deficit[:, 6])
+        out = np.zeros_like(deficit[:, :6])
         out[:, :4] = deficit[:, :4]
 
-        deficit[:, 4] = inversion.deficit
-        deficit[:, 5] = reconstructed_deficit
+        out[:, 4] = inversion.deficit
+        out[:, 5] = reconstructed_deficit
         outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_deficit.inv')
         np.savetxt(outfile, out, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f",
-                header='#No\tlon\tlat\tz(km)\tss-deficit(mm/yr)\tds-deficit(mm/yr)')
+                header='#No\tlon\tlat\tz(km)\ttarget-deficit(mm/yr)\tinverted-deficit(mm/yr)')
 
-        deficit[:, 4] = reconstructed_deficit / inversion.deficit  # Fractional misfit
+        out[:, 4] = reconstructed_deficit / inversion.deficit  # Fractional misfit
         if pygmo:
-            deficit[:, 5] = reconstructed_deficit - inversion.deficit  # Absolute misfit
+            out[:, 5] = reconstructed_deficit - inversion.deficit  # Absolute misfit
         else:
-            deficit[:, 5] = misfit[:inversion.n_patches]  # Absolute misfit
+            out[:, 5] = misfit[:inversion.n_patches]  # Absolute misfit
         outfile = os.path.join(outdir, f'n{inversion.n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nIt{n_iterations}_misfit.inv')
         np.savetxt(outfile, out, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f",
-                header='No\tlon\tlat\tz(km)\tmisfit_perc(mm/yr)\tmisfit_mag(mm/yr)')
+                header='No\tlon\tlat\tz(km)\tmisfit_rel(mm/yr)\tmisfit_abs(mm/yr)')
 
     if not archipeligo:
         uda = algo.extract(pg.de)
