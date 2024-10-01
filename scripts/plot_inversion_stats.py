@@ -16,19 +16,20 @@ from pyproj import Transformer
 from scipy.spatial import KDTree
 from matplotlib.collections import PolyCollection
 
-inversion_name = 'island_merge'
+inversion_name = 'gr_variations'
 n_ruptures = 5000
 slip_weight = 10
 norm_weight = 1
-GR_weight = 100
-max_iter = 10e3
+GR_weight = 400
+max_iter = 1e6
 b, N = 1.1, 21.5
 plot_ruptures = False   # Plot sample ruptures
-min_Mw, max_Mw = 4.5, 9.5
+min_Mw, max_Mw = 6.5, 9.5
 plot_all_islands = False
 zero_rate = -6  # Rate at which a ruptures is considered not to have occurred
-write_islands = True   # Write out islands with a zero'd rate
-archi = 0
+write_islands = False   # Write out islands with a zero'd rate
+archi = '0'
+init = '500k'
 
 drive = 'C'
 if drive.lower() == 'c':
@@ -41,6 +42,8 @@ rupt_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures'
 deficit_file = f"{procdir}\\model_info\\hk_hires.slip"
 outdir = f"{procdir}\\output\\{inversion_name}"
 
+rupture_df_file = os.path.abspath(os.path.join(outdir, "..", f'rupture_df_n50000.csv'))
+
 plot_results = True
 if max_iter == 0:
     max_iter = '*'
@@ -52,22 +55,28 @@ if norm_weight is not None:
 else:
     results_tag = f"n{n_ruptures}_S{slip_weight}_GR{GR_weight}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{max_iter}"
 
+if init:
+    results_tag += f"-init{init}"
+
 if archi is not None:
     results_tag += f"_archi{archi}"
 
 input_tag = results_tag.replace(f'_nIt{max_iter}', '').replace(f"_archi{archi}", '')
 
 rupture_file_list = glob(f"{outdir}\\{results_tag}_inverted_ruptures.csv")
-n_iter = [int(file.split('nIt')[1].split('_')[0]) for file in rupture_file_list]
-order = np.array(n_iter).argsort()
+if init:
+    order = [0]
+else:
+    n_iter = [int(file.split('nIt')[1].split('_')[0]) for file in rupture_file_list]
+    order = np.array(n_iter).argsort()
 if len(order) != 0:
     rupture_file_list = [rupture_file_list[ix] for ix in order]
     ruptures_list = []
     bins_list = []
     for file in rupture_file_list:
         ruptures_list.append(pd.read_csv(file, sep='\t', index_col=0).sort_values('Mw'))
-        bins_df = pd.read_csv(file.replace('ruptures', 'bins'), sep='\t', index_col=0)
-        bins_df['upper'] = pd.read_csv(f"{outdir}\\{input_tag}_input_bins.csv", sep='\t', index_col=0)['upper']
+        bins_df = pd.read_csv(file.replace('ruptures', 'bins').replace('-merged', '0'), sep='\t', index_col=0)
+        bins_df['upper'] = pd.read_csv(f"{outdir}\\{input_tag}_input_bins.csv".replace(f"-init{init}", '').replace('-merged', '0'), sep='\t', index_col=0)['upper']
         bins_list.append(bins_df)
         islands = ruptures_list[0].columns.tolist()
         islands = [island for island in islands if island not in ['Mw', 'initial_rate', 'target_rate', 'lower', 'upper']]
@@ -119,20 +128,20 @@ for run in range(n_runs):
             binwidth = (0.1, 0.5)
             plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='black', label='Target GR Relation', zorder=6)
 
-            sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['upper']), s=5, color='green', label='Individual limit', edgecolors=None, zorder=1)
+            #sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['upper']), s=5, color='green', label='Individual limit', edgecolors=None, zorder=1)
             sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['lower'] + 1e-30), s=5, color='green', edgecolors=None, zorder=1)
-            sns.scatterplot(x=ruptures['Mw'], y=np.log10(initial_rate), s=20, color='blue', label='Initial GR', edgecolors=None, zorder=4)
-            sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['initial_rate']), s=1, label='Initial rate', color='blue', edgecolors=None, zorder=1)
+            #sns.scatterplot(x=ruptures['Mw'], y=np.log10(initial_rate), s=20, color='blue', label='Initial GR', edgecolors=None, zorder=4)
+            #sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['initial_rate']), s=1, label='Initial rate', color='blue', edgecolors=None, zorder=1)
 
             if plot_results:
-                sns.histplot(x=ruptures['Mw'], y=np.log10(ruptures[island]), binwidth=binwidth, zorder=0)
+                #sns.histplot(x=ruptures['Mw'], y=np.log10(ruptures[island]), binwidth=binwidth, zorder=0)
                 # sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures[island]), s=2, label='Inverted rate', color='orange', edgecolors=None, zorder=2)
                 sns.scatterplot(x=ruptures['Mw'], y=np.log10(inverted_rate), s=10, color='red', label='Inverted GR', edgecolors=None, zorder=5)
             plt.ylabel('log10(N)')
             plt.xlim([min_Mw, max_Mw])
             plt.ylim([-11, 3])
             plt.legend(loc='lower left')
-            plt.title(f"# Ruptures: {n_ruptures} {island}")
+            plt.title(f" {input_tag} {max_iter} {island}")
         # if plot_results:
         #     sns.scatterplot(x=bins['Mw_bin'], y=np.log10(inverted_bins + 1e-12), s=15, label=f'Inverted Bins {n_iter[order[run]]}', edgecolors=None)
         plt.show()
@@ -147,20 +156,20 @@ if plot_results:
         plt.ylim([-16, 1])
         plt.xlabel('Log(Input Rate)')
         plt.ylabel('Log(Inverted Rate)')
-        plt.title(f"# Ruptures: {n_ruptures} {island}")
+        plt.title(f"{input_tag} {max_iter} {island}")
         plt.colorbar()
         plt.show()
 
         g = sns.JointGrid(x=np.log10(ruptures['initial_rate']), y=np.log10(ruptures[island]), marginal_ticks=True, xlim=[-16,1], ylim=[-16,1])
         # Add the joint and marginal histogram plots
-        g.plot_joint(sns.histplot, discrete=(True, False), pmax=.8)
+        g.plot_joint(sns.histplot, discrete=(True, False), pmax=.8, binwidth=binwidth)
         g.plot_marginals(sns.histplot, element="step", color="#03012d", kde=True)
         if zero_rate != 0:
             for ax in (g.ax_joint, g.ax_marg_y):
                 ax.axhline(zero_rate, color='crimson', ls='--', lw=3)
-            g.figure.suptitle(f"# Ruptures: {n_ruptures} {island} Dropped: {np.sum(np.log10(ruptures[island]) < zero_rate)}")
+            g.figure.suptitle(f"{input_tag} {island} Dropped: {np.sum(np.log10(ruptures[island]) < zero_rate)}")
         else:
-            g.figure.suptitle(f"# Ruptures: {n_ruptures} {island}")
+            g.figure.suptitle(f"{input_tag} {island}")
 
         plt.show()
     
@@ -174,7 +183,7 @@ if plot_results and plot_all_islands:
         plt.xlabel('Mw')
         #plt.xlim([min_Mw, max_Mw])
         #plt.ylim([-11, 3])
-        plt.title(f"# Ruptures: {n_ruptures}")
+        plt.title(f"{input_tag} {max_iter}")
         plt.show()
 
         for ix, island in enumerate(islands[1:]):
@@ -283,7 +292,7 @@ if plot_results and write_islands:
     for file in rupture_file_list:
         ruptures_list.append(pd.read_csv(file, sep='\t', index_col=0))
 
-    ruptures_df = pd.read_csv(os.path.abspath(os.path.join(outdir, "..", f'rupture_df_n15000.csv')), nrows=n_ruptures)
+    ruptures_df = pd.read_csv(rupture_df_file, nrows=n_ruptures)
     i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(ruptures_df.columns[-1]) + 1
     slip = ruptures_df.iloc[:, i0:i1].values.T * 1000  # Slip in mm, convert from m to mm
 
@@ -361,9 +370,9 @@ if len(islands) > 1:
     df.loc[df['log10(Rate)'] < zero_rate, 'log10(Rate)'] = zero_rate
     sns.histplot(df, x='log10(Rate)', y='Rupture number', binwidth=(0.1, 1), binrange=[(zero_rate, df['log10(Rate)'].max()), (-0.5, df['Rupture number'].max())], cbar=True)
 # %% Load ruptures_df
-ruptures_df = pd.read_csv(os.path.abspath(os.path.join(outdir, "..", f'rupture_df_n15000.csv')), nrows=n_ruptures)
+ruptures_df = pd.read_csv(rupture_df_file, nrows=n_ruptures)
 # %% Plot patch specific GR relations
-patch_numbers = np.arange(0, 14800, 1)
+patch_numbers = np.arange(0, 14800, 100)
 island_to_use = 0
 
 if isinstance(island_to_use, (int, float)):
@@ -374,7 +383,7 @@ if not isinstance(patch_numbers, list):
 
 i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(ruptures_df.columns[-1]) + 1
 patch_numbers = [patch for patch in patch_numbers if patch < int(ruptures_df.columns[-1])]
-slip = ruptures_df.iloc[:, i0:i1].values.T
+slip = ruptures_df.iloc[:, i0:i1].values.T * 1000  # Convert to mm
 slip = (slip[patch_numbers, :] > 0).astype(int)  # Array consisting of whether or not a rupture slips a patch
 
 rates = np.vstack([ruptures_list[0][island_to_use].values] * len(patch_numbers)) * slip
@@ -405,7 +414,7 @@ for ix, patch in enumerate(patch_numbers):
 
 patch_gr_df_long = patch_gr_df.melt(id_vars=['Mw'], var_name='Patch', value_name='log10(N)')
 mod_gr_df_long = mod_gr_df.melt(id_vars=['Mw'], var_name='Patch', value_name='log10(N)')
-
+# %%
 sns.lineplot(data=patch_gr_df_long, x='Mw', y='log10(N)', hue='Patch', linewidth=0.25)
 plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='red', label='Target GR Relation', zorder=6)
 plt.ylim([zero_rate - 3, 0])
@@ -415,13 +424,13 @@ sns.histplot(patch_gr_df_long, x='Mw', y='log10(N)', binwidth=(0.1, 0.05), cbar=
 plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='red', label='Target GR Relation', zorder=6)
 plt.ylim([zero_rate - 3, 0])
 plt.show()
-
+# %%
 sns.lineplot(data=mod_gr_df_long, x='Mw', y='log10(N)', hue='Patch', linewidth=0.25)
 plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), color='red', label='Target GR Relation', zorder=6)
 plt.ylim([zero_rate - 3, 0])
 plt.show()
-
-sns.histplot(data=patch_ba, x='b', binwidth=0.02, binrange=(0.4, 1.5))
+# %%
+sns.histplot(data=patch_ba, x='b', binwidth=0.02, binrange=(0.0, 1.5))
 plt.vlines(patch_ba['b'].mean(), 0, 1000, color='black', label=f"Mean: {patch_ba['b'].mean():.3f}")
 plt.vlines(patch_ba['b'].median(), 0, 1000, color='red', label=f"Median: {patch_ba['b'].median():.3f}")
 plt.legend()

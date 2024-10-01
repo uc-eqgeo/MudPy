@@ -9,30 +9,34 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Define directories
-inversion_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\hires_deficit'
+inversion_dir = 'C:\\Users\\jmc753\\Work\\MudPy\\cluster_processing\\output\\island_merge'
 
 # Define flags for results csv
 n_ruptures = 5000
-slip_weight = 1
+slip_weight = 10
 norm_weight = 1
-gr_weight = 10
-n_its = 50000
+gr_weight = 100
+n_its = 5e5
+archi = '-merged'
+islands = 10
+b, N = 1.1, 21.5
 
 # %% No user inputs below here
 # Create filepaths
-rupture_csv = os.path.join(inversion_dir, '..', 'rupture_df_n15000.csv')  # CSV containing rupture slips
-if norm_weight:
-    inv_file = f"n{n_ruptures}_S{slip_weight}_N{norm_weight}_GR{gr_weight}_nIt{n_its}_inverted_ruptures.csv"
+rupture_csv = os.path.join(inversion_dir, '..', 'rupture_df_n50000.csv')  # CSV containing rupture slips
+if norm_weight is not None:
+    inv_file = f"n{int(n_ruptures)}_S{int(slip_weight)}_N{int(norm_weight)}_GR{int(gr_weight)}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{int(n_its)}_archi{archi}_inverted_ruptures.csv"
 else:
     inv_file = f"n{n_ruptures}_S{slip_weight}_GR{gr_weight}_nIt{n_its}_inverted_ruptures.csv"
 inv_file = os.path.join(inversion_dir, inv_file)
-patch_file = os.path.join(inversion_dir, '..', '..', 'data', 'model_info', 'hk.fault')
-
-# Load data
-rupture_df = pd.read_csv(rupture_csv)
-rupture_df = rupture_df.iloc[:n_ruptures]
+patch_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\data\\model_info\\hk.fault'
 
 inv_df = pd.read_csv(inv_file, sep='\t')
+
+# Load data
+n_ruptures = inv_df.shape[0]
+
+rupture_df = pd.read_csv(rupture_csv, nrows=n_ruptures)
 
 #%% Prepare for calculating patch participations
 patch_xy = np.genfromtxt(os.path.abspath(patch_file))

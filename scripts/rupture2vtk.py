@@ -6,7 +6,8 @@ from scipy.spatial import KDTree
 from glob import glob
 import os
 import pandas as pd
-
+import geopandas as gpd
+from shapely.geometry import Polygon
 
 mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
@@ -14,17 +15,21 @@ mesh_name = 'hik_kerk3k_with_rake.vtk'
 
 plot_ruptures = False
 n_ruptures = 5000
-inversion_name = 'island_merge'
+inversion_name = 'gr_variations'
+
+file_keyword = 'GR400'
+
+write_geojson = True
 
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
-rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output\\ruptures"
+rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures"
 output_dir = f"C:\\Users\\jmc753\\Work\\MudPy\\cluster_processing\\output\\{inversion_name}"
 
 if plot_ruptures:
-    rupture_list = glob(f'{rupture_dir}\\*.rupt')
+    rupture_list = glob(f'{rupture_dir}\\*{file_keyword}*.rupt')
 else:
-    rupture_list = glob(os.path.abspath(f'{output_dir}\\n{n_ruptures}*.inv'))
+    rupture_list = glob(os.path.abspath(f'{output_dir}\\n{n_ruptures}*{file_keyword}*.inv'))
 
 # Create interpolation object for mapping ruptures to the mesh
 transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
@@ -34,8 +39,14 @@ for rupture_file in rupture_list:
 
     patch_coords = np.zeros((rupture.shape[0], 4))
     patch_coords[:, 0] = rupture.index.to_numpy()
-    patch_coords[:, 2], patch_coords[:, 1] = transformer.transform(rupture['lat'], rupture['lon'])
-    patch_coords[:, 3] = rupture['z(km)'] * -1000
+    if rupture['lon'].max() <= 180:
+        patch_coords[:, 2], patch_coords[:, 1] = transformer.transform(rupture['lat'], rupture['lon'])
+    else:
+        patch_coords[:, 1], patch_coords[:, 2] = rupture['lat'], rupture['lon']
+    if abs(rupture['z(km)'].max()) > 100:  # Convert to m, negative down
+        patch_coords[:, 3] = rupture['z(km)'] * -1
+    else:
+        patch_coords[:, 3] = rupture['z(km)'] * -1000
 
     cells = vtk.cells[0].data
     n_cells = cells.shape[0]
@@ -79,5 +90,21 @@ for rupture_file in rupture_list:
     outfile = f"{rupture_file.replace('scaling.', 'scaling+').split('.')[0].replace('scaling+', 'scaling.')}{suffix}.vtk"
     rupture_mesh.write(outfile, file_format="vtk")
     print(f"Written {outfile}")
+
+    if write_geojson:
+        for key in col_dict.keys():
+            col_dict[key] = col_dict[key][0]
+
+        cell_poly = []
+        for cell in rupture_mesh.cells[0].data:
+            cell_poly.append(Polygon(rupture_mesh.points[cell]))
+
+        col_dict["geometry"] = cell_poly
+        col_dict["id"] = rupture.index.values
+
+        gdf = gpd.GeoDataFrame(col_dict)
+        gdf.set_crs(epsg=2193, inplace=True)
+        gdf.to_file(outfile.replace('.vtk', '.geojson'), driver="GeoJSON")
+        print(f"Written {outfile.replace('.vtk', '.geojson')}")
 
 print('Complete :)')
