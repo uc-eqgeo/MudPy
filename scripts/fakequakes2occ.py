@@ -5,13 +5,19 @@ import shutil
 import numpy as np
 import pandas as pd
 
-b, N = 1.1, 21.5
+bn_dict = {1: [0.95, 16.5],
+           2: [1.1, 21.5],
+           3: [1.24, 27.9]}
+
+bn_combo = 1
+
+b, N = bn_dict[bn_combo]
 
 n_ruptures = 5000
 slip_weight = 10
-gr_weight = 100
+gr_weight = 500
 norm_weight = 1
-n_iterations = 5e5
+n_iterations = 1e6
 n_archipeligos = 10
 island = 0
 rupture_csv = 'rupture_df_n50000.csv'
@@ -20,7 +26,7 @@ zero_rate = 1e-6
 prep_occ = False
 remove_zero_rates = True
 
-rupture_dir = "C:\\Users\\jmc753\Work\\MudPy\\cluster_processing\\output\\island_merge"
+rupture_dir = "C:\\Users\\jmc753\Work\\MudPy\\cluster_processing\\output\\Final_Jack"
 model_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\data\\model_info"
 occ_home_dir = "C:\\Users\\jmc753\\Work\\occ-coseismic"
 deficit_file = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\data\\model_info\\hk_hires.slip"

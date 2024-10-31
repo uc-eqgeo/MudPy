@@ -16,20 +16,28 @@ from pyproj import Transformer
 from scipy.spatial import KDTree
 from matplotlib.collections import PolyCollection
 
-inversion_name = 'gr_variations'
+bn_dict = {1: [0.95, 16.5],
+           2: [1.1, 21.5],
+           3: [1.24, 27.9]}
+
+
+inversion_name = 'Final_Jack'
 n_ruptures = 5000
 slip_weight = 10
 norm_weight = 1
-GR_weight = 400
+GR_weight = 500
 max_iter = 1e6
-b, N = 1.1, 21.5
+bn_combo = 3
+b, N = bn_dict[bn_combo]
 plot_ruptures = False   # Plot sample ruptures
 min_Mw, max_Mw = 6.5, 9.5
 plot_all_islands = False
 zero_rate = -6  # Rate at which a ruptures is considered not to have occurred
 write_islands = False   # Write out islands with a zero'd rate
-archi = '0'
-init = '500k'
+archi = '-merged'
+if archi == '-merged':
+    zero_rate -= 1  # Take into account the 10x slip reduction when merging 10 archipeligos for best result
+init = ''
 
 drive = 'C'
 if drive.lower() == 'c':
@@ -370,7 +378,10 @@ if len(islands) > 1:
     df.loc[df['log10(Rate)'] < zero_rate, 'log10(Rate)'] = zero_rate
     sns.histplot(df, x='log10(Rate)', y='Rupture number', binwidth=(0.1, 1), binrange=[(zero_rate, df['log10(Rate)'].max()), (-0.5, df['Rupture number'].max())], cbar=True)
 # %% Load ruptures_df
-ruptures_df = pd.read_csv(rupture_df_file, nrows=n_ruptures)
+if archi == '-merged':
+    ruptures_df = pd.read_csv(rupture_df_file)
+else:
+    ruptures_df = pd.read_csv(rupture_df_file, nrows=n_ruptures)
 # %% Plot patch specific GR relations
 patch_numbers = np.arange(0, 14800, 100)
 island_to_use = 0
@@ -381,9 +392,9 @@ if isinstance(island_to_use, (int, float)):
 if not isinstance(patch_numbers, list):
     patch_numbers = list(patch_numbers)
 
-i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(ruptures_df.columns[-1]) + 1
-patch_numbers = [patch for patch in patch_numbers if patch < int(ruptures_df.columns[-1])]
-slip = ruptures_df.iloc[:, i0:i1].values.T * 1000  # Convert to mm
+i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(ruptures_df.columns[-1]) + 1  # Get the column ids for each patch
+patch_numbers = [patch for patch in patch_numbers if patch < int(ruptures_df.columns[-1])]  # Get the patch numbers for plotting GR (checking that they don't exceed the number of patches)
+slip = ruptures_df.iloc[:, i0:i1].values.T * 1000  # Convert to mm the amount of slip per patch for each rupture
 slip = (slip[patch_numbers, :] > 0).astype(int)  # Array consisting of whether or not a rupture slips a patch
 
 rates = np.vstack([ruptures_list[0][island_to_use].values] * len(patch_numbers)) * slip
@@ -430,9 +441,10 @@ plt.plot(ruptures['Mw'], ruptures['target_rate'].apply(lambda x: np.log10(x)), c
 plt.ylim([zero_rate - 3, 0])
 plt.show()
 # %%
-sns.histplot(data=patch_ba, x='b', binwidth=0.02, binrange=(0.0, 1.5))
-plt.vlines(patch_ba['b'].mean(), 0, 1000, color='black', label=f"Mean: {patch_ba['b'].mean():.3f}")
-plt.vlines(patch_ba['b'].median(), 0, 1000, color='red', label=f"Median: {patch_ba['b'].median():.3f}")
+ax = sns.histplot(data=patch_ba, x='b', binwidth=0.02, binrange=(0.0, 1.5), stat='count')
+max_y_value = np.ceil(max([p.get_height() for p in ax.patches]) / 10) * 10
+plt.vlines(patch_ba['b'].mean(), 0, max_y_value, color='black', label=f"Mean: {patch_ba['b'].mean():.3f}")
+plt.vlines(patch_ba['b'].median(), 0, max_y_value, color='red', label=f"Median: {patch_ba['b'].median():.3f}")
 plt.legend()
 plt.show()
 
@@ -446,9 +458,10 @@ plt.colorbar()
 plt.title('N distribution')
 plt.show()
 
-sns.histplot(data=patch_ba, x='N', binwidth=0.1, binrange=(0, 12))
-plt.vlines(patch_ba['N'].mean(), 0, 1000, color='black', label=f"Mean: {patch_ba['N'].mean():.3f}")
-plt.vlines(patch_ba['N'].median(), 0, 1000, color='red', label=f"Median: {patch_ba['N'].median():.3f}")
+ax = sns.histplot(data=patch_ba, x='N', binwidth=0.1, binrange=(0, 12), stat='count')
+max_y_value = np.ceil(max([p.get_height() for p in ax.patches]) / 10) * 10
+plt.vlines(patch_ba['N'].mean(), 0, max_y_value, color='black', label=f"Mean: {patch_ba['N'].mean():.3f}")
+plt.vlines(patch_ba['N'].median(), 0, max_y_value, color='red', label=f"Median: {patch_ba['N'].median():.3f}")
 plt.legend()
 plt.show()
 # %% Plot hyopcentral locations

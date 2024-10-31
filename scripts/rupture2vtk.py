@@ -15,9 +15,9 @@ mesh_name = 'hik_kerk3k_with_rake.vtk'
 
 plot_ruptures = False
 n_ruptures = 5000
-inversion_name = 'gr_variations'
+inversion_name = 'Final_Jack'
 
-file_keyword = 'GR400'
+file_keyword = 'archi-merged'
 
 write_geojson = True
 
