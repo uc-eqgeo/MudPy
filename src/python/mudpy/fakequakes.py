@@ -1374,6 +1374,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
     from time import gmtime, strftime
     from obspy.taup import TauPyModel
     import os
+    from glob import glob
 
 
     #Should I calculate or load the distances?
@@ -1403,11 +1404,16 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
         print('... Calculating ruptures for target magnitude Mw = '+str(target_Mw[kmag]))
         for kfault in range(Nrealizations):
             run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(kfault).rjust(6,'0')
-            outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
+            outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'_Mw*.rupt'
             no_overwriting = True
-            if os.path.exists(outfile) and os.path.exists(outfile.replace('.rupt', '.log')) and no_overwriting:  # Skip premade files
+            premade_rupt = glob(outfile)
+            premade_log = glob(outfile.replace('.rupt', '.log'))
+            if premade_rupt and premade_log and no_overwriting:  # Skip premade files
                 realization += 1
-                continue          
+                continue
+            else:
+                for file in premade_rupt + premade_log:
+                    os.remove(file)
             
             if kfault%1==0:
                 print('... ... working on rupture '+str(kfault)+' of '+str(Nrealizations), f'({os.path.basename(outfile)})')
@@ -1605,7 +1611,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             centroid_lon,centroid_lat,centroid_z=get_centroid(fault_out)
             
             #Write to file
-            run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(kfault).rjust(6,'0')
+            run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(kfault).rjust(6,'0') + f"_Mw{Mw:.2f}".replace('.','-')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
             save_mem = True
             if save_mem:
