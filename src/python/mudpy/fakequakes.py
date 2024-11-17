@@ -167,7 +167,7 @@ def subfault_distances_3D(home,project_name,fault_name,slab_name,projection_zone
                     #Project distance
                     delta_strike=abs(delta_strike*cos(deg2rad(alpha)))
                     
-                    #Down dip is jsut depth difference / avg dip of model
+                    #Down dip is just depth difference / avg dip of model
                     z_origin=fault[i,3]
                     z_target=fault[j,3]
                     delta_dip=abs(z_origin-z_target)/sin(deg2rad(dip))
@@ -630,11 +630,21 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
                       length=a/width
 
     if NZNSHM_scaling==True:
+        # Set max width so that the area is not larger than the hikkerk
+        # Max is allowed to be 10% larger than the hikkerk at the hypocenter
+        strike_lim = 50 # Check depths based on subfaults within 50km strike either way (to take into account changes in depth along strike)
+        max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < strike_lim].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < strike_lim].min()) * 1.1
+
         total_area = length*width
         target_area = 10**(target_Mw - 4.0)
         area_scaling = (target_area / total_area)**0.5
         length *= area_scaling
         width *= area_scaling
+
+        if width > max_width:
+            width = max_width
+            length = target_area / width
+
     # #so which subfault ended up being the middle?
     # center_subfault=hypo_fault  # I'm not sure why this is getting defined here?
         
