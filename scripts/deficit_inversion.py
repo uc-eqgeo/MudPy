@@ -61,7 +61,7 @@ class deficitInversion:
         self.n_ruptures = ruptures_df.shape[0]
         self.id = ruptures_df['rupt_id'].values
         self.Mw = ruptures_df['mw'].values
-        self.target = ruptures_df['target'].values
+        self.target = ruptures_df['target_mw'].values
         i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(str(self.n_patches - 1)) + 1
         self.Mw_bins = np.unique(np.floor(np.array(self.Mw) * 10) / 10)  # Create bins for each 0.1 magnitude increment
 

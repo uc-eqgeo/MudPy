@@ -4,16 +4,17 @@ import numpy as np
 import pandas as pd
 import os
 from scipy.sparse import bsr_array
+from time import time
 
 """
 Script for running multiple subsets of full rupture catalgoue
 """
-
+start = time()
 # %% Define Parameters
 # Naming and inputs
-inversion_name = 'island_merge'  # Name of directory results will be stored in
+inversion_name = 'testing'  # Name of directory results will be stored in
 deficit_file = "hk_hires.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
-rupture_file = "rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
+rupture_file = "rupturesThatCanBe300kmWide/rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
 n_ruptures = 5000  # Number of ruptures to use in each island
 
 b, N = 1.1, 21.5  # B and N values to use for the GR relation
@@ -27,7 +28,7 @@ GR_weight = 100  # Mistfit of GR relation (int)
 # Pygmo requirements
 n_iterations = 1000000  # Maximum number of iterations for each inversion
 ftol = 0.0001  # Stopping Criteria
-n_islands = 10  # Number of islands
+n_islands = 1  # Number of islands
 pop_size = 20  # Number of populations per island
 archipeligo = False  # True - Consider all islands as part of an archipeligo, using same rupture set. False: Run islands individually, with different rupture sets
 topology_name = 'None'  # 'None', 'Ring', 'FullyConnected'
@@ -41,9 +42,13 @@ if 'rccuser' in os.getcwd():
     procdir = "/home/rccuser/MudPy/hires_ruptures"
     deficit_file = f"{procdir}/model_info/slip_deficit_trenchlock.slip"
     deficit_file = f"{procdir}/model_info/hk_hires.slip"
+elif 'uc03610' in os.getcwd():
+    procdir = "/nesi/nobackup/uc03610/jack/MudPy/hikkerk3D_hires/output"
+    deficit_file = f"{procdir}/../data/model_info/slip_deficit_trenchlock.slip"
+    rupture_file = "rupture_df_n50000.csv"
 else:
-    procdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\output"
-    deficit_file = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D\\data\\model_info\\slip_deficit_trenchlock.slip"
+    procdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output"
+    deficit_file = f"{procdir}/../data\\model_info\\slip_deficit_trenchlock.slip"
 
 outdir = os.path.abspath(os.path.join(procdir, inversion_name))
 if not os.path.exists(outdir):
@@ -68,7 +73,7 @@ class deficitInversion:
         self.n_ruptures = ruptures_df.shape[0]
         self.id = ruptures_df['rupt_id'].values
         self.Mw = ruptures_df['mw'].values
-        self.target = ruptures_df['target'].values
+        self.target = ruptures_df['target_mw'].values
         i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(str(self.n_patches - 1)) + 1
         self.Mw_bins = np.unique(np.floor(np.array(self.Mw) * 10) / 10)  # Create bins for each 0.1 magnitude increment
 
@@ -238,14 +243,14 @@ if __name__ == "__main__":
 
     # %% Load ruptures
     if archipeligo:
-        print(f"Loading ruptures from {rupture_file}...")
+        print(f"Loading ruptures from {rupture_file}...  ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})")
         ruptures_df_list = [pd.read_csv(rupture_csv, nrows=n_ruptures)]
         archipeligo_islands = n_islands
     else:
         ruptures_df_list = []
         topology_name = "UnConnected"
         archipeligo_islands = 1
-        print(f"Loading {n_ruptures * n_islands} ruptures from {rupture_file}...")
+        print(f"Loading {n_ruptures * n_islands} ruptures from {rupture_file}...  ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})")
         full_df = pd.read_csv(rupture_csv, header=0, nrows=n_islands * n_ruptures)
         if n_islands * n_ruptures < full_df.shape[0]:
             raise Exception(f"Only {full_df.shape[0]} ruptures in {rupture_csv} - need {n_islands * n_ruptures}")
@@ -266,7 +271,7 @@ if __name__ == "__main__":
     # %% Write out starting conditions
     inversion = inversion_list[0]
     # Initially set recurrance rate to NSHM GR-rate for each rupture magnitude
-    print('Calculating initial rupture rates...')
+    print(f'Calculating initial rupture rates...  ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})')
     lower_lim, upper_lim = inversion.get_bounds()
     lower_lim, upper_lim = np.array(lower_lim).astype(np.float64), np.array(upper_lim).astype(np.float64)
 
@@ -302,14 +307,14 @@ if __name__ == "__main__":
     np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.6e\t%.6e\t%.6e", header='No\tMw_bin\tinput_N\tlower\tupper')
 
     # %% Prepare pygmo algorithm
-    print(f"Preparing pygmo...")
+    print(f"Preparing pygmo...  ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})")
     # set up differential evolution algorithm
-    print("\tSetting up algorithm...")
+    print(f"\tSetting up algorithm...  ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})")
     algo = pg.algorithm(pg.de(gen=n_iterations, ftol=ftol))
     algo.set_verbosity(1000)
     print(algo)
   
-    print("\tSetting up island topology...")
+    print(f"\tSetting up island topology...  ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})")
     topo = build_topology(topology_name, archipeligo_islands, ring_plus)
     print(topo)
 
@@ -323,8 +328,8 @@ if __name__ == "__main__":
             pop.push_back(np.log10(initial_rates))
             archi_list.append(pg.archipelago(n=archipeligo_islands, algo=algo, pop=pop, t=topo))
     else:
-        print("\tBuilding archipeligoes...")
-        for inversion in inversion_list:
+        for ix, inversion in enumerate(inversion_list):
+            print(f"\tBuilding archipeligo {ix + 1} of {len(inversion_list)}...   ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})")
             prob = pg.problem(inversion)
             archi_list.append(pg.archipelago(n=archipeligo_islands, algo=algo, prob=prob, pop_size=pop_size, t=topo))
 
@@ -336,9 +341,9 @@ if __name__ == "__main__":
 
     # %% Run inversions
     print(archi_list[0])
-    print("Starting inversions...")
+    print(f"Starting inversions...   ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})")
     for ix, archi in enumerate(archi_list):
-        print(f"\tEvolving archipeligo {ix}...")
+        print(f"\tEvolving archipeligo {ix}...   ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})")
         archi.evolve()
 
     # Write out results when niversion has ended
@@ -346,4 +351,4 @@ if __name__ == "__main__":
         archi.wait()
         write_results(ix, archi, inversion_list[ix], outtag, deficit_file, archipeligo_islands)
 
-    print('All complete :)')
+    print(f'All complete :)   ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})')
