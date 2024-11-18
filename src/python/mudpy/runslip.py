@@ -230,7 +230,7 @@ def make_parallel_green(home,project_name,station_file,fault_name,model_name,dt,
     #Create individual source files
     for k in range(ncpus):
         i=arange(k+hot_start,len(source),ncpus)
-        mpi_source=source[i,:]
+        mpi_source=source[i,:11]
         fmt='%d\t%10.6f\t%10.6f\t%.8f\t%10.6f\t%10.6f\t%10.6f\t%10.6f\t%10.6f\t%10.6f'
         savetxt(home+project_name+'/data/model_info/mpi_source.'+str(k)+'.fault',mpi_source,fmt=fmt)
     #Make mpi system call
@@ -403,7 +403,7 @@ def make_parallel_synthetics(home,project_name,station_file,fault_name,model_nam
     #Create individual source files
     for k in range(ncpus):
         i=arange(k+hot_start,len(source),ncpus)
-        mpi_source=source[i,:]
+        mpi_source=source[i,:11]
         fmt='%d\t%10.6f\t%10.6f\t%.8f\t%10.6f\t%10.6f\t%10.6f\t%10.6f\t%10.6f\t%10.6f'
         savetxt(home+project_name+'/data/model_info/mpi_source.'+str(k)+'.fault',mpi_source,fmt=fmt)
     #Make mpi system call

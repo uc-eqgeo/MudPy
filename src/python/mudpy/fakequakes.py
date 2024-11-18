@@ -519,22 +519,23 @@ def rectify_slip(slip_unrectified,percent_reject=10):
 
 def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     force_area,no_shallow_epi=True,hypo_depth=10,param_norm=(0.0451,0.1681),no_random=False,
-    subfault_hypocenter=None,use_hypo_fraction=True,option=0):
+    subfault_hypocenter=None,use_hypo_fraction=True,option=0, NZNSHM_scaling=True, patch_coupling=None):
     '''
     Select a random fault to be the hypocenter then based on scaling laws and a 
     target magnitude select only faults within the expected area plus some 
     buffer factor
     '''
     
-    from numpy.random import randint,normal
-    from numpy import array,where,argmin,arange,log10
+    from numpy.random import randint,normal,choice
+    from numpy import array,where,argmin,arange,log10,sqrt
     from scipy.stats import norm,expon
     from random import choice
     
     
     #Select random subfault as center of the locus of L and W
-    if subfault_hypocenter is None: 
-        hypo_fault=randint(0,len(whole_fault)-1)
+    if subfault_hypocenter is None:
+        # Weight choice of subfault by coupling coefficient
+        hypo_fault=choice(arange(len(whole_fault)), p=0.1 + sqrt(patch_coupling) * 0.9)
     else: #get subfault closest to hypo
         hypo_fault=subfault_hypocenter
     
@@ -625,7 +626,13 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
                       a=length*width
                       width=60+10**normal(0,width_std)
                       length=a/width
-        
+
+    if NZNSHM_scaling==True:
+        total_area = length*width
+        target_area = 10**(target_Mw - 4.0)
+        area_scaling = (target_area / total_area)**0.5
+        length *= area_scaling
+        width *= area_scaling
     # #so which subfault ended up being the middle?
     # center_subfault=hypo_fault  # I'm not sure why this is getting defined here?
         
@@ -1073,9 +1080,9 @@ def get_stochastic_rake(rake,Nsamples,sigma_rake=10,max_variation=45):
     
     #make sure we don't exceed the limits
     i=where(stoc_rake>max_rake)[0]
-    stoc_rake[i]=max_rake
+    stoc_rake[i]=max_rake[i]
     i=where(stoc_rake<min_rake)[0]
-    stoc_rake[i]=min_rake
+    stoc_rake[i]=min_rake[i]
     
     return stoc_rake                                                                                                
    
@@ -1262,7 +1269,8 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
 		max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
 		force_magnitude=False,force_area=False,mean_slip_name=None,hypocenter=None,
 		slip_tol=1e-2,force_hypocenter=False,no_random=False,use_hypo_fraction=True,
-		shear_wave_fraction_shallow=0.49,shear_wave_fraction_deep=0.8,max_slip_rule=True):
+		shear_wave_fraction_shallow=0.49,shear_wave_fraction_deep=0.8,max_slip_rule=True,
+    calculate_rupture_onset=True, NZNSHM_scaling=False, nucleate_on_coupling=False):
     '''
     Set up rupture generation-- use ncpus if available
     '''
@@ -1288,7 +1296,8 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
     Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
     max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
     force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-    no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule)
+    no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
+    nucleate_on_coupling, calculate_rupture_onset=calculate_rupture_onset,NZNSHM_scaling=NZNSHM_scaling)
 
 
 
@@ -1299,7 +1308,8 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule):
+        no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
+        nucleate_on_coupling, calculate_rupture_onset=True, NZNSHM_scaling=False):
     
     from numpy import ceil
     from os import environ
@@ -1324,13 +1334,18 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule)
+        no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule,
+        nucleate_on_coupling, calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling)
     else:
         #Make mpi system call
         print("MPI: Starting " + str(Nrealizations_parallel*ncpus) + " FakeQuakes Rupture Generations on ", ncpus, "CPUs")
         mud_source=environ['MUD']+'/src/python/mudpy/'
 
-        mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name+' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time)+' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude)+' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule)
+        mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name \
+            +' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time) \
+            +' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude) \
+            +' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule) \
+            +' '+str(nucleate_on_coupling)+' '+str(calculate_rupture_onset)+' '+str(NZNSHM_scaling)
         mpi=split(mpi)
         p=subprocess.Popen(mpi)
         p.communicate()
@@ -1343,13 +1358,14 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,shypo,use_hypo_fraction,shear_wave_fraction,max_slip_rule):
+        no_random,shypo,use_hypo_fraction,shear_wave_fraction,max_slip_rule,nucleate_on_coupling,
+        calculate_rupture_onset=True, NZNSHM_scaling=False):
     
     '''
     Depending on user selected flags parse the work out to different functions
     '''
     
-    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin
+    from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin,ones,hstack
     from time import gmtime, strftime
     from obspy.taup import TauPyModel
 
@@ -1384,9 +1400,9 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 print('... ... working on rupture '+str(kfault)+' of '+str(Nrealizations))
             
             #Prepare output
-            fault_out=zeros((len(whole_fault),14))
+            fault_out=zeros((len(whole_fault),16))
             fault_out[:,0:8]=whole_fault[:,0:8]
-            fault_out[:,10:12]=whole_fault[:,8:]   
+            fault_out[:,10:12]=whole_fault[:,8:10]   
             
             # Define the subfault hypocenter (if hypocenter is prescribed)
             if hypocenter is None:
@@ -1398,6 +1414,21 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 # Re-define hypocenter as the coordinates of the hypocenter subfault in
                 # case the original hypocenter did not perfectly align with a subfault
                 hypocenter = whole_fault[shypo,1:4]
+            
+            if nucleate_on_coupling:
+                mean_fault=genfromtxt(mean_slip_name)
+                try:
+                    with open(mean_slip_name, 'r') as f:
+                        coupling_ix = f.readline().strip('\n').split('\t').index('coupling')
+                    patch_coupling = mean_fault[:,coupling_ix]
+                except ValueError:
+                    print(f'No coupling column found in {mean_slip_name} file. Building coupling from slip_deficit. Assume max deficit is fully locked')
+                    slip_deficit=(mean_fault[:,8]**2+mean_fault[:,9]**2)**0.5
+                    patch_coupling = slip_deficit / slip_deficit.max()
+                if max(patch_coupling) > 1:
+                    raise ValueError('Should not have coupling values greater than 1. Quitting...')
+            else:
+                patch_coupling = ones(len(whole_fault[:,1]))
 
             #Sucess criterion
             success=False
@@ -1406,7 +1437,8 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 current_target_Mw=target_Mw[kmag]
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff, _, _, _=select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,
                             num_modes,scaling_law,force_area,no_shallow_epi=False,
-                            no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction)
+                            no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,
+                            patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling)
                 
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]
@@ -1440,7 +1472,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                     mean_slip=mean_slip[ifaults]
                     
                     #get the area in those selected faults
-                    area=fault_array[:,-2]*fault_array[:,-1]
+                    area=fault_array[:,8]*fault_array[:,9]
                     
                     #get the moment in those selected faults
                     moment_on_selected=(area*mu*mean_slip).sum()
@@ -1518,8 +1550,13 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                     success=False
                     print('... ... ... max slip condition violated due to force_magnitude=True, recalculating...')
             
-            #Get stochastic rake vector
+            #Get stochastic rake vector if only one rake is given, else variable fault rakes
+            if isinstance(rake,(int,float)):
+                rake = zeros(len(slip))+rake
+            else:
+                rake = whole_fault[ifaults,10]
             stoc_rake=get_stochastic_rake(rake,len(slip))
+            fault_out[ifaults,15]=stoc_rake
             
             #Place slip values in output variable
             fault_out[ifaults,8]=slip*cos(deg2rad(stoc_rake))
@@ -1542,18 +1579,29 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             if force_hypocenter==False: #Use random hypo, otehrwise force hypo to user specified
                 hypocenter=whole_fault[hypo_fault,1:4]
             
-            t_onset, _=get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
-                                      rise_time_depths,M0,velmod,shear_wave_fraction)
-            fault_out[:,12]=0
-            fault_out[ifaults,12]=t_onset
+            if calculate_rupture_onset==True:
+                t_onset,length2fault=get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
+                                                    rise_time_depths,M0,velmod,shear_wave_fraction)
+                fault_out[:,12]=0
+                fault_out[ifaults,12]=t_onset
+
+                fault_out[:,14]=0
+                fault_out[ifaults,14]=length2fault/t_onset
             
             #Calculate location of moment centroid
             centroid_lon,centroid_lat,centroid_z=get_centroid(fault_out)
             
             #Write to file
-            run_number=str(realization).rjust(6,'0')
+            run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(kfault).rjust(6,'0')
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
-            savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)')
+            save_mem = True
+            if save_mem:
+                slip = ((fault_out[:,8] ** 2 + fault_out[:,9] ** 2) ** 0.5).reshape(fault_out.shape[0], 1)
+                fault_out = fault_out[:,[0,1,2,3,15]]
+                fault_out = hstack([fault_out, slip])
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.2f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)\t')
+            else:
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             
             #Write log file
             logfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.log'
@@ -1562,6 +1610,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             f.write('Project name: '+project_name+'\n')
             f.write('Run name: '+run_name+'\n')
             f.write('Run number: '+run_number+'\n')
+            f.write('Realization: '+str(realization).rjust(6,'0')+'\n')
             f.write('Velocity model: '+model_name+'\n')
             f.write('No. of KL modes: '+str(num_modes)+'\n')
             f.write('Hurst exponent: '+str(hurst)+'\n')
@@ -1572,8 +1621,8 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             f.write('Maximum width Wmax: %.2f km\n' % Wmax)
             f.write('Effective length Leff: %.2f km\n' % Leff)
             f.write('Effective width Weff: %.2f km\n' % Weff)
-            f.write('Target magnitude: Mw %.4f\n' % target_Mw[kmag])
-            f.write('Actual magnitude: Mw %.4f\n' % Mw)
+            f.write('Target magnitude: Mw %.6f\n' % target_Mw[kmag])
+            f.write('Actual magnitude: Mw %.6f\n' % Mw)
             f.write('Hypocenter (lon,lat,z[km]): (%.6f,%.6f,%.2f)\n' %(hypocenter[0],hypocenter[1],hypocenter[2]))
             f.write('Hypocenter time: %s\n' % time_epi)
             f.write('Centroid (lon,lat,z[km]): (%.6f,%.6f,%.2f)\n' %(centroid_lon,centroid_lat,centroid_z))
