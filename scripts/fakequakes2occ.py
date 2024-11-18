@@ -9,7 +9,7 @@ bn_dict = {1: [0.95, 16.5],
            2: [1.1, 21.5],
            3: [1.24, 27.9]}
 
-bn_combo = 1
+bn_combo = 3
 
 b, N = bn_dict[bn_combo]
 
@@ -23,7 +23,7 @@ island = 0
 rupture_csv = 'rupture_df_n50000.csv'
 zero_rate = 1e-6
 
-prep_occ = False
+prep_occ = True
 remove_zero_rates = True
 
 rupture_dir = "C:\\Users\\jmc753\Work\\MudPy\\cluster_processing\\output\\Final_Jack"

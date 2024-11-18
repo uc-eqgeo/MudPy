@@ -18,17 +18,17 @@ rupture_file = "rupturesThatCanBe300kmWide/rupture_df_n50000.csv"  # Name of the
 n_ruptures = 5000  # Number of ruptures to use in each island
 
 b, N = 1.1, 21.5  # B and N values to use for the GR relation
-max_Mw = 9.5  # Maximum magnitude to use to match GR-Rate
+max_Mw = 9.0  # Maximum magnitude to use to match GR-Rate
 
 # Weighting
 rate_weight = 10  # Absolute misfit of slip deficit (int)
 norm_weight = 1  # Relative misfit of slip deficit (int)
-GR_weight = 100  # Mistfit of GR relation (int)
+GR_weight = 500  # Mistfit of GR relation (int)
 
 # Pygmo requirements
 n_iterations = 1000000  # Maximum number of iterations for each inversion
 ftol = 0.0001  # Stopping Criteria
-n_islands = 1  # Number of islands
+n_islands = 10  # Number of islands
 pop_size = 20  # Number of populations per island
 archipeligo = False  # True - Consider all islands as part of an archipeligo, using same rupture set. False: Run islands individually, with different rupture sets
 topology_name = 'None'  # 'None', 'Ring', 'FullyConnected'

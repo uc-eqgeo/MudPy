@@ -29,9 +29,9 @@ def init(home,project_name):
             clob=input('This will delete everything in this project directory, so, take a minute, think about it: clobber (y/n)?')
             if clob == 'y' or clob == 'Y':
                 rmtree(proj_dir)
-            else: #Leave direcory alone
+            else: #Leave directory alone
                 print('Phew, almost shot yourself in the foot there didn\'t you?')
-        else: #Leave direcory alone
+        else: #Leave directory alone
             print('Phew, almost shot yourself in the foot there didn\'t you?')
     if clob == 'y' or clob == 'Y':
         makedirs(proj_dir)
