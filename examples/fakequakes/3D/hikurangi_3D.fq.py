@@ -12,7 +12,7 @@ from obspy.core import UTCDateTime
 ########                            GLOBALS                             ########
 home='C:/Users/jmc753/Work/MudPy/examples/fakequakes/3D/'
 home='Z:/McGrath/HikurangiFakeQuakes/'
-project_name='hikkerk3D' # Directory name
+project_name='hikkerk3D_hires' # Directory name
 run_name='hikkerk3D' # Name for this run
 run_base_name='hikkerk3D'
 ################################################################################
@@ -62,7 +62,7 @@ NFFT=128 ; dt=1.0
 dk=0.1 ; pmin=0 ; pmax=1 ; kmax=20
 custom_stf=None
 
-#High frequency waveofmr parameters
+#High frequency waveform parameters
 hf_dt=0.01
 duration=120
 Pwave=True
@@ -91,14 +91,14 @@ high_stress_depth=30 # SMGA must be below this depth (measured in km)
 rake='vary' # average rake, or 'vary' for variable rake based off fault model
 rise_time = 'MH2017'
 rise_time_depths=[10,15] #Transition depths for rise time scaling (if slip shallower than first index, rise times are twice as long as calculated)
-mean_slip_name=home+project_name+'/data/model_info/'+'slip_deficit_trenchlock.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
+mean_slip_name=home+project_name+'/data/model_info/'+'hk_hires.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 #mean_slip_name=None
 shear_wave_fraction=0.8
 calculate_rupture_onset=False # Calcualte rupture onset times. Slow, and useful for some applications, but not really for just generating ruptures
 
 #Enforcement of rules on area scaling and hypo location
 force_area=False
-force_magnitude=False
+force_magnitude=True
 force_hypocenter=False
 use_hypo_fraction=False
 ###############################################################################

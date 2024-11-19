@@ -13,9 +13,11 @@ examples/fakequakes/planar/run/
 examples/fakequakes/3D/hikkerk3D_test/
 .env.txt
 .juypter/jupyter_notebook_config.py
-HikkerkGeonet.geoJSON
-ParameterEffects.pptx
-ProcessingTimes.xlsx
+work/
+hikkerk/
+cluster_processing/
+rupture_df_n50000.csv
+hires_ruptures/
 ProcessingTimes.xlsx
 ParameterEffects.pptx
 HikkerkGeonet.geoJSON

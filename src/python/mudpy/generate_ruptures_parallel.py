@@ -75,16 +75,16 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         # case the original hypocenter did not perfectly align with a subfault
         hypocenter = whole_fault[shypo,1:4]
     
-    if nucleate_on_coupling:
+    if nucleate_on_coupling is True:
         mean_fault=genfromtxt(mean_slip_name)
         try:
             with open(mean_slip_name, 'r') as f:
                 coupling_ix = f.readline().strip('\n').split('\t').index('coupling')
             patch_coupling = mean_fault[:,coupling_ix]
         except ValueError:
-            print(f'No coupling column found in {mean_slip_name} file. Building coupling from slip_deficit. Assume max deficit is fully locked')
+            print(f'No coupling column found in {mean_slip_name} file. Building coupling from slip_deficit. Assume max deficit is 50% locked')
             slip_deficit=(mean_fault[:,8]**2+mean_fault[:,9]**2)**0.5
-            patch_coupling = slip_deficit / slip_deficit.max()
+            patch_coupling = slip_deficit / (2 * slip_deficit.max())
         if max(patch_coupling) > 1:
             raise ValueError('Should not have coupling values greater than 1. Quitting...')
     else:

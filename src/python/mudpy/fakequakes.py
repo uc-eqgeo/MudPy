@@ -29,9 +29,9 @@ def init(home,project_name):
             clob=input('This will delete everything in this project directory, so, take a minute, think about it: clobber (y/n)?')
             if clob == 'y' or clob == 'Y':
                 rmtree(proj_dir)
-            else: #Leave direcory alone
+            else: #Leave directory alone
                 print('Phew, almost shot yourself in the foot there didn\'t you?')
-        else: #Leave direcory alone
+        else: #Leave directory alone
             print('Phew, almost shot yourself in the foot there didn\'t you?')
     if clob == 'y' or clob == 'Y':
         makedirs(proj_dir)
@@ -167,7 +167,7 @@ def subfault_distances_3D(home,project_name,fault_name,slab_name,projection_zone
                     #Project distance
                     delta_strike=abs(delta_strike*cos(deg2rad(alpha)))
                     
-                    #Down dip is jsut depth difference / avg dip of model
+                    #Down dip is just depth difference / avg dip of model
                     z_origin=fault[i,3]
                     z_target=fault[j,3]
                     delta_dip=abs(z_origin-z_target)/sin(deg2rad(dip))
@@ -526,7 +526,8 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     buffer factor
     '''
     
-    from numpy.random import randint,normal,choice
+    from numpy.random import randint,normal
+    from numpy.random import choice as npchoice
     from numpy import array,where,argmin,arange,log10,sqrt
     from scipy.stats import norm,expon
     from random import choice
@@ -535,7 +536,8 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     #Select random subfault as center of the locus of L and W
     if subfault_hypocenter is None:
         # Weight choice of subfault by coupling coefficient
-        hypo_fault=choice(arange(len(whole_fault)), p=0.1 + sqrt(patch_coupling) * 0.9)
+        probability = 0.1 + sqrt(patch_coupling) * 0.9
+        hypo_fault=npchoice(arange(len(whole_fault)), p=probability / sum(probability))
     else: #get subfault closest to hypo
         hypo_fault=subfault_hypocenter
     
@@ -628,11 +630,21 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
                       length=a/width
 
     if NZNSHM_scaling==True:
+        # Set max width so that the area is not larger than the hikkerk
+        # Max is allowed to be 10% larger than the hikkerk at the hypocenter
+        strike_lim = 50 # Check depths based on subfaults within 50km strike either way (to take into account changes in depth along strike)
+        max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < strike_lim].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < strike_lim].min()) * 1.1
+
         total_area = length*width
         target_area = 10**(target_Mw - 4.0)
         area_scaling = (target_area / total_area)**0.5
         length *= area_scaling
         width *= area_scaling
+
+        if width > max_width:
+            width = max_width
+            length = target_area / width
+
     # #so which subfault ended up being the middle?
     # center_subfault=hypo_fault  # I'm not sure why this is getting defined here?
         
@@ -1346,6 +1358,9 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
             +' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude) \
             +' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule) \
             +' '+str(nucleate_on_coupling)+' '+str(calculate_rupture_onset)+' '+str(NZNSHM_scaling)
+        
+        print(mpi)
+        
         mpi=split(mpi)
         p=subprocess.Popen(mpi)
         p.communicate()
@@ -1368,6 +1383,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
     from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin,ones,hstack
     from time import gmtime, strftime
     from obspy.taup import TauPyModel
+    import os
 
 
     #Should I calculate or load the distances?
@@ -1396,8 +1412,15 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
     for kmag in range(len(target_Mw)):
         print('... Calculating ruptures for target magnitude Mw = '+str(target_Mw[kmag]))
         for kfault in range(Nrealizations):
+            run_number = f"Mw{target_Mw[kmag]:.2f}_".replace('.','-') + str(kfault).rjust(6,'0')
+            outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
+            no_overwriting = True
+            if os.path.exists(outfile) and os.path.exists(outfile.replace('.rupt', '.log')) and no_overwriting:  # Skip premade files
+                realization += 1
+                continue          
+            
             if kfault%1==0:
-                print('... ... working on rupture '+str(kfault)+' of '+str(Nrealizations))
+                print('... ... working on rupture '+str(kfault)+' of '+str(Nrealizations), f'({os.path.basename(outfile)})')
             
             #Prepare output
             fault_out=zeros((len(whole_fault),16))
