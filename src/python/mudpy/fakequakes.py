@@ -630,16 +630,17 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
                       length=a/width
 
     if NZNSHM_scaling==True:
-        # Set max width so that the area is not larger than the hikkerk
-        # Max is allowed to be 10% larger than the hikkerk at the hypocenter
-        strike_lim = 50 # Check depths based on subfaults within 50km strike either way (to take into account changes in depth along strike)
-        max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < strike_lim].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < strike_lim].min()) * 1.1
-
         total_area = length*width
         target_area = 10**(target_Mw - 4.0)
         area_scaling = (target_area / total_area)**0.5
         length *= area_scaling
         width *= area_scaling
+
+        # Set max width so that the area is not larger than the hikkerk
+        # Max is allowed to be 10% larger than the hikkerk within initial search box
+        # Use full length rather than just width at hypocenter to prevent very thin ruptures
+        # that nucleate in the corner of the fault (e.g. at the tapered point where Kaikoura could occur)
+        max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < length].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < length].min()) * 1.1
 
         if width > max_width:
             width = max_width
@@ -1547,6 +1548,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 #Calculate moment and magnitude of fake slip pattern
                 M0=sum(slip*fault_out[ifaults,10]*fault_out[ifaults,11]*mu[ifaults])
                 Mw=(2./3)*(log10(M0)-9.1)
+                rupture_area = fault_out[ifaults,10]*fault_out[ifaults,11]
                 
                 #Check max_slip_rule
                 if max_slip_rule==True:
@@ -1650,6 +1652,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             f.write('Hypocenter time: %s\n' % time_epi)
             f.write('Centroid (lon,lat,z[km]): (%.6f,%.6f,%.2f)\n' %(centroid_lon,centroid_lat,centroid_z))
             f.write('Source time function type: %s' % source_time_function)
+            f.write('Area: '+rupture_area+' m^2\n')
             f.close()
                         
             realization+=1
