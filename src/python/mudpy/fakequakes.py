@@ -553,7 +553,7 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
         return selected_faults,hypo_fault,Lmax,Wmax,Leff,Weff,0,0,0 #extra zeros after Yu-Sheng's updates, see return call below
         
     
-    if force_area==False and no_random==True: #Use the Blasser medain L and W
+    if force_area==False and no_random==True: #Use the Blasser median L and W
         if scaling_law.upper()=='T':
             length=10**(-2.37+0.57*target_Mw)
             width=10**(-1.86+0.46*target_Mw)
@@ -767,7 +767,7 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
             
         
         
-        #where is the fualt that is this distance from the middle?
+        #where is the fault that is this distance from the middle?
         hypo_fault=argmin((Ds-strike_distance)**2+(Dd-dip_distance)**2)      
         hypo_fault=selected_faults[hypo_fault]
 
@@ -1599,7 +1599,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             fault_out[ifaults,7]=rise_times
             
             #Calculate rupture onset times
-            if force_hypocenter==False: #Use random hypo, otehrwise force hypo to user specified
+            if force_hypocenter==False: #Use random hypo, otherwise force hypo to user specified
                 hypocenter=whole_fault[hypo_fault,1:4]
             
             if calculate_rupture_onset==True:
