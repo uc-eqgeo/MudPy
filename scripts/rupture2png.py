@@ -59,7 +59,7 @@ rupture_list.sort()
 
 bounds = [int(bound) for bound in '1500000/5250000/3000000/7300000'.split('/')]
 
-new_background = True
+new_background = False
 new_pngs = True
 
 if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')):
@@ -72,7 +72,7 @@ if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')
 
 # Create interpolation object for mapping ruptures to the mesh
 transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
-for rupture_file in rupture_list[::-1]:
+for rupture_file in rupture_list[::-10]:
     if os.path.exists(os.path.join(rupture_png_dir, os.path.basename(rupture_file).replace('.rupt', '.png'))) and not new_pngs:
         continue
     rupture = pd.read_csv(rupture_file, sep='\t', index_col='# No')
