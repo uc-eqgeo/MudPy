@@ -47,6 +47,7 @@ def plot_2d_surface(mesh, title, rupture_png_dir, hypo, max_slip=50, color_by='t
 mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
 mesh_name = 'hik_kerk3k_with_rake.vtk'
+plot_every = 1  # Plot every nth rupture
 
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
@@ -54,7 +55,7 @@ rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptur
 rupture_png_dir = os.path.abspath(os.path.dirname(rupture_dir) + '/..\\rupture_pngs\\')
 os.makedirs(rupture_png_dir, exist_ok=True)
 
-rupture_list = glob(f'{rupture_dir}\\*Mw9*rupt')
+rupture_list = glob(f'{rupture_dir}\\*Mw9-26_000047*rupt')
 rupture_list.sort()
 
 bounds = [int(bound) for bound in '1500000/5250000/3000000/7300000'.split('/')]
@@ -67,12 +68,13 @@ if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')
     background = plot_background(plot_lakes=False, bounds=bounds,
                             plot_highways=False, plot_rivers=False, hillshading_intensity=0.3,
                             pickle_name=os.path.join(rupture_png_dir,'temp.pkl'), hillshade_fine=True,
+                            hillshade_kermadec=True,
                             plot_edge_label=False, figsize=(10, 10))
     new_pngs = True
 
 # Create interpolation object for mapping ruptures to the mesh
 transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
-for rupture_file in rupture_list[::-10]:
+for rupture_file in rupture_list[::-plot_every]:
     if os.path.exists(os.path.join(rupture_png_dir, os.path.basename(rupture_file).replace('.rupt', '.png'))) and not new_pngs:
         continue
     rupture = pd.read_csv(rupture_file, sep='\t', index_col='# No')
