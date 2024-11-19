@@ -212,7 +212,6 @@ if plot_extras:
     plt.yscale('log')
     plt.show()
 
-
 def plot_2d_surface(mesh, title, color_by='total'):
     # Extract points and cells from the mesh
     points = mesh.points[:, :2]  # Assuming 2D projection (only X and Y)

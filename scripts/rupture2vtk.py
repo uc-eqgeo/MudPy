@@ -36,7 +36,6 @@ transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
 for rupture_file in rupture_list:
     rupture_file = os.path.abspath(rupture_file)
     rupture = pd.read_csv(rupture_file, sep='\t', index_col=0).reset_index(drop=True)
-
     patch_coords = np.zeros((rupture.shape[0], 4))
     patch_coords[:, 0] = rupture.index.to_numpy()
     if rupture['lon'].max() <= 180:

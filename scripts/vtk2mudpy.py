@@ -89,6 +89,7 @@ if write_to_slip:
             if deficit == 0:
                 deficit = 0.001
             fid.write(f"{ix+1}\t{lon:.6f}\t{lat:.6f}\t{-z:.6f}\t{vector_to_bearing(strikes[ix]):.2f}\t{dips[ix]}\t0\t0\t0\t{deficit:.6f}\t0\t0\t0\n")
+
             if lon < 0:
                 lon += 360
             ll[ix, :] = np.array([lon, lat])

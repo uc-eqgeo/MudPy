@@ -34,7 +34,7 @@ G_from_file=0
 
 
 #############                 Run-time parameters            ##################
-ncpus=2
+ncpus=10
 hot_start=0
 model_name='hikkerk.mod'   # Velocity model
 moho_depth_in_km=25.0
@@ -51,8 +51,8 @@ GF_list='hikkerk_gnss.gflist'
 G_name=run_name  #Name of G matrix for waveforms
 G_name_static=run_name+'_statics' #Name of G matrix for statics
 
-Nrealizations=150 # Number of fake ruptures to generate per magnitude bin
-target_Mw=np.round(np.arange(6.5,7.0,0.01),4) # Of what approximate magnitudes
+Nrealizations=100 # Number of fake ruptures to generate per magnitude bin
+target_Mw=np.round(np.arange(6.5,9.5,0.01),4) # Of what approximate magnitudes
 max_slip=100 #Maximum sip (m) allowed in the model
 max_slip_rule=True #restrict max slip to 3 times Allen & Hayes 2017
 

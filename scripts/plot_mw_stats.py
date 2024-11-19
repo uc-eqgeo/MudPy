@@ -163,7 +163,6 @@ plt.xlim([6, 9.5])
 plt.ylim([1.5, 5.5])
 plt.show()
 
-
 # %% Histplot Target and Actual Mw
 sns.histplot(mw_df['target'], binwidth=step_mw-1e-4, binrange=[sample_mw[0], sample_mw[-1]], label='Target')
 sns.histplot(mw_df['actual'], binwidth=step_mw-1e-4, binrange=[sample_mw[0], sample_mw[-1]], label='Actual')
@@ -191,4 +190,3 @@ for mag in np.unique(Mw_round):
     plt.ylim([-43, -23])
     plt.show()
 
-# %%
