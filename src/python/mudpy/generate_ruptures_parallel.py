@@ -206,7 +206,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 #Calculate moment and magnitude of fake slip pattern
                 M0=sum(slip*fault_out[ifaults,10]*fault_out[ifaults,11]*mu[ifaults])
                 Mw=(2./3)*(log10(M0)-9.1)
-                rupture_area = fault_out[ifaults,10]*fault_out[ifaults,11]
+                rupture_area = sum(fault_out[ifaults,10]*fault_out[ifaults,11])
 
                 #Check max_slip_rule
                 if max_slip_rule==True:
@@ -355,7 +355,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             f.write('Average Rupture Velocity (km/s): %.9e\n' % avg_vrupt)
             f.write('Avg. length: %.2f km\n' % Lmean)
             f.write('Avg. width: %.2f km\n' % Wmean)
-            f.write('Area: '+rupture_area+' m^2\n')
+            f.write('Rupture Area: '+str(rupture_area)+' m^2\n')
             f.write('Class: %d type' % option)
             # f.write('Average Risetime (s): %.2f\n' % avg_rise)
             # f.write('Average Rupture Velocity (km/s): %.2f' % avg_vrupt)

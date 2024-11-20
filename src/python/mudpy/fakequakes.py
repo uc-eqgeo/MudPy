@@ -1548,7 +1548,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 #Calculate moment and magnitude of fake slip pattern
                 M0=sum(slip*fault_out[ifaults,10]*fault_out[ifaults,11]*mu[ifaults])
                 Mw=(2./3)*(log10(M0)-9.1)
-                rupture_area = fault_out[ifaults,10]*fault_out[ifaults,11]
+                rupture_area = sum(fault_out[ifaults,10]*fault_out[ifaults,11])
                 
                 #Check max_slip_rule
                 if max_slip_rule==True:
@@ -1652,7 +1652,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             f.write('Hypocenter time: %s\n' % time_epi)
             f.write('Centroid (lon,lat,z[km]): (%.6f,%.6f,%.2f)\n' %(centroid_lon,centroid_lat,centroid_z))
             f.write('Source time function type: %s' % source_time_function)
-            f.write('Area: '+rupture_area+' m^2\n')
+            f.write('Rupture Area: '+str(rupture_area)+' m^2\n')
             f.close()
                         
             realization+=1
