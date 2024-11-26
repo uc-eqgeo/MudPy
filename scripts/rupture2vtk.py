@@ -13,11 +13,12 @@ mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
 mesh_name = 'hik_kerk3k_with_rake.vtk'
 
-plot_ruptures = False
+plot_ruptures = True
 n_ruptures = 5000
 inversion_name = 'Final_Jack'
 
 file_keyword = 'archi-merged'
+file_keyword = 'Mw8-00_000127'
 
 write_geojson = True
 

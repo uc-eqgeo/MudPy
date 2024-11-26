@@ -14,7 +14,7 @@ start = time()
 # Naming and inputs
 inversion_name = 'testing'  # Name of directory results will be stored in
 deficit_file = "hk_hires.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
-rupture_file = "rupturesThatCanBe300kmWide/rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
+rupture_file = "ruptures_NoDepthLimit/rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
 n_ruptures = 5000  # Number of ruptures to use in each island
 
 b, N = 1.1, 21.5  # B and N values to use for the GR relation
@@ -28,7 +28,7 @@ GR_weight = 500  # Mistfit of GR relation (int)
 # Pygmo requirements
 n_iterations = 1000000  # Maximum number of iterations for each inversion
 ftol = 0.0001  # Stopping Criteria
-n_islands = 10  # Number of islands
+n_islands = 2  # Number of islands
 pop_size = 20  # Number of populations per island
 archipeligo = False  # True - Consider all islands as part of an archipeligo, using same rupture set. False: Run islands individually, with different rupture sets
 topology_name = 'None'  # 'None', 'Ring', 'FullyConnected'
@@ -43,7 +43,7 @@ if 'rccuser' in os.getcwd():
     deficit_file = f"{procdir}/model_info/slip_deficit_trenchlock.slip"
     deficit_file = f"{procdir}/model_info/hk_hires.slip"
 elif 'uc03610' in os.getcwd():
-    procdir = "/nesi/nobackup/uc03610/jack/MudPy/hikkerk3D_hires/output"
+    procdir = "/nesi/nobackup/uc03610/jack/fakequakes/hikkerk3d_hires/output"
     deficit_file = f"{procdir}/../data/model_info/slip_deficit_trenchlock.slip"
     rupture_file = "rupture_df_n50000.csv"
 else:
