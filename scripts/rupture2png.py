@@ -55,7 +55,7 @@ rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptur
 rupture_png_dir = os.path.abspath(os.path.dirname(rupture_dir) + '/..\\rupture_pngs\\')
 os.makedirs(rupture_png_dir, exist_ok=True)
 
-rupture_list = glob(f'{rupture_dir}\\*Mw9-26_000047*rupt')
+rupture_list = glob(f'{rupture_dir}\\*9-49*.rupt')
 rupture_list.sort()
 
 bounds = [int(bound) for bound in '1500000/5250000/3000000/7300000'.split('/')]
@@ -74,7 +74,8 @@ if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')
 
 # Create interpolation object for mapping ruptures to the mesh
 transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
-for rupture_file in rupture_list[::-plot_every]:
+rupture_list = rupture_list[::-plot_every]
+for ix, rupture_file in enumerate(rupture_list):
     if os.path.exists(os.path.join(rupture_png_dir, os.path.basename(rupture_file).replace('.rupt', '.png'))) and not new_pngs:
         continue
     rupture = pd.read_csv(rupture_file, sep='\t', index_col='# No')
@@ -123,5 +124,5 @@ for rupture_file in rupture_list[::-plot_every]:
 
     # Plot the mesh as a 2D surface
     plot_2d_surface(rupture_mesh, os.path.basename(rupture_file), rupture_png_dir, [lon, lat, clon, clat], max_slip=50, color_by='total')
-    print(os.path.basename(rupture_file))
+    print(f"{os.path.basename(rupture_file)}\t{ix+1}/{len(rupture_list)}")
 print('Complete :)')
