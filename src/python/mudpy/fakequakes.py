@@ -162,7 +162,7 @@ def subfault_distances_3D(home,project_name,fault_name,slab_name,projection_zone
                     
                     #straight line distance
                     delta_strike=dist/1000
-                    #define projection angel as azimuth minus average strike
+                    #define projection angle as azimuth minus average strike
                     alpha=az-strike
                     #Project distance
                     delta_strike=abs(delta_strike*cos(deg2rad(alpha)))
@@ -203,7 +203,7 @@ def subfault_distances_3D(home,project_name,fault_name,slab_name,projection_zone
         
         #Load things
         fault=genfromtxt(home+project_name+'/data/model_info/'+fault_name)
-        slab_model=genfromtxt(home+project_name+'/data/model_info/'+slab_name)    
+        slab_model=genfromtxt(home+project_name+'/data/model_info/'+slab_name)
     
         #Initalize distance output arrays
         nsubfaults = len(fault)
@@ -223,13 +223,13 @@ def subfault_distances_3D(home,project_name,fault_name,slab_name,projection_zone
         slab_x,slab_y = slab_x/1000,slab_y/1000
         slab_z=-slab_model[:,2]
         
-        #Convert faul centroid coordinates to local UTM
+        #Convert fault centroid coordinates to local UTM
         fault_x,fault_y=llz2utm(fault[:,1],fault[:,2],projection_zone)
         fault_x,fault_y = fault_x/1000,fault_y/1000
         fault_z=fault[:,3]
         
-        #The goal is to only keep slab points close tot he actual fault, to accomplish this
-        # Calcualte the distance from each fault to slab point and only keep things
+        #The goal is to only keep slab points close to the actual fault, to accomplish this
+        #Calculate the distance from each fault to slab point and only keep things
         #Within a minimum distance
         slab2fault_min_distance=30 #in km
         keep_slab=zeros((len(fault_x),len(slab_x)))
@@ -257,7 +257,7 @@ def subfault_distances_3D(home,project_name,fault_name,slab_name,projection_zone
         #get contours
         all_contours=[]
         contour_lengths=zeros(len(fault))
-        print('Calculcating slab contours')
+        print('Calculating slab contours')
         for i in range(len(fault)):
             if i%10==0:
                 print('... working on subfault '+str(i)+' of '+str(len(fault)))
@@ -281,14 +281,14 @@ def subfault_distances_3D(home,project_name,fault_name,slab_name,projection_zone
             yi = fault_y[i]
             zi = fault_z[i]
             
-            #find most approriate contour for lenght calculation
+            #find most appropriate contour for length calculation
             icontour=where(contour_lengths>minimum_contour_length)[0]
             
             #find closest depth_contour of the ones that pass the minimum length
             deltaZ=abs(fault_z[i]-fault_z)
             icontour_depth=argmin(deltaZ[icontour])
             
-            #This si the contour that is long enough and closest in depth
+            #This is the contour that is long enough and closest in depth
             icontour_correct=icontour[icontour_depth]
             contour=all_contours[icontour_correct]
             
@@ -1297,7 +1297,10 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
     #Need to make tauPy file
     vel_mod_file=home+project_name+'/structure/'+model_name
     #Get TauPyModel
-    build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM')
+    try:  # Error seems to come from multiple calls to read/write same data when doing task arrays
+        build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM')
+    except:  # If error, then space out retries
+        print('Error building TauPyModel. Hoping one exists and just using that instead....')
 
     #Write ruptures.list file
     write_rupt_list(home,project_name,run_name,target_Mw,Nrealizations,ncpus)
@@ -1382,7 +1385,8 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
     '''
     
     from numpy import load,save,genfromtxt,log10,cos,sin,deg2rad,savetxt,zeros,where,argmin,ones,hstack
-    from time import gmtime, strftime
+    from numpy.random import randint
+    from time import gmtime, strftime, sleep
     from obspy.taup import TauPyModel
     import os
 
@@ -1404,7 +1408,13 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
     vel_mod_file=home+project_name+'/structure/'+model_name
     
     #Get TauPyModel
-    velmod = TauPyModel(model=home+project_name+'/structure/'+model_name.split('.')[0])
+    try:  # Error seems to come from multiple calls to read/write same data when doing task arrays
+        velmod = TauPyModel(model=home+project_name+'/structure/'+model_name.split('.')[0])
+    except:  # If error, then space out retries
+        sleep_time = randint(20)
+        print('\n Pausing for', sleep_time, 'seconds and trying TauPyModel again...\n')
+        sleep(sleep_time)
+        velmod = TauPyModel(model=home+project_name+'/structure/'+model_name.split('.')[0])
 
 
     #Now loop over the number of realizations
@@ -1651,10 +1661,12 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             f.write('Hypocenter (lon,lat,z[km]): (%.6f,%.6f,%.2f)\n' %(hypocenter[0],hypocenter[1],hypocenter[2]))
             f.write('Hypocenter time: %s\n' % time_epi)
             f.write('Centroid (lon,lat,z[km]): (%.6f,%.6f,%.2f)\n' %(centroid_lon,centroid_lat,centroid_z))
-            f.write('Source time function type: %s' % source_time_function)
+            f.write('Source time function type: %s\n' % source_time_function)
             f.write('Rupture Area: '+str(rupture_area)+' m^2\n')
             f.close()
                         
             realization+=1
+    
+    print('... Done generating rupture scenarios')
 
     
