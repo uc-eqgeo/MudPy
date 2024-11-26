@@ -5,6 +5,7 @@ from scipy.spatial import KDTree
 from glob import glob
 import matplotlib.pyplot as plt
 from matplotlib.collections import PolyCollection
+from matplotlib.colors import LogNorm
 import os
 import pandas as pd
 import sys
@@ -13,31 +14,48 @@ from rsqsim_api.visualisation.utilities import plot_background
 import pickle
 
 
-def plot_2d_surface(mesh, title, rupture_png_dir, hypo, max_slip=50, color_by='total'):
+def plot_2d_surface(mesh, title, rupture_png_dir, hypo, min_slip=0.1, max_slip=50, log=False, color_by='total'):
     # Load background map
     fig, ax = pickle.load(open(f"{rupture_png_dir}/temp.pkl", "rb"))
     # Extract points and cells from the mesh
     points = mesh.points[:, :2]  # Assuming 2D projection (only X and Y)
     cells = mesh.cells_dict[list(mesh.cells_dict.keys())[0]]
     colors = mesh.cell_data[color_by][0]  # Get the 'total' scalar values
+    colors = np.where(colors == 0, 1e-6, colors)
 
     # Create polygons from cells and corresponding colors
     polygons = [points[cell] for cell in cells]
 
     # Plot using PolyCollection
     #fig, ax = plt.subplots()
-    collection = PolyCollection(polygons, array=colors, cmap='magma', edgecolor=None)
-    collection.set_clim(vmax=max_slip)
-    alpha = np.where(colors == 0, 0.25, 1)
+    if log:
+        collection = PolyCollection(polygons,
+                            array=colors,
+                            cmap='magma',
+                            edgecolor=None,
+                            norm=LogNorm(vmin=max(min_slip, colors.min()), vmax=max_slip)
+                            )
+    else:
+        collection = PolyCollection(polygons, array=colors, cmap='magma', edgecolor=None)
+        collection.set_clim(vmax=max_slip)
+    alpha = np.where(colors == 1e-6, 0.25, 1)
     collection.set_alpha(alpha)
 
     ax['main_figure'].add_collection(collection)
     ax['main_figure'].autoscale_view()
 
     # Add colorbar and labels
-    plt.colorbar(collection, ax=ax['main_figure'], orientation='vertical', label=color_by)
-    plt.plot(hypo[0], hypo[1], 'ro', markersize=10)
-    plt.plot(hypo[2], hypo[3], 'b+', markersize=10)
+    cbar = plt.colorbar(collection, ax=ax['main_figure'], orientation='vertical', label=color_by)
+    if log:
+        ticks = np.arange(np.log10(min_slip), np.log10(max_slip), 1)
+        ticks = list(10**ticks) + [max_slip]
+        tick_labels = [f"{t:.0e}" for t in ticks]  # Format as scientific notation
+        cbar.set_ticks(ticks)
+        cbar.set_ticklabels(ticks)
+    
+    
+    plt.plot(hypo[0], hypo[1], 'b+', markersize=10)    # Hypocenter
+    # plt.plot(hypo[2], hypo[3], 'ro', markersize=10)    # Centroid
     plt.xlabel('X')
     plt.ylabel('Y')
     plt.title(title)
@@ -47,7 +65,7 @@ def plot_2d_surface(mesh, title, rupture_png_dir, hypo, max_slip=50, color_by='t
 mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
 mesh_name = 'hik_kerk3k_with_rake.vtk'
-plot_every = 1  # Plot every nth rupture
+plot_every = 1  # Plot every nth rupture (-ve to plot from largest first)
 
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
@@ -55,13 +73,14 @@ rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptur
 rupture_png_dir = os.path.abspath(os.path.dirname(rupture_dir) + '/..\\rupture_pngs\\')
 os.makedirs(rupture_png_dir, exist_ok=True)
 
-rupture_list = glob(f'{rupture_dir}\\*9-49*.rupt')
+keyword = '9-5'
+rupture_list = glob(f'{rupture_dir}\\*{keyword}*.rupt')
 rupture_list.sort()
 
 bounds = [int(bound) for bound in '1500000/5250000/3000000/7300000'.split('/')]
 
-new_background = False
-new_pngs = True
+new_background = False  # Recreate the background plot
+new_pngs = False    # Overwrite any previously created pngs
 
 if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')):
     print('Plotting new background')
@@ -74,9 +93,9 @@ if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')
 
 # Create interpolation object for mapping ruptures to the mesh
 transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
-rupture_list = rupture_list[::-plot_every]
+rupture_list = rupture_list[::plot_every]
 for ix, rupture_file in enumerate(rupture_list):
-    if os.path.exists(os.path.join(rupture_png_dir, os.path.basename(rupture_file).replace('.rupt', '.png'))) and not new_pngs:
+    if os.path.exists(os.path.join(rupture_png_dir, os.path.basename(rupture_file) + '.png')) and not new_pngs:
         continue
     rupture = pd.read_csv(rupture_file, sep='\t', index_col='# No')
 
@@ -117,12 +136,12 @@ for ix, rupture_file in enumerate(rupture_list):
 
     with open(rupture_file.replace('.rupt', '.log'), 'r') as fid:
         lines = fid.readlines()
-        lon, lat, z = [float(coord) for coord in lines[17].replace('\n', '').split(' ')[-1].strip('()').split(',')]
+        lon, lat, z = [float(coord) for coord in lines[17].replace('\n', '').split(' ')[-1].strip('()').split(',')]   # Hypocenter
         lat, lon = transformer.transform(lat, lon)
-        clon, clat, z = [float(coord) for coord in lines[19].replace('\n', '').split(' ')[-1].strip('()').split(',')]
+        clon, clat, z = [float(coord) for coord in lines[19].replace('\n', '').split(' ')[-1].strip('()').split(',')]  # Centroid
         clat, clon = transformer.transform(clat, clon)
 
     # Plot the mesh as a 2D surface
-    plot_2d_surface(rupture_mesh, os.path.basename(rupture_file), rupture_png_dir, [lon, lat, clon, clat], max_slip=50, color_by='total')
+    plot_2d_surface(rupture_mesh, os.path.basename(rupture_file), rupture_png_dir, [lon, lat, clon, clat], max_slip=100, log=True, color_by='total')
     print(f"{os.path.basename(rupture_file)}\t{ix+1}/{len(rupture_list)}")
 print('Complete :)')
