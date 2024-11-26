@@ -1320,7 +1320,7 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
     force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
     no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
     nucleate_on_coupling, calculate_rupture_onset=calculate_rupture_onset,NZNSHM_scaling=NZNSHM_scaling,
-    Nstart=0)
+    Nstart=Nstart)
 
 
 
@@ -1359,7 +1359,7 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule,
         nucleate_on_coupling, calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling,
-        Nstart=0)
+        Nstart=Nstart)
     else:
         #Make mpi system call
         print("MPI: Starting " + str(Nrealizations_parallel*ncpus) + " FakeQuakes Rupture Generations on ", ncpus, "CPUs")
@@ -1416,14 +1416,19 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
     vel_mod_file=home+project_name+'/structure/'+model_name
     
     #Get TauPyModel
-    try:  # Error seems to come from multiple calls to read/write same data when doing task arrays
+    # Edit for launching as task arrays - multiple calls to read/write same data when doing task arrays can cause errors, so retry if needed
+    retry = 0
+    while retry < 10:
+        try:
+            velmod = TauPyModel(model=home+project_name+'/structure/'+model_name.split('.')[0])
+            retry = 11
+        except:  # If error, then space out retries
+            retry += 1
+            sleep_time = randint(20)
+            print('\n *****\n Retry attempt', retry, '- Pausing for', sleep_time, 'seconds and trying TauPyModel again...\n *****\n')
+            sleep(sleep_time)
+    if retry == 10: # Final attempt if needed to kill the program if still fails
         velmod = TauPyModel(model=home+project_name+'/structure/'+model_name.split('.')[0])
-    except:  # If error, then space out retries
-        sleep_time = randint(20)
-        print('\n Pausing for', sleep_time, 'seconds and trying TauPyModel again...\n')
-        sleep(sleep_time)
-        velmod = TauPyModel(model=home+project_name+'/structure/'+model_name.split('.')[0])
-
 
     #Now loop over the number of realizations
     realization=0
@@ -1435,6 +1440,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             outfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.rupt'
             no_overwriting = True
             if os.path.exists(outfile) and os.path.exists(outfile.replace('.rupt', '.log')) and no_overwriting:  # Skip premade files
+                print('... ... rupture '+str(kfault)+' of '+str(Nrealizations), f'({os.path.basename(outfile)}) already exists')
                 realization += 1
                 continue          
             
@@ -1601,6 +1607,8 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             stoc_rake=get_stochastic_rake(rake,len(slip))
             fault_out[ifaults,15]=stoc_rake
             
+            # Set minimum slip to 10 mm for rupture_patches
+            slip[slip < slip_tol] = slip_tol
             #Place slip values in output variable
             fault_out[ifaults,8]=slip*cos(deg2rad(stoc_rake))
             fault_out[ifaults,9]=slip*sin(deg2rad(stoc_rake))

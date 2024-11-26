@@ -48,9 +48,10 @@ for ix, mw in enumerate(array_bins[:-1]):
         for mwn in np.arange(mw, array_bins[ix + 1], mw_step):
             mwn = f"{mwn:.2f}"
             check_list += [f"{rupture_dir}\\{rupt_name}.Mw{mwn.replace('.','-')}_{str(n).rjust(6,'0')}.rupt" for n in range(n_start, n_end)]
-        if len(set(check_list) - set(rupt_list)) == 0:
+            yet_to_make = len(set(check_list) - set(rupt_list))
+        if yet_to_make == 0:
             continue
-        f.write(f"{task_n},{mw:.2f},{array_bins[ix + 1]:.2f},{mw_step},{n_start},{n_end}\n")
+        f.write(f"{task_n},{mw:.2f},{array_bins[ix + 1]:.2f},{mw_step},{n_start},{n_end},{yet_to_make}\n")
         task_n += 1
 
 f.close()
