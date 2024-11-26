@@ -11,6 +11,9 @@ fault_name = 'hk.fault'
 taper_length = 1e4  # Set to zero to revert to untapered length
 taper_method = 'linear'
 
+min_mw = 8.5
+max_mw = 9.5
+
 print('Loading Fault')
 fault = pd.read_csv(project_dir + '/data/model_info/' + fault_name, sep='\t').drop(0).astype(float)
 
@@ -19,8 +22,14 @@ rupture_list = glob(f'{rupture_dir}/*_??????.rupt')
 rupture_list.sort()
 
 # %% Loop through ruptures
-for rupture_file in rupture_list[::-1]:
+for ix, rupture_file in enumerate(rupture_list[::-1]):
     rupture_id = rupture_file.split('.')[-2]
+
+    mw = float(rupture_id.split('_')[0].strip('Mw').replace('-','.'))
+    if mw < min_mw or mw >= max_mw:
+        print(f'\t{ix}/{len(rupture_list)}:', end='\r')
+        continue
+
     untaper = True if int(taper_length) == 0 else False
 
     rupture_log = rupture_file.replace('.rupt', '.log')
@@ -34,6 +43,7 @@ for rupture_file in rupture_list[::-1]:
         previous_taper = 0
 
     if previous_taper == float(taper_length):
+        print(f'\t{ix}/{len(rupture_list)}:', end='\r')
         continue
     else:
         if previous_taper != 0:
@@ -86,6 +96,6 @@ for rupture_file in rupture_list[::-1]:
         if write_method:
             fid.write(f'Taper method: {taper_method}\n')
     
-    print(f'\t{rupture_id} {taper_aim}', end='\r')
+    print(f'\t{ix}/{len(rupture_list)}: {rupture_id} {taper_aim}', end='\r')
 
-
+print('\nComplete :)')
