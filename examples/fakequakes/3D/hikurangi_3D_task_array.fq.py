@@ -107,14 +107,16 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="")
     parser.add_argument("--task_number", type=int, default=0, help="Task number for the SLURM array")
+    parser.add_argument("--task_file", type=str, default="task_arrays.txt", help="File containing task array information")
 
-
-    array_list = 'task_arrays.txt'
+    array_list = parser.parse_args().task_file
     with open(array_list, 'r') as f:
         lines = f.readlines()
         line = lines[parser.parse_args().task_number]
 
-    _, min_mw, max_mw, mw_step, Nstart, n_rupt = line.split(',')
+    _, min_mw, max_mw, mw_step, Nstart, n_rupt, to_make = line.strip('\n').split(',')
+    print(f"{to_make} ruptures expected to be made")
+
     Nrealizations= int(n_rupt) # Number of fake ruptures to generate per magnitude bin
     target_Mw=np.round(np.arange(float(min_mw),float(max_mw),float(mw_step)),4) # Of what approximate magnitudes
 
