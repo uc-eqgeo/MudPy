@@ -13,23 +13,31 @@ mw_step = 0.01
 
 n_task_arrays = (max_mw - min_mw) / mw_step + 1
 
-n_rupts_bins = np.array([6.5, 7.0, 8.0, 9.0])
-n_rupts_total = [150, 250, 125, 100]
-rupts_per_task =[150, 250, 125, 10]
+# Key: Mw bin to start new properties at
+# n_rupts: Number of ruptures to generate in these bins
+# per task: Number of ruptures to be generated in each magnitude bin per task array
+# array_step: change in magnitude that will be covered in a single task array
+rupt_dict = {6.5: {'n_rupts': 150, 'per_task': 150, 'array_step': 1},
+             7.0: {'n_rupts': 250, 'per_task': 250, 'array_step': 0.25},
+             8.0: {'n_rupts': 125, 'per_task': 125, 'array_step': 0.1},
+             9.0: {'n_rupts': 100, 'per_task': 100, 'array_step': 0.01},
+             9.2: {'n_rupts': 100, 'per_task': 50, 'array_step': 0.01},
+             9.3: {'n_rupts': 100, 'per_task': 25, 'array_step': 0.01},
+             9.4: {'n_rupts': 100, 'per_task': 10, 'array_step': 0.01}}
 
+rupt_dict = dict(sorted(rupt_dict.items()))
+bins = np.array(list(rupt_dict.keys()))
 
 array_bins = np.array([])
-if min_mw < 7:
-    array_bins = np.hstack([array_bins, np.arange(min_mw, max_mw, 1)])
+if min_mw < bins[0]:
+    array_bins = np.hstack([array_bins, np.arange(min_mw, bins[0], rupt_dict[bins[0]]['array_step'])])
 
-if max_mw > 7:
-    array_bins = np.hstack([array_bins, np.arange(7, max_mw, 0.25)])
+for ix, bin in enumerate(bins[:-1]):
+    if max_mw > bin:
+        array_bins = np.hstack([array_bins, np.arange(bin, bins[ix + 1], rupt_dict[bin]['array_step'])])
 
-if max_mw > 8:
-    array_bins = np.hstack([array_bins, np.arange(8, max_mw, 0.1)])
-
-if max_mw > 9:
-    array_bins = np.hstack([array_bins, np.arange(9, max_mw, 0.01)])
+if max_mw > bins[-1]:
+    array_bins = np.hstack([array_bins, np.arange(bins[-1], max_mw, rupt_dict[bins[-1]]['array_step'])])
 
 array_bins = np.unique(np.round(np.append(array_bins, max_mw), 4))
 array_bins = array_bins[np.where(array_bins >= min_mw)[0][0]:]
@@ -39,15 +47,20 @@ f=open(array_file,'w')
 
 task_n = 0
 for ix, mw in enumerate(array_bins[:-1]):
-    n_rupt = n_rupts_total[np.where(mw >= n_rupts_bins)[0][-1]]
-    n_task = rupts_per_task[np.where(mw >= n_rupts_bins)[0][-1]]
+    if mw == 9.45:
+        print(mw)
+    rupt_bin = bins[np.where(mw >= bins)[0][-1]]
+    n_rupt = rupt_dict[rupt_bin]['n_rupts']
+    n_task = rupt_dict[rupt_bin]['per_task']
+    n_task = min(n_task, n_rupt)
     rupt_num = np.arange(0, n_rupt + n_task, n_task)
     for ix2, n_start in enumerate(rupt_num[:-1]):
         n_end = rupt_num[ix2 + 1]
         check_list = []
-        for mwn in np.arange(mw, array_bins[ix + 1], mw_step):
-            mwn = f"{mwn:.2f}"
-            check_list += [f"{rupture_dir}\\{rupt_name}.Mw{mwn.replace('.','-')}_{str(n).rjust(6,'0')}.rupt" for n in range(n_start, n_end)]
+        # Rounding nonsense due to numpy floating point errors
+        for mwn in np.arange(round(mw / mw_step), round(array_bins[ix + 1] / mw_step), round(mw_step / mw_step)):
+            mws = f"{mwn * mw_step:.2f}" 
+            check_list += [f"{rupture_dir}\\{rupt_name}.Mw{mws.replace('.','-')}_{str(n).rjust(6,'0')}.rupt" for n in range(n_start, n_end)]
             yet_to_make = len(set(check_list) - set(rupt_list))
         if yet_to_make == 0:
             continue
