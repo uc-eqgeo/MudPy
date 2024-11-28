@@ -634,23 +634,6 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
                       width=60+10**normal(0,width_std)
                       length=a/width
 
-    if NZNSHM_scaling==True:
-        total_area = length*width
-        target_area = 10**(target_Mw - 4.0)
-        area_scaling = (target_area / total_area)**0.5
-        length *= area_scaling
-        width *= area_scaling
-
-        # Set max width so that the down dip extent is not larger than the subduction zone
-        # Max is allowed to be 10% larger than the hikkerk within initial search box
-        # Use full length rather than just width at hypocenter to allow initially that start in thin regions to rupture whole wider fault
-        # that nucleate in the corner of the fault (e.g. at the tapered point where Kaikoura could occur)
-        max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < length].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < length].min()) * 1.1
-
-        if width > max_width:
-            width = max_width
-            length = target_area / width
-
     # #so which subfault ended up being the middle?
     # center_subfault=hypo_fault  # I'm not sure why this is getting defined here?
         
@@ -690,7 +673,56 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     
     #Now select faults within those distances
     selected_faults=where((Ds>=strike_bounds[0]) & (Ds<=strike_bounds[1]) & (Dd>=dip_bounds[0]) & (Dd<=dip_bounds[1]))[0]
-    
+
+    # Check that selected patches are within the NZ NSHM area-scaling relation
+    if NZNSHM_scaling==True:
+        area=(whole_fault[selected_faults,8]*whole_fault[selected_faults,9]).sum() / 1e6  # Convert to km2
+        # From Stirling et al. 2023, NZNSHM, C values often have errors of +/- 0.2 -- 0.3
+        NZNSHM_c = 4
+        target_area = 10**(target_Mw - NZNSHM_c)
+        lower_target_area = 10**(target_Mw - NZNSHM_c - 0.2)
+        upper_target_area = 10**(target_Mw - NZNSHM_c + 0.2)
+        while area < lower_target_area or area > upper_target_area:
+            # Find maximum width of the fault along this rupture
+            max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < length].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < length].min())
+            if width == max_width:
+                # If fault can't get wider, just make it longer
+                length += (target_area - area) / width
+            else:
+                area_scaling = (target_area / area)**0.5
+                if width * area_scaling <= max_width:
+                    # Maintain aspect ratio if possible, but match magntiude-area scaling relation
+                    length *= area_scaling
+                    width *= area_scaling
+                else:
+                    width = max_width
+                    length = target_area / width
+
+            # Recalculate strike and dip bounds              
+            strike_bounds=array([-length/2,length/2])
+            
+            if strike_bounds[0]<dstrike_min:#Length is outside domain
+                strike_bounds[1]=strike_bounds[1]+abs(dstrike_min-strike_bounds[0])
+                strike_bounds[0]=dstrike_min
+            if strike_bounds[1]>dstrike_max:#Length is outside domain
+                strike_bounds[0]=strike_bounds[0]-abs(dstrike_max-strike_bounds[1])
+                strike_bounds[1]=dstrike_max
+                
+            #Now get dip ranges
+        #    dip_bounds=array([0,width/2])
+            dip_bounds=array([-width/2,width/2])
+            
+            if dip_bounds[0]<ddip_min:#Length is outside domain
+                dip_bounds[1]=dip_bounds[1]+abs(ddip_min-dip_bounds[0])
+                dip_bounds[0]=ddip_min
+            if dip_bounds[1]>ddip_max:#Length is outside domain
+                dip_bounds[0]=dip_bounds[0]-abs(ddip_max-dip_bounds[1])
+                dip_bounds[1]=ddip_max
+            
+            #Now select faults within those distances
+            selected_faults=where((Ds>=strike_bounds[0]) & (Ds<=strike_bounds[1]) & (Dd>=dip_bounds[0]) & (Dd<=dip_bounds[1]))[0]
+            area=(whole_fault[selected_faults,8]*whole_fault[selected_faults,9]).sum() * 1e-6
+
     ## This code block is for selecting any random subfault as the hypocenter as oppsoed to something
     ## based on lieklihood of strike fraction and dip fraction
     ##From within the selected faults randomly select the hypocenter
@@ -1651,9 +1683,9 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 slip = ((fault_out[:,8] ** 2 + fault_out[:,9] ** 2) ** 0.5).reshape(fault_out.shape[0], 1)
                 fault_out = fault_out[:,[0,1,2,3,15]]
                 fault_out = hstack([fault_out, slip])
-                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.2f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)\t')
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.3f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)\t')
             else:
-                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.3f\t%5.3f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             
             #Write log file
             logfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.log'

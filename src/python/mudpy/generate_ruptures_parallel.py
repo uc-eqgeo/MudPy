@@ -242,6 +242,8 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             stoc_rake=fakequakes.get_stochastic_rake(rake,len(slip))
             fault_out[ifaults,15]=stoc_rake
             
+            # Set minimum slip to 10 mm for rupture_patches
+            slip[slip < slip_tol] = slip_tol
             #Place slip values in output variable
             fault_out[ifaults,8]=slip*cos(deg2rad(stoc_rake))
             fault_out[ifaults,9]=slip*sin(deg2rad(stoc_rake))
@@ -323,9 +325,9 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 slip = ((fault_out[:,8] ** 2 + fault_out[:,9] ** 2) ** 0.5).reshape(fault_out.shape[0], 1)
                 fault_out = fault_out[:,[0,1,2,3,15]]
                 fault_out = hstack([fault_out, slip])
-                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.2f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)')
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.3f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)')
             else:
-                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.3f\t%5.3f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             
             #Write log file
             logfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.log'
