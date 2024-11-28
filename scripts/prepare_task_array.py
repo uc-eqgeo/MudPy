@@ -47,8 +47,6 @@ f=open(array_file,'w')
 
 task_n = 0
 for ix, mw in enumerate(array_bins[:-1]):
-    if mw == 9.45:
-        print(mw)
     rupt_bin = bins[np.where(mw >= bins)[0][-1]]
     n_rupt = rupt_dict[rupt_bin]['n_rupts']
     n_task = rupt_dict[rupt_bin]['per_task']
