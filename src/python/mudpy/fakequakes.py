@@ -641,9 +641,9 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
         length *= area_scaling
         width *= area_scaling
 
-        # Set max width so that the area is not larger than the hikkerk
+        # Set max width so that the down dip extent is not larger than the subduction zone
         # Max is allowed to be 10% larger than the hikkerk within initial search box
-        # Use full length rather than just width at hypocenter to prevent very thin ruptures
+        # Use full length rather than just width at hypocenter to allow initially that start in thin regions to rupture whole wider fault
         # that nucleate in the corner of the fault (e.g. at the tapered point where Kaikoura could occur)
         max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < length].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < length].min()) * 1.1
 
@@ -781,9 +781,10 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
                 
     #From the selected faults determine the actual along strike length (Leff) and down-dip width (Weff)
     #Check it doesn't exceed physically permissible thresholds
-    Lmax=Dstrike[selected_faults,:][:,selected_faults].max()    
-    Wmax=Ddip[selected_faults,:][:,selected_faults].max()
-    
+    #Include original patch dimensions in case length/width of fault is 1 patch (Dstrike/Ddip would give size 0 for 1 patch)
+    Lmax=Dstrike[selected_faults,:][:,selected_faults].max() + (whole_fault[selected_faults, 8] / 1000).max()
+    Wmax=Ddip[selected_faults,:][:,selected_faults].max() + (whole_fault[selected_faults, 9] / 1000).max()
+
     #Convert to effective length/width
     Leff=0.85*Lmax
     Weff=0.85*Wmax
