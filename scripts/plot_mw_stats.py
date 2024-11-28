@@ -33,7 +33,7 @@ logs = glob(f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\rupture
 logs.sort()
 stats_csv = os.path.abspath(os.path.join(os.path.dirname(logs[0]), '..', 'rupture_stats.csv'))
 
-remake_csv = True
+remake_csv = False
 min_mw = 6
 max_mw = 10
 if os.path.exists(stats_csv) and not remake_csv:
@@ -104,6 +104,7 @@ else:
     clat = np.array(clat)
     cz = np.array(cz)
     area = np.array(area)
+    aspect = np.round(length / width, 2)
 
     target = np.array(target)
 
@@ -118,7 +119,8 @@ else:
             'clat': clat,
             'cz': cz,
             'target': target,
-            'area': area}
+            'area': area,
+            'aspect': aspect}
 
     mw_df = pd.DataFrame(mw_dict)
     mw_df.to_csv(stats_csv, index=False)
@@ -148,7 +150,7 @@ plt.ylim([6, 9.5])
 plt.show()
 
 # %% Scatter Actual vs Area
-sns.scatterplot(mw_df, x='actual', y=np.log10(mw_df['area'] * 1e-6), hue=mw_df['length']/mw_df['width'], s=10, markers=False)
+sns.scatterplot(mw_df, x='actual', y=np.log10(mw_df['area'] * 1e-6), hue='aspect', s=5, linewidth=0)
 plt.plot(sample_mw, sample_mw - 4.0, color='red', linestyle=':', lw=1, label='NZ NSHM relation')
 plt.plot(sample_mw, sample_mw - 3.6, color='red', linestyle=':', lw=0.5)
 plt.plot(sample_mw, sample_mw - 4.1, color='red', linestyle=':', lw=0.5)
@@ -159,7 +161,7 @@ plt.xlim([6, 9.5])
 plt.ylim([1.5, 5.5])
 plt.show()
 
-sns.scatterplot(mw_df, x='actual', y=np.log10(mw_df['length'] * mw_df['width']), hue='target', s=10, markers=False)
+sns.scatterplot(mw_df, x='actual', y=np.log10(mw_df['length'] * mw_df['width']), hue='aspect', s=10, markers=False)
 plt.plot(sample_mw, sample_mw - 4.0, color='red', linestyle=':', lw=1, label='NZ NSHM relation')
 plt.plot(sample_mw, sample_mw - 3.6, color='red', linestyle=':', lw=0.5)
 plt.plot(sample_mw, sample_mw - 4.1, color='red', linestyle=':', lw=0.5)
@@ -186,9 +188,9 @@ plt.title('Hypocentre')
 plt.show()
 
 # %% Incremental Hypocenters
-mw_bin_size = 1.
+mw_bin_size = 1
 
-for mag, df in mw_df.groupby(np.round(mw_df['actual'] * (1 / mw_bin_size), 0) / (1 / mw_bin_size)):
+for mag, df in mw_df.groupby(np.floor(mw_df['actual'] / mw_bin_size) * mw_bin_size):
     sns.histplot(df, x='lon', y='lat', binwidth=0.1, cmap='flare_r')
     plt.title(f'Hypocentre {mag}Mw')
     plt.xlim([172, 186])
