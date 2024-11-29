@@ -533,7 +533,7 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     
     from numpy.random import randint,normal
     from numpy.random import choice as npchoice
-    from numpy import array,where,argmin,arange,log10,sqrt
+    from numpy import array,where,argmin,arange,log10,sqrt,median,diff,unique
     from scipy.stats import norm,expon
     from random import choice
     
@@ -682,21 +682,34 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
         target_area = 10**(target_Mw - NZNSHM_c)
         lower_target_area = 10**(target_Mw - NZNSHM_c - 0.2)
         upper_target_area = 10**(target_Mw - NZNSHM_c + 0.2)
-        while area < lower_target_area or area > upper_target_area:
+
+        # Average down-dip fault spacing
+        deltaDip = median(diff(unique(Dd)))
+
+        ix = 0
+        # Allow 5 iterations to find a suitable fault area
+        while any([area < lower_target_area, area > upper_target_area]) and ix < 5:
             # Find maximum width of the fault along this rupture
-            max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < length].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) < length].min())
+            max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) <= length].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) <= length].min())
             if width == max_width:
                 # If fault can't get wider, just make it longer
                 length += (target_area - area) / width
             else:
+                # Maintain aspect ratio if possible, but match magnitude-area scaling relation
                 area_scaling = (target_area / area)**0.5
                 if width * area_scaling <= max_width:
-                    # Maintain aspect ratio if possible, but match magntiude-area scaling relation
-                    length *= area_scaling
-                    width *= area_scaling
+                    # Ensures change in width is by at least 1 integer row of subfaults
+                    if area_scaling < 1:
+                        deltaWidth = -(round((1 - area_scaling) * width / deltaDip)) * deltaDip
+                        deltaWidth = deltaWidth if deltaWidth != 0 else -deltaDip
+                        deltaWidth = deltaWidth if width + deltaWidth > 0 else 0
+                    else:
+                        deltaWidth = (round((area_scaling - 1) * width / deltaDip)) * deltaDip
+                        deltaWidth = deltaWidth if deltaWidth != 0 else deltaDip
+                    width += deltaWidth
                 else:
                     width = max_width
-                    length = target_area / width
+                length = target_area / width
 
             # Recalculate strike and dip bounds              
             strike_bounds=array([-length/2,length/2])
@@ -722,6 +735,8 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
             #Now select faults within those distances
             selected_faults=where((Ds>=strike_bounds[0]) & (Ds<=strike_bounds[1]) & (Dd>=dip_bounds[0]) & (Dd<=dip_bounds[1]))[0]
             area=(whole_fault[selected_faults,8]*whole_fault[selected_faults,9]).sum() * 1e-6
+
+            ix += 1
 
     ## This code block is for selecting any random subfault as the hypocenter as oppsoed to something
     ## based on lieklihood of strike fraction and dip fraction
@@ -1615,7 +1630,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                     
                     if slip.max() > max_slip_tolerance*max_slip_from_rule:
                         success = False
-                        print('... ... ... max slip condition violated max_slip_rule, recalculating...')
+                        print('... ... ... max slip condition violated max_slip_rule, recalculating...', slip.max(), max_slip_tolerance*max_slip_from_rule)
                 
                 #Force to target magnitude
                 if force_magnitude==True:
@@ -1630,7 +1645,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 #check max_slip again
                 if slip.max() > max_slip:
                     success=False
-                    print('... ... ... max slip condition violated due to force_magnitude=True, recalculating...')
+                    print('... ... ... max slip condition violated due to force_magnitude=True, recalculating...', slip.max(), max_slip)
             
             #Get stochastic rake vector if only one rake is given, else variable fault rakes
             if isinstance(rake,(int,float)):
