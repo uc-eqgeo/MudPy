@@ -524,7 +524,8 @@ def rectify_slip(slip_unrectified,percent_reject=10):
 
 def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     force_area,no_shallow_epi=True,hypo_depth=10,param_norm=(0.0451,0.1681),no_random=False,
-    subfault_hypocenter=None,use_hypo_fraction=True,option=0, NZNSHM_scaling=True, patch_coupling=None):
+    subfault_hypocenter=None,use_hypo_fraction=True,option=0, NZNSHM_scaling=True, patch_coupling=None,
+    force_magnitude=False):
     '''
     Select a random fault to be the hypocenter then based on scaling laws and a 
     target magnitude select only faults within the expected area plus some 
@@ -533,7 +534,7 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     
     from numpy.random import randint,normal
     from numpy.random import choice as npchoice
-    from numpy import array,where,argmin,arange,log10,sqrt,median,diff,unique
+    from numpy import array,where,argmin,arange,log10,sqrt,median,diff,unique,ceil
     from scipy.stats import norm,expon
     from random import choice
     
@@ -675,7 +676,8 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     selected_faults=where((Ds>=strike_bounds[0]) & (Ds<=strike_bounds[1]) & (Dd>=dip_bounds[0]) & (Dd<=dip_bounds[1]))[0]
 
     # Check that selected patches are within the NZ NSHM area-scaling relation
-    if NZNSHM_scaling==True:
+    # If also forcing magnitude, then the right number of patches have to be selected first, otherwise the area-scaling relation will be enforced later
+    if NZNSHM_scaling==True and force_magnitude==True:
         area=(whole_fault[selected_faults,8]*whole_fault[selected_faults,9]).sum() / 1e6  # Convert to km2
         # From Stirling et al. 2023, NZNSHM, C values often have errors of +/- 0.2 -- 0.3
         NZNSHM_c = 4
@@ -683,29 +685,31 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
         lower_target_area = 10**(target_Mw - NZNSHM_c - 0.2)
         upper_target_area = 10**(target_Mw - NZNSHM_c + 0.2)
 
-        # Average down-dip fault spacing
+        # Average down-dip and along strike fault spacing (Assumes fairly uniform fault spacing)
         deltaDip = median(diff(unique(Dd)))
+        deltaStrike = median(diff(unique(Ds)))
 
         ix = 0
         # Allow 5 iterations to find a suitable fault area
         while any([area < lower_target_area, area > upper_target_area]) and ix < 5:
             # Find maximum width of the fault along this rupture
             max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) <= length].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) <= length].min())
-            if width == max_width:
-                # If fault can't get wider, just make it longer
-                length += (target_area - area) / width
+            if width == max_width and area < lower_target_area:
+                # If fault can't get wider, just make it longer by n subfaults
+                n_subfaults = ceil((target_area - area) / (width * deltaStrike))
+                length += n_subfaults * deltaStrike
             else:
                 # Maintain aspect ratio if possible, but match magnitude-area scaling relation
-                area_scaling = (target_area / area)**0.5
+                area_scaling = (target_area / area) ** 0.5
                 if width * area_scaling <= max_width:
                     # Ensures change in width is by at least 1 integer row of subfaults
                     if area_scaling < 1:
-                        deltaWidth = -(round((1 - area_scaling) * width / deltaDip)) * deltaDip
-                        deltaWidth = deltaWidth if deltaWidth != 0 else -deltaDip
-                        deltaWidth = deltaWidth if width + deltaWidth > 0 else 0
+                        deltaWidth = -(round((1 - area_scaling) * width / deltaDip)) * deltaDip  # Enforce chance in width as integer number of subfaults
+                        deltaWidth = deltaWidth if deltaWidth != 0 else -deltaDip  # Ensures that width is changed by at least 1 subfault
+                        deltaWidth = deltaWidth if width + deltaWidth > 0 else 0  # Check to prevent detlaWidth from making width zero or negative
                     else:
-                        deltaWidth = (round((area_scaling - 1) * width / deltaDip)) * deltaDip
-                        deltaWidth = deltaWidth if deltaWidth != 0 else deltaDip
+                        deltaWidth = (round((area_scaling - 1) * width / deltaDip)) * deltaDip  # Enforce chance in width as integer number of subfaults
+                        deltaWidth = deltaWidth if deltaWidth != 0 else deltaDip  # Ensures that width is changed by at least 1 subfault
                     width += deltaWidth
                 else:
                     width = max_width
@@ -722,7 +726,6 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
                 strike_bounds[1]=dstrike_max
                 
             #Now get dip ranges
-        #    dip_bounds=array([0,width/2])
             dip_bounds=array([-width/2,width/2])
             
             if dip_bounds[0]<ddip_min:#Length is outside domain
@@ -1534,7 +1537,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff, _, Lbox, Wbox=select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,
                             num_modes,scaling_law,force_area,no_shallow_epi=False,
                             no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,
-                            patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling)
+                            patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling, force_magnitude=force_magnitude)
                 
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]
@@ -1632,9 +1635,13 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                         success = False
                         print('... ... ... max slip condition violated max_slip_rule, recalculating...', slip.max(), max_slip_tolerance*max_slip_from_rule)
                 
-                #Force to target magnitude
-                if force_magnitude==True:
-                    M0_target=10**(1.5*target_Mw[kmag]+9.1)
+                if force_magnitude==True or NZNSHM_scaling==True:
+                    #Force to target magnitude
+                    if force_magnitude==False and NZNSHM_scaling==True:
+                        Mw = log10(rupture_area * 1e-6) + 4   # Select magnitude based on the area of the rupture
+                        M0_target = 10**(1.5*Mw+9.1)
+                    elif force_magnitude==True:
+                        M0_target=10**(1.5*target_Mw[kmag]+9.1)
                     M0_ratio=M0_target/M0
                     #Multiply slip by ratio
                     slip=slip*M0_ratio

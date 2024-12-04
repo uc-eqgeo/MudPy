@@ -119,7 +119,8 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 #Select only a subset of the faults based on magnitude scaling
                 current_target_Mw=target_Mw[kmag]
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff,option,Lmean,Wmean=fakequakes.select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,num_modes,scaling_law,
-                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling)
+                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling,
+                                    force_magnitude=force_magnitude)
 
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]
@@ -218,9 +219,13 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                         success = False
                         print('... ... ... max slip condition violated max_slip_rule, recalculating...')
                 
-                #Force to target magnitude
-                if force_magnitude==True:
-                    M0_target=10**(1.5*target_Mw[kmag]+9.1)
+                if force_magnitude==True or NZNSHM_scaling==True:
+                    #Force to target magnitude
+                    if force_magnitude==False and NZNSHM_scaling==True:
+                        Mw = log10(rupture_area * 1e-6) + 4   # Select magnitude based on the area of the rupture
+                        M0_target = 10**(1.5*Mw+9.1)
+                    elif force_magnitude==True:
+                        M0_target=10**(1.5*target_Mw[kmag]+9.1)
                     M0_ratio=M0_target/M0
                     #Multiply slip by ratio
                     slip=slip*M0_ratio
