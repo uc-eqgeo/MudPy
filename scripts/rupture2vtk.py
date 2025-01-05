@@ -15,10 +15,10 @@ mesh_name = 'hik_kerk3k_with_rake.vtk'
 
 plot_ruptures = True
 n_ruptures = 5000
-inversion_name = 'Final_Jack'
+inversion_name = 'nesi_Final_NZNSHMScaled'
 
 file_keyword = 'archi-merged'
-file_keyword = 'Mw8-00_000127'
+file_keyword = 'Mw9-49_000018'
 
 write_geojson = True
 
