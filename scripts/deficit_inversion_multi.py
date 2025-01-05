@@ -18,6 +18,7 @@ rupture_file = "ruptures_NoDepthLimit/rupture_df_n50000.csv"  # Name of the file
 n_ruptures = 5000  # Number of ruptures to use in each island
 
 b, N = 1.1, 21.5  # B and N values to use for the GR relation
+min_Mw = 7.0  # Minimum magnitude to use to match GR-Rate
 max_Mw = 9.0  # Maximum magnitude to use to match GR-Rate
 
 # Weighting
@@ -56,7 +57,7 @@ if not os.path.exists(outdir):
 
 # %% Pygmo Classes and Functions
 class deficitInversion:
-    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float, max_Mw: float):
+    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float, min_Mw: float, max_Mw: float):
 
         self.name = "Slip Deficit Inversion"
         self.deficit = deficit  # Slip deficit (on same grid as ruptures)
@@ -67,6 +68,7 @@ class deficitInversion:
         self.rate_weight = rate_weight  # Weighting for rate misfit over GR-rate misfit
         self.norm_weight = norm_weight  # Weighting of the normalised GR-rate misfit
         self.GR_weight = GR_weight  # Weighting for GR-rate misfit
+        self.min_Mw = min_Mw  # Minimum magnitude to use for GR-rate
         self.max_Mw = max_Mw  # Maximum magnitude to use for GR-rate
 
         print("Reading rupture dataframe...")
@@ -139,7 +141,7 @@ class deficitInversion:
         # Calculate GR-rate component
         if self.GR_weight > 0:
             inv_GR = self.sparse_gr_matrix @ (10 ** x)  # Calculate GR-rate for each magnitude bin based on inverted slip rates
-            GR_ix = self.Mw_bins <= self.max_Mw  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
+            GR_ix = np.where((self.Mw_bins >= self.min_Mw) & (self.Mw_bins <= self.max_Mw), True, False)  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
             # GR_rms = np.sqrt(np.mean((inv_GR - self.GR_rate) ** 2))  # Penalise for deviating from GR-rate
             GR_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_ix]) - np.log10(self.GR_rate[GR_ix])) ** 2))  # Penalise for deviating from log(N)
 
@@ -266,7 +268,7 @@ if __name__ == "__main__":
 
     inversion_list = []
     for ruptures_df in ruptures_df_list:
-        inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, max_Mw))
+        inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, min_Mw, max_Mw))
 
     # %% Write out starting conditions
     inversion = inversion_list[0]
