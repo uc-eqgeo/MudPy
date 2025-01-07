@@ -12,7 +12,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset, NZNSHM_scaling):
+        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset, NZNSHM_scaling, stochastic_slip):
     
     '''
     Depending on user selected flags parse the work out to different functions
@@ -173,31 +173,36 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                     izero=where(mean_slip==0)[0]
                     mean_slip[izero]=slip_tol
                 
-                #Get correlation matrix
-                C=fakequakes.vonKarman_correlation(Dstrike_selected,Ddip_selected,Ls,Ld,hurst)
-                
-                # Lognormal or not?
-                if lognormal==False:
-                    #Get covariance matrix
-                    C_nonlog=fakequakes.get_covariance(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation) 
-                    #Get eigen values and eigenvectors
-                    eigenvals,V=fakequakes.get_eigen(C_nonlog)
-                    #Generate fake slip pattern
-                    rejected=True
-                    while rejected==True:
-#                        slip_unrectified,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=kfault)
-                        slip_unrectified,success=fakequakes.make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=None)
-                        slip,rejected,percent_negative=fakequakes.rectify_slip(slip_unrectified,percent_reject=13)
-                        if rejected==True:
-                            print('... ... ... negative slip threshold exceeeded with %d%% negative slip. Recomputing...' % (percent_negative))
-                else:
-                    #Get lognormal values
-                    C_log,mean_slip_log=fakequakes.get_lognormal(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation)               
-                    #Get eigen values and eigenvectors
-                    eigenvals,V=fakequakes.get_eigen(C_log)
-                    #Generate fake slip pattern
-#                    slip,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=kfault)
-                    slip,success=fakequakes.make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=None)
+                #Create stochastic slip patterns
+                if stochastic_slip:                
+                    #Get correlation matrix
+                    C=fakequakes.vonKarman_correlation(Dstrike_selected,Ddip_selected,Ls,Ld,hurst)
+                    
+                    # Lognormal or not?
+                    if lognormal==False:
+                        #Get covariance matrix
+                        C_nonlog=fakequakes.get_covariance(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation) 
+                        #Get eigen values and eigenvectors
+                        eigenvals,V=fakequakes.get_eigen(C_nonlog)
+                        #Generate fake slip pattern
+                        rejected=True
+                        while rejected==True:
+    #                        slip_unrectified,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=kfault)
+                            slip_unrectified,success=fakequakes.make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=None)
+                            slip,rejected,percent_negative=fakequakes.rectify_slip(slip_unrectified,percent_reject=13)
+                            if rejected==True:
+                                print('... ... ... negative slip threshold exceeeded with %d%% negative slip. Recomputing...' % (percent_negative))
+                    else:
+                        #Get lognormal values
+                        C_log,mean_slip_log=fakequakes.get_lognormal(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation)               
+                        #Get eigen values and eigenvectors
+                        eigenvals,V=fakequakes.get_eigen(C_log)
+                        #Generate fake slip pattern
+    #                    slip,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=kfault)
+                        slip,success=fakequakes.make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=None)
+                else:  # This will produce depth-dependent slip (uniform if velocity model doesn't change)
+                    slip=mean_slip
+                    success=True
             
                 #Slip pattern sucessfully made, moving on.
                 #Rigidities

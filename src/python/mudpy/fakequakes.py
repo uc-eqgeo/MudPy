@@ -1340,7 +1340,7 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
 		slip_tol=1e-2,force_hypocenter=False,no_random=False,use_hypo_fraction=True,
 		shear_wave_fraction_shallow=0.49,shear_wave_fraction_deep=0.8,max_slip_rule=True,
         calculate_rupture_onset=True, NZNSHM_scaling=False, nucleate_on_coupling=False,
-        Nstart=0):
+        stochastic_slip=True, Nstart=0):
     '''
     Set up rupture generation-- use ncpus if available
     '''
@@ -1371,7 +1371,7 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
     force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
     no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
     nucleate_on_coupling, calculate_rupture_onset=calculate_rupture_onset,NZNSHM_scaling=NZNSHM_scaling,
-    Nstart=Nstart)
+    stochastic_slip=stochastic_slip,Nstart=Nstart)
 
 
 
@@ -1383,7 +1383,7 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
-        nucleate_on_coupling, calculate_rupture_onset=True, NZNSHM_scaling=False,Nstart=0):
+        nucleate_on_coupling, calculate_rupture_onset=True, NZNSHM_scaling=False,stochastic_slip=True,Nstart=0):
     
     from numpy import ceil
     from os import environ
@@ -1410,7 +1410,7 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule,
         nucleate_on_coupling, calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling,
-        Nstart=Nstart)
+        stochastic_slip=stochastic_slip,Nstart=Nstart)
     else:
         #Make mpi system call
         print("MPI: Starting " + str(Nrealizations_parallel*ncpus) + " FakeQuakes Rupture Generations on ", ncpus, "CPUs")
@@ -1420,7 +1420,7 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
             +' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time) \
             +' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude) \
             +' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule) \
-            +' '+str(nucleate_on_coupling)+' '+str(calculate_rupture_onset)+' '+str(NZNSHM_scaling)
+            +' '+str(nucleate_on_coupling)+' '+str(calculate_rupture_onset)+' '+str(NZNSHM_scaling)+' '+str(stochastic_slip)
         
         print(mpi)
         
@@ -1437,7 +1437,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,shypo,use_hypo_fraction,shear_wave_fraction,max_slip_rule,nucleate_on_coupling,
-        calculate_rupture_onset=True, NZNSHM_scaling=False, Nstart=0):
+        calculate_rupture_onset=True, NZNSHM_scaling=False, stochastic_slip=True, Nstart=0):
     
     '''
     Depending on user selected flags parse the work out to different functions
@@ -1589,31 +1589,36 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                     izero=where(mean_slip==0)[0]
                     mean_slip[izero]=slip_tol
                 
-                #Get correlation matrix
-                C=vonKarman_correlation(Dstrike_selected,Ddip_selected,Ls,Ld,hurst)
-                
-                # Lognormal or not?
-                if lognormal==False:
-                    #Get covariance matrix
-                    C_nonlog=get_covariance(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation) 
-                    #Get eigen values and eigenvectors
-                    eigenvals,V=get_eigen(C_nonlog)
-                    #Generate fake slip pattern
-                    rejected=True
-                    while rejected==True:
-#                        slip_unrectified,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=kfault)
-                        slip_unrectified,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=None)
-                        slip,rejected,percent_negative=rectify_slip(slip_unrectified,percent_reject=13)
-                        if rejected==True:
-                            print('... ... ... negative slip threshold exceeeded with %d%% negative slip. Recomputing...' % (percent_negative))
-                else:
-                    #Get lognormal values
-                    C_log,mean_slip_log=get_lognormal(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation)               
-                    #Get eigen values and eigenvectors
-                    eigenvals,V=get_eigen(C_log)
-                    #Generate fake slip pattern
-#                    slip,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=kfault)
-                    slip,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=None)
+                #Create stochastic slip patterns
+                if stochastic_slip:
+                    #Get correlation matrix
+                    C=vonKarman_correlation(Dstrike_selected,Ddip_selected,Ls,Ld,hurst)
+                    
+                    # Lognormal or not?
+                    if lognormal==False:
+                        #Get covariance matrix
+                        C_nonlog=get_covariance(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation) 
+                        #Get eigen values and eigenvectors
+                        eigenvals,V=get_eigen(C_nonlog)
+                        #Generate fake slip pattern
+                        rejected=True
+                        while rejected==True:
+    #                        slip_unrectified,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=kfault)
+                            slip_unrectified,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=None)
+                            slip,rejected,percent_negative=rectify_slip(slip_unrectified,percent_reject=13)
+                            if rejected==True:
+                                print('... ... ... negative slip threshold exceeeded with %d%% negative slip. Recomputing...' % (percent_negative))
+                    else:
+                        #Get lognormal values
+                        C_log,mean_slip_log=get_lognormal(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation)               
+                        #Get eigen values and eigenvectors
+                        eigenvals,V=get_eigen(C_log)
+                        #Generate fake slip pattern
+    #                    slip,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=kfault)
+                        slip,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=None)
+                else:  # This will produce depth-dependent slip (uniform if velocity model doesn't change)
+                    slip=mean_slip
+                    success=True
             
                 #Slip pattern sucessfully made, moving on.
                 #Rigidities

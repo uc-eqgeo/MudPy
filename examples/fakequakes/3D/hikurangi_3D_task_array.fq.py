@@ -55,6 +55,7 @@ G_name_static=run_name+'_statics' #Name of G matrix for statics
 ##target_Mw=np.round(np.arange(8.0,8.5,0.05),4) # Of what approximate magnitudes
 max_slip=100 #Maximum sip (m) allowed in the model
 max_slip_rule=True #restrict max slip to 3 times Allen & Hayes 2017
+uniform_slip=False # If true, skip the stochastic aspect of this whole process and just use relatively uniform slip based on velocity model
 
 # Displacement and velocity waveform parameters
 NFFT=128 ; dt=1.0
@@ -138,6 +139,11 @@ if __name__ == "__main__":
                     tag += '_NZNSHMscaling'
                 else:
                     tag += '_noNZNSHMscaling'
+                if uniform_slip:
+                    sotchastic_slip = False
+                    tag += '_uniformSlip'
+                else:
+                    stochastic_slip = True
                 run_name = run_base_name + tag
                 fakequakes.generate_ruptures(home,project_name,run_name,fault_name,slab_name,
                         mesh_name,load_distances,distances_name,UTM_zone,target_Mw,model_name,
@@ -148,7 +154,7 @@ if __name__ == "__main__":
                         force_hypocenter=force_hypocenter,
                         max_slip_rule=max_slip_rule,use_hypo_fraction=use_hypo_fraction, 
                         calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling,
-                        Nstart=int(Nstart))
+                        stochastic_slip=stochastic_slip, Nstart=int(Nstart))
             #           shear_wave_fraction=shear_wave_fraction,
 
                     
