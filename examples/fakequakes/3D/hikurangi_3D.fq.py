@@ -6,7 +6,7 @@ Parameter file for 3D fakequakes run
 from mudpy import fakequakes,runslip,forward
 import numpy as np
 from obspy.core import UTCDateTime
-
+import os
 
 
 ########                            GLOBALS                             ########
@@ -34,7 +34,10 @@ G_from_file=0
 
 
 #############                 Run-time parameters            ##################
-ncpus=2
+try:
+    ncpus=int(os.getenv("SLURM_NTASKS"))
+except TypeError:
+    ncpus=5
 hot_start=0
 model_name='hikkerk.mod'   # Velocity model
 moho_depth_in_km=25.0
