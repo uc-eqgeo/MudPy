@@ -482,6 +482,11 @@ if __name__ == '__main__':
             NZNSHM_scaling=True
         if NZNSHM_scaling=='False':
             NZNSHM_scaling=False
+        stochastic_slip=sys.argv[43]
+        if stochastic_slip=='True':
+            stochastic_slip=True
+        else:
+            stochastic_slip=False
         
         run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
         load_distances,distances_name,UTM_zone,tMw,model_name,hurst,Ldip,Lstrike,
@@ -489,7 +494,7 @@ if __name__ == '__main__':
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset,NZNSHM_scaling)
+        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset,NZNSHM_scaling,stochastic_slip)
     else:
         print("ERROR: You're not allowed to run "+sys.argv[1]+" from the shell or it does not exist")
         
