@@ -127,7 +127,7 @@ class deficitInversion:
 
     def fitness(self, x: np.ndarray):
 
-        rms, norm_rms, GR_rms = 0, 0, 0
+        rms, norm_rms, GR_rms, GR_lims_rms = 0, 0, 0, 0
 
         # Calculate slip-deficit component (Based on NSHM SRM constraint weights)
         if any([self.rate_weight > 0, self.norm_weight > 0]):
@@ -142,10 +142,12 @@ class deficitInversion:
         if self.GR_weight > 0:
             inv_GR = self.sparse_gr_matrix @ (10 ** x)  # Calculate GR-rate for each magnitude bin based on inverted slip rates
             GR_ix = np.where((self.Mw_bins >= self.min_Mw) & (self.Mw_bins <= self.max_Mw), True, False)  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
+            GR_lims_ix = np.where((self.Mw_bins >= self.min_Mw) & (self.Mw_bins <= self.max_Mw), False, True)  # Use bins outside min-max magnitude (that that few high Mw events aren't totally unweighted)
             # GR_rms = np.sqrt(np.mean((inv_GR - self.GR_rate) ** 2))  # Penalise for deviating from GR-rate
             GR_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_ix]) - np.log10(self.GR_rate[GR_ix])) ** 2))  # Penalise for deviating from log(N)
+            GR_lims_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_lims_ix]) - np.log10(self.GR_rate[GR_lims_ix])) ** 2))  # Penalise for deviating from log(N)
 
-        cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight)  # Allow for variable weighting between slip deficit and GR-rate
+        cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight) + (GR_lims_rms)  # Allow for variable weighting between slip deficit and GR-rate
 
         return np.array([cum_rms])  
 
