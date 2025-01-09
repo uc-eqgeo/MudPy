@@ -12,9 +12,9 @@ import argparse
 
 ########                            GLOBALS                             ########
 home='/nesi/nobackup/uc03610/jack/fakequakes/' 
-project_name='hikkerk3d_hires' # Directory name
-run_name='hikkerk3D' # Name for this run
-run_base_name='hikkerk3D'
+project_name='hikkerk' # Directory name
+run_name='hikkerk' # Name for this run
+run_base_name='hikkerk'
 ################################################################################
 
 

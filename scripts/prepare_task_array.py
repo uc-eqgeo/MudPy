@@ -2,9 +2,9 @@ import numpy as np
 from glob import glob
 
 rupture_dir = 'Z:/McGrath/HikurangiFakeQuakes/hikkerk3D_hires/output/ruptures'
-rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerk3d_hires/output/ruptures'
+rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output/ruptures'
 
-run_name = 'hikkerk3D'
+run_name = 'hikkerk'
 locking_model = True
 NZNSHM_scaling = True
 uniform_slip = True
