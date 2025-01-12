@@ -231,7 +231,7 @@ def write_results(ix, archi, inversion, outtag, deficit_file, archipeligo_island
 
 # %% Main function
 if __name__ == "__main__":
-    total_ruptures = int(rupture_file.split('_n')[1].split('.')[0])
+    total_ruptures = int(rupture_file.split('_df_n')[1].split('.')[0])
     n_ruptures = int(n_ruptures)
 
     rupture_csv = os.path.join(procdir, rupture_file)
