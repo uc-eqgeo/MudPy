@@ -46,7 +46,7 @@ for r in range(len(log_files)):
             M0=line.split('=')[-1]
             loop_go=False
             f.close()
-            print M0
+            print(M0)
     sol_norm[r]=Lm
     res_norm[r]=L2
     lambda_spatial="{0:.2f}".format(float(lambda_spatial))

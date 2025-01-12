@@ -13,11 +13,12 @@ mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
 mesh_name = 'hik_kerk3k_with_rake.vtk'
 
-plot_ruptures = False
+plot_ruptures = True
 n_ruptures = 5000
-inversion_name = 'Final_Jack'
+inversion_name = 'nesi_Final_NZNSHMScaled'
 
 file_keyword = 'archi-merged'
+file_keyword = '3e10*Mw9-4'
 
 write_geojson = True
 
@@ -86,7 +87,7 @@ for rupture_file in rupture_list:
 
     rupture_mesh = meshio.Mesh(points=points, cells=[(element, cells)], cell_data=col_dict)
 
-    outfile = f"{rupture_file.replace('scaling.', 'scaling+').split('.')[0].replace('scaling+', 'scaling.')}{suffix}.vtk"
+    outfile = f"{rupture_file.replace('.Mw', '+Mw').split('.')[0].replace('+Mw', '.Mw')}{suffix}.vtk"
     rupture_mesh.write(outfile, file_format="vtk")
     print(f"Written {outfile}")
 

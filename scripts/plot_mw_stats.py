@@ -49,6 +49,7 @@ else:
     clon = []
     clat = []
     cz = []
+    area = []
     requested = 100  # Original request per mag bin
     for ix, log in enumerate(logs):
         print(f"Processing {ix + 1}/{len(logs)}", end='\r')
@@ -61,6 +62,13 @@ else:
         with open(log) as fid:
             lines = fid.readlines()
             data_lines = [lines[ix] for ix in [11, 12, 16, 17, 19]]
+            try:
+                if 'Rupture Area:' in lines[21]:
+                    area.append(float(lines[21].split()[-2]))
+                else:
+                    area.append(0)
+            except IndexError:
+                area.append(0)
             for line in data_lines:
                 if 'length Lmax' in line:
                     length.append(float(line.split()[-2]))
@@ -95,6 +103,8 @@ else:
     clon = np.array(clon)
     clat = np.array(clat)
     cz = np.array(cz)
+    area = np.array(area)
+    aspect = np.round(length / width, 2)
 
     target = np.array(target)
 
@@ -108,7 +118,9 @@ else:
             'clon': clon,
             'clat': clat,
             'cz': cz,
-            'target': target}
+            'target': target,
+            'area': area,
+            'aspect': aspect}
 
     mw_df = pd.DataFrame(mw_dict)
     mw_df.to_csv(stats_csv, index=False)
@@ -137,28 +149,25 @@ plt.xlim([6, 9.5])
 plt.ylim([6, 9.5])
 plt.show()
 
-# %% Histplot Actual vs Area
-sns.histplot(mw_df, x='actual', y=np.log10(mw_df['length'] * mw_df['width']), binwidth=step_mw, cmap='viridis')
+# %% Scatter Actual vs Area
+sns.scatterplot(mw_df, x='actual', y=np.log10(mw_df['area'] * 1e-6), hue='aspect', s=5, linewidth=0)
 plt.plot(sample_mw, sample_mw - 4.0, color='red', linestyle=':', lw=1, label='NZ NSHM relation')
-plt.plot(sample_mw, sample_mw - 3.6, color='red', linestyle=':', lw=0.5)
-plt.plot(sample_mw, sample_mw - 4.1, color='red', linestyle=':', lw=0.5)
+plt.plot(sample_mw, sample_mw - 3.8, color='blue', linestyle=':', lw=0.5)
+plt.plot(sample_mw, sample_mw - 4.2, color='blue', linestyle=':', lw=0.5)
 plt.xlabel('Mw')
-plt.ylabel('log10(Area)')
-# plt.legend()
-plt.title(f"{tag} ({len(logs)} ruptures)")
+plt.ylabel('log10(Area km^2)')
+plt.title(f"{tag} from logfile({len(logs)} ruptures)")
 plt.xlim([6, 9.5])
 plt.ylim([1.5, 5.5])
 plt.show()
 
-# %% Scatter Actual vs Area
-sns.scatterplot(mw_df, x='actual', y=np.log10(mw_df['length'] * mw_df['width']), hue='target', s=10, markers=False)
+sns.scatterplot(mw_df, x='actual', y=np.log10(mw_df['length'] * mw_df['width']), hue='aspect', s=10, markers=False)
 plt.plot(sample_mw, sample_mw - 4.0, color='red', linestyle=':', lw=1, label='NZ NSHM relation')
 plt.plot(sample_mw, sample_mw - 3.6, color='red', linestyle=':', lw=0.5)
 plt.plot(sample_mw, sample_mw - 4.1, color='red', linestyle=':', lw=0.5)
 plt.xlabel('Mw')
-plt.ylabel('log10(Area)')
-# plt.legend()
-plt.title(f"{tag} ({len(logs)} ruptures)")
+plt.ylabel('log10(Area km^2)')
+plt.title(f"{tag} from len*width ({len(logs)} ruptures)")
 plt.xlim([6, 9.5])
 plt.ylim([1.5, 5.5])
 plt.show()
@@ -179,12 +188,10 @@ plt.title('Hypocentre')
 plt.show()
 
 # %% Incremental Hypocenters
-mw_bin_size = 1.
-Mw_round = np.round(mw_df['actual'] * (1 / mw_bin_size), 0) / (1 / mw_bin_size)
+mw_bin_size = 1
 
-for mag in np.unique(Mw_round):
-    ix = np.where(Mw_round == mag)[0]
-    sns.histplot(x=mw_df.loc[mw_df['actual'].round() == mag, 'lon'], y=mw_df.loc[mw_df['actual'].round() == mag, 'lat'], binwidth=0.1, cmap='flare_r')
+for mag, df in mw_df.groupby(np.floor(mw_df['actual'] / mw_bin_size) * mw_bin_size):
+    sns.histplot(df, x='lon', y='lat', binwidth=0.1, cmap='flare_r')
     plt.title(f'Hypocentre {mag}Mw')
     plt.xlim([172, 186])
     plt.ylim([-43, -23])

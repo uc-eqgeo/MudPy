@@ -22,6 +22,7 @@ bn_dict = {1: [0.95, 16.5],
 
 
 inversion_name = 'Final_Jack'
+inversion_name = "nesi_Final_NZNSHMScaled"
 n_ruptures = 5000
 slip_weight = 10
 norm_weight = 1

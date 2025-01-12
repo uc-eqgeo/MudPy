@@ -15,7 +15,7 @@ from rsqsim_api.visualisation.utilities import plot_background
 import pickle
 
 
-def plot_2d_surface(mesh, title, rupture_png_dir, hypo, min_slip=0.1, max_slip=50, log=False, color_by='total'):
+def plot_2d_surface(mesh, title, rupture_png_dir, hypo=[], min_slip=0.1, max_slip=50, log=False, color_by='total', cmap='magma'):
     # Load background map
     fig, ax = pickle.load(open(f"{rupture_png_dir}/temp.pkl", "rb"))
     # Extract points and cells from the mesh
@@ -32,13 +32,13 @@ def plot_2d_surface(mesh, title, rupture_png_dir, hypo, min_slip=0.1, max_slip=5
     if log:
         collection = PolyCollection(polygons,
                             array=colors,
-                            cmap='magma',
+                            cmap=cmap,
                             edgecolor=None,
                             norm=LogNorm(vmin=max(min_slip, colors.min()), vmax=max_slip)
                             )
     else:
-        collection = PolyCollection(polygons, array=colors, cmap='magma', edgecolor=None)
-        collection.set_clim(vmax=max_slip)
+        collection = PolyCollection(polygons, array=colors, cmap=cmap, edgecolor=None)
+        collection.set_clim(vmin=min_slip, vmax=max_slip)
     alpha = np.where(colors == 1e-6, 0.25, 1)
     collection.set_alpha(alpha)
 
@@ -55,7 +55,7 @@ def plot_2d_surface(mesh, title, rupture_png_dir, hypo, min_slip=0.1, max_slip=5
         cbar.set_ticklabels(ticks)
     
     
-    plt.plot(hypo[0], hypo[1], 'b+', markersize=10)    # Hypocenter
+    #plt.plot(hypo[0], hypo[1], 'b+', markersize=10)    # Hypocenter
     # plt.plot(hypo[2], hypo[3], 'ro', markersize=10)    # Centroid
     # plt.xlabel('X')
     # plt.ylabel('Y')
@@ -71,21 +71,26 @@ def plot_2d_surface(mesh, title, rupture_png_dir, hypo, min_slip=0.1, max_slip=5
 mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
 mesh_name = 'hik_kerk3k_with_rake.vtk'
-plot_every = 25  # Plot every nth rupture (-ve to plot from largest first)
+plot_every = 1  # Plot every nth rupture (-ve to plot from largest first)
+n_ruptures = 5000
+inversion_name = 'Final_Jack'
+
+file_keyword = 'archi-merged'
+
 
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
 rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures\\'
-rupture_png_dir = os.path.abspath(os.path.dirname(rupture_dir) + '/..\\rupture_pngs\\')
+rupture_png_dir = os.path.abspath(os.path.dirname(rupture_dir) + '/..\\rupture_deficit_pngs\\')
 os.makedirs(rupture_png_dir, exist_ok=True)
+output_dir = f"C:\\Users\\jmc753\\Work\\MudPy\\cluster_processing\\output\\{inversion_name}"
 
-keyword = 'Mw9-49_000018'
-rupture_list = glob(f'{rupture_dir}\\*{keyword}*.rupt')
+rupture_list = glob(os.path.abspath(f'{output_dir}\\n{n_ruptures}*{file_keyword}*.inv'))
 rupture_list.sort()
 
 # xmin, ymin, xmax, ymax
 bounds = [int(bound) for bound in '1500000/5250000/3000000/7300000'.split('/')]
-bounds = [int(bound) for bound in '1500000/5250000/2200000/6200000'.split('/')]
+#bounds = [int(bound) for bound in '1500000/5250000/2200000/6200000'.split('/')]
 
 new_background = False  # Recreate the background plot
 new_pngs = True    # Overwrite any previously created pngs
@@ -105,12 +110,18 @@ rupture_list = rupture_list[::plot_every]
 for ix, rupture_file in enumerate(rupture_list):
     if os.path.exists(os.path.join(rupture_png_dir, os.path.basename(rupture_file) + '.png')) and not new_pngs:
         continue
-    rupture = pd.read_csv(rupture_file, sep='\t', index_col='# No')
-
+    rupture_file = os.path.abspath(rupture_file)
+    rupture = pd.read_csv(rupture_file, sep='\t', index_col=0).reset_index(drop=True)
     patch_coords = np.zeros((rupture.shape[0], 4))
-    patch_coords[:, 0] = np.arange(rupture.shape[0])
-    patch_coords[:, 2], patch_coords[:, 1] = transformer.transform(rupture['lat'], rupture['lon'])
-    patch_coords[:, 3] = rupture['z(km)'] * -1
+    patch_coords[:, 0] = rupture.index.to_numpy()
+    if rupture['lon'].max() <= 180:
+        patch_coords[:, 2], patch_coords[:, 1] = transformer.transform(rupture['lat'], rupture['lon'])
+    else:
+        patch_coords[:, 1], patch_coords[:, 2] = rupture['lat'], rupture['lon']
+    if abs(rupture['z(km)'].max()) > 100:  # Convert to m, negative down
+        patch_coords[:, 3] = rupture['z(km)'] * -1
+    else:
+        patch_coords[:, 3] = rupture['z(km)'] * -1000
 
     cells = vtk.cells[0].data
     n_cells = cells.shape[0]
@@ -131,25 +142,30 @@ for ix, rupture_file in enumerate(rupture_list):
     _, nearest_indices = hikurangi_kd_tree.query(cell_centers)
 
     points = vtk.points
-    if 'total-slip(m)' in rupture.columns:
-        total = rupture['total-slip(m)']
-        ss = np.zeros_like(total)
-        ds = np.zeros_like(total)
-    else:
-        ss = rupture['ss-slip(m)']
-        ds = rupture['ds-slip(m)']
-        total = np.sqrt(ss**2 + ds**2)
 
-    rupture_mesh = meshio.Mesh(points=points, cells=[(element, cells)], cell_data={'ss': [ss], 'ds': [ds], 'total': [total]})
+    ss, ds = False, False
+    col_dict = {}
 
-    with open(rupture_file.replace('.rupt', '.log'), 'r') as fid:
-        lines = fid.readlines()
-        lon, lat, z = [float(coord) for coord in lines[17].replace('\n', '').split(' ')[-1].strip('()').split(',')]   # Hypocenter
-        lat, lon = transformer.transform(lat, lon)
-        clon, clat, z = [float(coord) for coord in lines[19].replace('\n', '').split(' ')[-1].strip('()').split(',')]  # Centroid
-        clat, clon = transformer.transform(clat, clon)
+    for col in rupture.columns:
+        if col in ['lat', 'lon', 'z(km)']:
+            continue
+        if len(np.unique(rupture[col])) > 1:  # Don't bother with constants
+            col_dict[col] = [rupture.loc[nearest_indices, col].values]
+            print('Adding', col)
+            if 'ss' in col:
+                ss, ss_col = True, col
+            elif 'ds' in col:
+                ds, ds_col = True, col
+
+    if all([ds, ss]):
+        col_dict['total'] = [np.sqrt(rupture[ss_col]**2 + rupture[ds_col]**2)]
+
+    rupture_mesh = meshio.Mesh(points=points, cells=[(element, cells)], cell_data=col_dict)
 
     # Plot the mesh as a 2D surface
-    plot_2d_surface(rupture_mesh, os.path.basename(rupture_file), rupture_png_dir, [lon, lat, clon, clat], max_slip=50, log=True, color_by='total')
+    #plot_2d_surface(rupture_mesh, os.path.basename(rupture_file).replace('.inv', '_target'), rupture_png_dir, [], min_slip=0.1, max_slip=50, log=False, color_by='target-deficit(mm/yr)')
+    #plot_2d_surface(rupture_mesh, os.path.basename(rupture_file).replace('.inv', '_inverted'), rupture_png_dir, [], min_slip=0.1, max_slip=50, log=False, color_by='inverted-deficit(mm/yr)')
+    #plot_2d_surface(rupture_mesh, os.path.basename(rupture_file).replace('.inv', '_misfit_rel'), rupture_png_dir, [], min_slip=0, max_slip=2, log=False, color_by='misfit_rel(mm/yr)', cmap="RdYlBu_r")
+    plot_2d_surface(rupture_mesh, os.path.basename(rupture_file).replace('.inv', '_misfit_abs'), rupture_png_dir, [], min_slip=-5, max_slip=5, log=False, color_by='misfit_abs(mm/yr)', cmap="RdYlBu_r")
     print(f"{os.path.basename(rupture_file)}\t{ix+1}/{len(rupture_list)}")
 print('Complete :)')

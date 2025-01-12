@@ -9,7 +9,7 @@ bn_dict = {1: [0.95, 16.5],
            2: [1.1, 21.5],
            3: [1.24, 27.9]}
 
-bn_combo = 3
+bn_combo = 2
 
 b, N = bn_dict[bn_combo]
 
@@ -17,16 +17,16 @@ n_ruptures = 5000
 slip_weight = 10
 gr_weight = 500
 norm_weight = 1
-n_iterations = 1e6
+n_iterations = 5e5
 n_archipeligos = 10
 island = 0
 rupture_csv = 'rupture_df_n50000.csv'
 zero_rate = 1e-6
 
-prep_occ = True
-remove_zero_rates = True
+prep_occ = False
+remove_zero_rates = True  # Only removed in the occ data format, not in the merged results
 
-rupture_dir = "C:\\Users\\jmc753\Work\\MudPy\\cluster_processing\\output\\Final_Jack"
+rupture_dir = "C:\\Users\\jmc753\Work\\MudPy\\cluster_processing\\output\\nesi_Final_NZNSHMScaled"
 model_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\data\\model_info"
 occ_home_dir = "C:\\Users\\jmc753\\Work\\occ-coseismic"
 deficit_file = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\data\\model_info\\hk_hires.slip"
@@ -57,6 +57,7 @@ archi_df = inversion_df.copy()
 rates = np.hstack([rates, inversion_df[isl].values])
 
 for a in range(1, n_archipeligos):
+    print(f"Reading archipeligo {a}")
     inversion_file = os.path.join(rupture_dir, f"{tag}_archi{a}_inverted_ruptures.csv")
     inversion_df = pd.read_csv(inversion_file, sep='\t')
     rates = np.hstack([rates, inversion_df[isl].values])
