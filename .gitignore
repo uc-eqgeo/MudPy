@@ -16,8 +16,10 @@ examples/fakequakes/3D/hikkerk3D_test/
 work/
 hikkerk/
 cluster_processing/
+nesi_outputs/
 rupture_df_n50000.csv
 hires_ruptures/
 ProcessingTimes.xlsx
 ParameterEffects.pptx
 HikkerkGeonet.geoJSON
+Timings.xlsx
