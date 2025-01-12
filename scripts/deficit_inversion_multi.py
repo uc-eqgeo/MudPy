@@ -12,12 +12,13 @@ Script for running multiple subsets of full rupture catalgoue
 start = time()
 # %% Define Parameters
 # Naming and inputs
-inversion_name = 'testing'  # Name of directory results will be stored in
+inversion_name = 'FQ_3e10_nolock_GR70-90'  # Name of directory results will be stored in
 deficit_file = "hk_hires.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
-rupture_file = "rupturesThatCanBe300kmWide/rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
+rupture_file = "rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
 n_ruptures = 5000  # Number of ruptures to use in each island
 
 b, N = 1.1, 21.5  # B and N values to use for the GR relation
+min_Mw = 7.0  # Minimum magnitude to use to match GR-Rate
 max_Mw = 9.0  # Maximum magnitude to use to match GR-Rate
 
 # Weighting
@@ -26,7 +27,7 @@ norm_weight = 1  # Relative misfit of slip deficit (int)
 GR_weight = 500  # Mistfit of GR relation (int)
 
 # Pygmo requirements
-n_iterations = 1000000  # Maximum number of iterations for each inversion
+n_iterations = 500000  # Maximum number of iterations for each inversion
 ftol = 0.0001  # Stopping Criteria
 n_islands = 10  # Number of islands
 pop_size = 20  # Number of populations per island
@@ -43,7 +44,7 @@ if 'rccuser' in os.getcwd():
     deficit_file = f"{procdir}/model_info/slip_deficit_trenchlock.slip"
     deficit_file = f"{procdir}/model_info/hk_hires.slip"
 elif 'uc03610' in os.getcwd():
-    procdir = "/nesi/nobackup/uc03610/jack/MudPy/hikkerk3D_hires/output"
+    procdir = "/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output"
     deficit_file = f"{procdir}/../data/model_info/slip_deficit_trenchlock.slip"
     rupture_file = "rupture_df_n50000.csv"
 else:
@@ -56,7 +57,7 @@ if not os.path.exists(outdir):
 
 # %% Pygmo Classes and Functions
 class deficitInversion:
-    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float, max_Mw: float):
+    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float, min_Mw: float, max_Mw: float):
 
         self.name = "Slip Deficit Inversion"
         self.deficit = deficit  # Slip deficit (on same grid as ruptures)
@@ -67,6 +68,7 @@ class deficitInversion:
         self.rate_weight = rate_weight  # Weighting for rate misfit over GR-rate misfit
         self.norm_weight = norm_weight  # Weighting of the normalised GR-rate misfit
         self.GR_weight = GR_weight  # Weighting for GR-rate misfit
+        self.min_Mw = min_Mw  # Minimum magnitude to use for GR-rate
         self.max_Mw = max_Mw  # Maximum magnitude to use for GR-rate
 
         print("Reading rupture dataframe...")
@@ -125,7 +127,7 @@ class deficitInversion:
 
     def fitness(self, x: np.ndarray):
 
-        rms, norm_rms, GR_rms = 0, 0, 0
+        rms, norm_rms, GR_rms, GR_lims_rms = 0, 0, 0, 0
 
         # Calculate slip-deficit component (Based on NSHM SRM constraint weights)
         if any([self.rate_weight > 0, self.norm_weight > 0]):
@@ -139,11 +141,13 @@ class deficitInversion:
         # Calculate GR-rate component
         if self.GR_weight > 0:
             inv_GR = self.sparse_gr_matrix @ (10 ** x)  # Calculate GR-rate for each magnitude bin based on inverted slip rates
-            GR_ix = self.Mw_bins <= self.max_Mw  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
+            GR_ix = np.where((self.Mw_bins >= self.min_Mw) & (self.Mw_bins <= self.max_Mw), True, False)  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
+            GR_lims_ix = np.where((self.Mw_bins >= self.min_Mw) & (self.Mw_bins <= self.max_Mw), False, True)  # Use bins outside min-max magnitude (that that few high Mw events aren't totally unweighted)
             # GR_rms = np.sqrt(np.mean((inv_GR - self.GR_rate) ** 2))  # Penalise for deviating from GR-rate
             GR_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_ix]) - np.log10(self.GR_rate[GR_ix])) ** 2))  # Penalise for deviating from log(N)
+            GR_lims_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_lims_ix]) - np.log10(self.GR_rate[GR_lims_ix])) ** 2))  # Penalise for deviating from log(N)
 
-        cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight)  # Allow for variable weighting between slip deficit and GR-rate
+        cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight) + (GR_lims_rms)  # Allow for variable weighting between slip deficit and GR-rate
 
         return np.array([cum_rms])  
 
@@ -266,7 +270,7 @@ if __name__ == "__main__":
 
     inversion_list = []
     for ruptures_df in ruptures_df_list:
-        inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, max_Mw))
+        inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, min_Mw, max_Mw))
 
     # %% Write out starting conditions
     inversion = inversion_list[0]

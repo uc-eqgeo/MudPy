@@ -12,7 +12,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset, NZNSHM_scaling):
+        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset, NZNSHM_scaling, stochastic_slip):
     
     '''
     Depending on user selected flags parse the work out to different functions
@@ -24,7 +24,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
     from mudpy import fakequakes
     from obspy import UTCDateTime
     from obspy.taup import TauPyModel
-    import geopy.distance
+    # import geopy.distance
     import warnings
     import os
 
@@ -119,7 +119,8 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 #Select only a subset of the faults based on magnitude scaling
                 current_target_Mw=target_Mw[kmag]
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff,option,Lmean,Wmean=fakequakes.select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,num_modes,scaling_law,
-                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling)
+                                    force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling,
+                                    force_magnitude=force_magnitude)
 
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]
@@ -172,31 +173,36 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                     izero=where(mean_slip==0)[0]
                     mean_slip[izero]=slip_tol
                 
-                #Get correlation matrix
-                C=fakequakes.vonKarman_correlation(Dstrike_selected,Ddip_selected,Ls,Ld,hurst)
-                
-                # Lognormal or not?
-                if lognormal==False:
-                    #Get covariance matrix
-                    C_nonlog=fakequakes.get_covariance(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation) 
-                    #Get eigen values and eigenvectors
-                    eigenvals,V=fakequakes.get_eigen(C_nonlog)
-                    #Generate fake slip pattern
-                    rejected=True
-                    while rejected==True:
-#                        slip_unrectified,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=kfault)
-                        slip_unrectified,success=fakequakes.make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=None)
-                        slip,rejected,percent_negative=fakequakes.rectify_slip(slip_unrectified,percent_reject=13)
-                        if rejected==True:
-                            print('... ... ... negative slip threshold exceeeded with %d%% negative slip. Recomputing...' % (percent_negative))
-                else:
-                    #Get lognormal values
-                    C_log,mean_slip_log=fakequakes.get_lognormal(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation)               
-                    #Get eigen values and eigenvectors
-                    eigenvals,V=fakequakes.get_eigen(C_log)
-                    #Generate fake slip pattern
-#                    slip,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=kfault)
-                    slip,success=fakequakes.make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=None)
+                #Create stochastic slip patterns
+                if stochastic_slip:                
+                    #Get correlation matrix
+                    C=fakequakes.vonKarman_correlation(Dstrike_selected,Ddip_selected,Ls,Ld,hurst)
+                    
+                    # Lognormal or not?
+                    if lognormal==False:
+                        #Get covariance matrix
+                        C_nonlog=fakequakes.get_covariance(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation) 
+                        #Get eigen values and eigenvectors
+                        eigenvals,V=fakequakes.get_eigen(C_nonlog)
+                        #Generate fake slip pattern
+                        rejected=True
+                        while rejected==True:
+    #                        slip_unrectified,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=kfault)
+                            slip_unrectified,success=fakequakes.make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip,max_slip,lognormal=False,seed=None)
+                            slip,rejected,percent_negative=fakequakes.rectify_slip(slip_unrectified,percent_reject=13)
+                            if rejected==True:
+                                print('... ... ... negative slip threshold exceeeded with %d%% negative slip. Recomputing...' % (percent_negative))
+                    else:
+                        #Get lognormal values
+                        C_log,mean_slip_log=fakequakes.get_lognormal(mean_slip,C,target_Mw[kmag],fault_array,vel_mod_file,slip_standard_deviation)               
+                        #Get eigen values and eigenvectors
+                        eigenvals,V=fakequakes.get_eigen(C_log)
+                        #Generate fake slip pattern
+    #                    slip,success=make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=kfault)
+                        slip,success=fakequakes.make_KL_slip(fault_array,num_modes,eigenvals,V,mean_slip_log,max_slip,lognormal=True,seed=None)
+                else:  # This will produce depth-dependent slip (uniform if velocity model doesn't change)
+                    slip=mean_slip
+                    success=True
             
                 #Slip pattern sucessfully made, moving on.
                 #Rigidities
@@ -206,7 +212,8 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 #Calculate moment and magnitude of fake slip pattern
                 M0=sum(slip*fault_out[ifaults,10]*fault_out[ifaults,11]*mu[ifaults])
                 Mw=(2./3)*(log10(M0)-9.1)
-                
+                rupture_area = sum(fault_out[ifaults,10]*fault_out[ifaults,11])
+
                 #Check max_slip_rule
                 if max_slip_rule==True:
                     
@@ -217,9 +224,13 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                         success = False
                         print('... ... ... max slip condition violated max_slip_rule, recalculating...')
                 
-                #Force to target magnitude
-                if force_magnitude==True:
-                    M0_target=10**(1.5*target_Mw[kmag]+9.1)
+                if force_magnitude==True or NZNSHM_scaling==True:
+                    #Force to target magnitude
+                    if force_magnitude==False and NZNSHM_scaling==True:
+                        Mw = log10(rupture_area * 1e-6) + 4   # Select magnitude based on the area of the rupture
+                        M0_target = 10**(1.5*Mw+9.1)
+                    elif force_magnitude==True:
+                        M0_target=10**(1.5*target_Mw[kmag]+9.1)
                     M0_ratio=M0_target/M0
                     #Multiply slip by ratio
                     slip=slip*M0_ratio
@@ -241,6 +252,8 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             stoc_rake=fakequakes.get_stochastic_rake(rake,len(slip))
             fault_out[ifaults,15]=stoc_rake
             
+            # Set minimum slip to 10 mm for rupture_patches
+            slip[slip < slip_tol] = slip_tol
             #Place slip values in output variable
             fault_out[ifaults,8]=slip*cos(deg2rad(stoc_rake))
             fault_out[ifaults,9]=slip*sin(deg2rad(stoc_rake))
@@ -322,9 +335,9 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 slip = ((fault_out[:,8] ** 2 + fault_out[:,9] ** 2) ** 0.5).reshape(fault_out.shape[0], 1)
                 fault_out = fault_out[:,[0,1,2,3,15]]
                 fault_out = hstack([fault_out, slip])
-                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.2f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)')
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%.2f\t%5.3f',header='No\tlon\tlat\tz(km)\trake(deg)\ttotal-slip(m)')
             else:
-                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.2f\t%5.2f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
+                savetxt(outfile,fault_out,fmt='%d\t%10.6f\t%10.6f\t%8.4f\t%7.2f\t%7.2f\t%4.1f\t%5.3f\t%5.3f\t%5.2f\t%10.2f\t%10.2f\t%5.2f\t%.6e\t%.6e\t%.2f',header='No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-slip(m)\tds-slip(m)\tss_len(m)\tds_len(m)\trupt_time(s)\trigidity(Pa)\tvelocity(km/s)\trake(deg)')
             
             #Write log file
             logfile=home+project_name+'/output/ruptures/'+run_name+'.'+run_number+'.log'
@@ -354,6 +367,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             f.write('Average Rupture Velocity (km/s): %.9e\n' % avg_vrupt)
             f.write('Avg. length: %.2f km\n' % Lmean)
             f.write('Avg. width: %.2f km\n' % Wmean)
+            f.write('Rupture Area: '+str(rupture_area)+' m^2\n')
             f.write('Class: %d type' % option)
             # f.write('Average Risetime (s): %.2f\n' % avg_rise)
             # f.write('Average Rupture Velocity (km/s): %.2f' % avg_vrupt)
@@ -468,6 +482,11 @@ if __name__ == '__main__':
             NZNSHM_scaling=True
         if NZNSHM_scaling=='False':
             NZNSHM_scaling=False
+        stochastic_slip=sys.argv[43]
+        if stochastic_slip=='True':
+            stochastic_slip=True
+        else:
+            stochastic_slip=False
         
         run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
         load_distances,distances_name,UTM_zone,tMw,model_name,hurst,Ldip,Lstrike,
@@ -475,7 +494,7 @@ if __name__ == '__main__':
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset,NZNSHM_scaling)
+        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset,NZNSHM_scaling,stochastic_slip)
     else:
         print("ERROR: You're not allowed to run "+sys.argv[1]+" from the shell or it does not exist")
         

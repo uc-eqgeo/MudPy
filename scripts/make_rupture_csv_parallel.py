@@ -4,7 +4,7 @@ import pandas as pd
 import os
 from multiprocessing import Pool
 
-def write_block(rupture_list, end, columns, rake=False):
+def write_block(rupt_name, rupture_list, end, columns, rake=False):
     if rake:
         print(f'Writing block {end} with rake')
         rake_tag = '_rake'
@@ -22,8 +22,15 @@ def write_block(rupture_list, end, columns, rake=False):
             displacement[2:] = (rupture['ss-slip(m)'] ** 2 + rupture['ds-slip(m)'] ** 2) ** 0.5
         with open(rupture_file.replace('.rupt', '.log')) as fid:
             lines = fid.readlines()
-            displacement[0] = float(lines[16].strip('\n').split()[-1])  # Actual Magnitude
-            displacement[1] = float(lines[15].strip('\n').split()[-1])  # Target Magnitude
+            # Sometimes log files aren't produced if task arrays are killed early.
+            # This adds a check to remove the rupture file if the log file is missing.
+            try:
+                displacement[0] = float(lines[16].strip('\n').split()[-1])  # Actual Magnitude
+                displacement[1] = float(lines[15].strip('\n').split()[-1])  # Target Magnitude
+            except:
+                print(f'{rupture_file}')
+                os.remove(rupture_file)
+                os.remove(rupture_file.replace('.rupt', '.log'))
         block_df.loc[index] = displacement
         if rake and 'rake(deg)' in rupture.columns:
             rakes = np.zeros(n_patches + 2)
@@ -33,10 +40,32 @@ def write_block(rupture_list, end, columns, rake=False):
             block_df.loc[index + '_rake'] = rakes
 
     block_df.index.name = 'rupt_id'
-    block_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{end}{rake_tag}_block.csv')), header=True)
+    block_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{end}{rake_tag}_block.csv')), header=True)
 
-rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures'
-rupture_list = glob(f'{rupture_dir}\\hikkerk3D_locking_NZNSHMscaling*.rupt')
+rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures\\'
+rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output/ruptures/'
+
+run_name = 'hikkerk_prem'
+locking_model = False
+NZNSHM_scaling = True
+uniform_slip = True
+
+if locking_model:
+    rupt_name = run_name + '_locking'
+else:
+    rupt_name = run_name + '_nolocking'
+
+if NZNSHM_scaling:
+    rupt_name += '_NZNSHMscaling'
+else:
+    rupt_name += '_noNZNSHMscaling'
+
+if uniform_slip:
+    rupt_name += '_uniformSlip'
+
+print(f'Preparing {rupt_name}...')
+
+rupture_list = glob(f'{rupture_dir}{rupt_name}.*.rupt')
 
 rake = True
 if rake:
@@ -60,14 +89,14 @@ num_threads_plot = 20
 
 if __name__ == '__main__':
     with Pool(processes=num_threads_plot) as block_pool:
-        block_pool.starmap(write_block, [(rupture_list[start:end], end, columns, rake) for start, end in zip(block_starts, block_ends)])
+        block_pool.starmap(write_block, [(rupt_name, rupture_list[start:end], end, columns, rake) for start, end in zip(block_starts, block_ends)])
 
     rupture_df.index.name = 'rupt_id'
-    rupture_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}{rake_tag}.csv')))
+    rupture_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{n_ruptures}{rake_tag}.csv')))
 
     for block in block_starts + block_size:
         print(f"Merging block {block}...", end='\r')
-        rupture_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{block}{rake_tag}_block.csv')))
-        rupture_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}{rake_tag}.csv')), mode='a', header=False, index=False)
+        rupture_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{block}{rake_tag}_block.csv')))
+        rupture_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{n_ruptures}{rake_tag}.csv')), mode='a', header=False, index=False)
 
-    print("\nCompleted! :) ", os.path.abspath(os.path.join(rupture_dir, "..", f'rupture_df_n{n_ruptures}{rake_tag}.csv')))
+    print(f"\nCompleted {rupture_df.shape[0] - 1} ruptures! :) ", os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{n_ruptures}{rake_tag}.csv')))
