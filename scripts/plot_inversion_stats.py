@@ -26,8 +26,8 @@ n_ruptures = 5000
 slip_weight = 10
 norm_weight = 1
 GR_weight = 500
-max_iter = 1e6
-bn_combo = 3
+max_iter = 5e5
+bn_combo = 2
 b, N = bn_dict[bn_combo]
 plot_ruptures = False   # Plot sample ruptures
 min_Mw, max_Mw = 6.5, 9.5
@@ -102,6 +102,7 @@ if n_runs > 1:
 
 gr_matrix = np.zeros((bins_list[0].shape[0], ruptures_list[0].shape[0])).astype('bool')
 rupture_matrix = np.zeros((ruptures_list[0].shape[0], ruptures_list[0].shape[0])).astype('bool')
+rupture_bin_matrix = np.zeros((ruptures_list[0].shape[0], ruptures_list[0].shape[0])).astype('bool')
 
 for ix, mag in enumerate(bins_list[0]['Mw_bin']):
     gr_matrix[ix, :] = (np.round(ruptures_list[0]['Mw'], 1) >= mag)
@@ -109,7 +110,9 @@ gr_matrix = gr_matrix.astype('int')
 
 for ix, mag in enumerate(ruptures_list[0]['Mw']):
     rupture_matrix[ix, :] = (ruptures_list[0]['Mw'] >= mag)
+    rupture_bin_matrix[ix, :] = (ruptures_list[0]['Mw'] == mag)
 rupture_matrix = rupture_matrix.astype('int')
+rupture_bin_matrix = rupture_bin_matrix.astype('int')
 
 for run in range(n_runs):
     inverted_bins_list = []
@@ -122,8 +125,10 @@ for run in range(n_runs):
         lim_ix = np.where(bins['upper'] != 0)[0]
         if plot_results:
             inverted_rate = np.matmul(rupture_matrix, ruptures[island])
+            inverted_rate_bins = np.matmul(rupture_bin_matrix, ruptures[island])
             inverted_bins = np.matmul(gr_matrix, ruptures[island])
             inverted_rate[inverted_rate == 0] = 1e-10
+            inverted_rate_bins[inverted_rate_bins == 0] = 1e-10
             inverted_bins[inverted_bins == 0] = 1e-10
             ruptures[ruptures[island] == 0] = 1e-10
             inverted_bins_list.append(inverted_bins)
@@ -145,6 +150,9 @@ for run in range(n_runs):
                 #sns.histplot(x=ruptures['Mw'], y=np.log10(ruptures[island]), binwidth=binwidth, zorder=0)
                 # sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures[island]), s=2, label='Inverted rate', color='orange', edgecolors=None, zorder=2)
                 sns.scatterplot(x=ruptures['Mw'], y=np.log10(inverted_rate), s=10, color='red', label='Inverted GR', edgecolors=None, zorder=5)
+                sns.scatterplot(x=ruptures['Mw'], y=np.log10(inverted_rate_bins), s=10, color='orange', label='Inverted Rate Bins', edgecolors=None, zorder=5)
+                sns.scatterplot(x=bins_list[0].Mw_bin, y=np.log10(inverted_bins), s=10, color='blue', label='Inverted Bins', edgecolors=None, zorder=5)
+
             plt.ylabel('log10(N)')
             plt.xlim([min_Mw, max_Mw])
             plt.ylim([-11, 3])
@@ -152,6 +160,7 @@ for run in range(n_runs):
             plt.title(f" {input_tag} {max_iter} {island}")
         # if plot_results:
         #     sns.scatterplot(x=bins['Mw_bin'], y=np.log10(inverted_bins + 1e-12), s=15, label=f'Inverted Bins {n_iter[order[run]]}', edgecolors=None)
+        plt.savefig(f"{outdir}\\{input_tag}_GR_{island}.pdf", dpi=300, format='pdf')
         plt.show()
 # %% Plot rate comparisons
 if plot_results:
@@ -417,7 +426,7 @@ for ix, patch in enumerate(patch_numbers):
             continue
         patch_gr_df.loc[non_inf, patch] = np.log10(n_value[non_inf])
 
-        b, a = np.linalg.lstsq(np.hstack([patch_gr_df['Mw'].values[non_inf].reshape(-1, 1) * -1, np.ones((sum_non_inf, 1))]), 
+        b, a = np.linalg.lstsq(np.hstack([patch_gr_df['Mw'].values[non_inf].reshape(-1, 1) * -1, np.ones((sum_non_inf, 1))]),
                                patch_gr_df[patch].values[non_inf].astype(float).reshape(-1, 1), rcond = None)[0]
         patch_ba.loc[patch] = {'Lon': np.mod(deficit[patch, 1], 360), 'Lat': deficit[patch, 2], 'b': b[0], 'a': a[0], 'N': 10 ** (a[0] - b[0] * 5)}
         mod_gr_df[patch] = a - b * mod_gr_df['Mw']
