@@ -13,6 +13,18 @@ bn_combo = 2
 
 b, N = bn_dict[bn_combo]
 
+fault_name = "hikkerk"
+velmod = "3e10"
+locking = False
+NZNSHMscaling = True
+uniformSlip = True
+GR_inv_min = 7.0
+GR_inv_max = 9.0
+
+lock = "_locking" if locking else "_nolocking"
+NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
+uniform = "_uniformSlip" if uniformSlip else ""
+
 n_ruptures = 5000
 slip_weight = 10
 gr_weight = 500
@@ -20,16 +32,17 @@ norm_weight = 1
 n_iterations = 5e5
 n_archipeligos = 10
 island = 0
-rupture_csv = 'rupture_df_n50000.csv'
+rupture_csv = f'{fault_name}_{velmod}{lock}{NZNSHM}{uniform}_df_n50000.csv'
 zero_rate = 1e-6
 
-prep_occ = False
+prep_occ = True
 remove_zero_rates = True  # Only removed in the occ data format, not in the merged results
 
-rupture_dir = "C:\\Users\\jmc753\Work\\MudPy\\cluster_processing\\output\\nesi_Final_NZNSHMScaled"
-model_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\data\\model_info"
-occ_home_dir = "C:\\Users\\jmc753\\Work\\occ-coseismic"
-deficit_file = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\data\\model_info\\hk_hires.slip"
+procdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk"
+rupture_dir = f"{procdir}\\output\\FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}"
+model_dir = f"{procdir}\\data\\model_info"
+occ_home_dir = "Z:\\McGrath\\occ-coseismic"
+deficit_file = f"{procdir}\\data\\model_info\\hk_hires.slip"
 rupture_csv = os.path.abspath(os.path.join(rupture_dir, "..", rupture_csv))
 
 if norm_weight is not None:

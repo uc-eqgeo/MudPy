@@ -12,7 +12,7 @@ Script for running multiple subsets of full rupture catalgoue
 start = time()
 # %% Define Parameters
 # Naming and inputs
-inversion_name = 'FQ_3e10_nolock_GR70-90'  # Name of directory results will be stored in
+inversion_name = 'FQ_3e10_nolocking_GR70-90'  # Name of directory results will be stored in
 deficit_file = "hk_hires.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
 rupture_file = "rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
 n_ruptures = 5000  # Number of ruptures to use in each island
@@ -45,11 +45,11 @@ if 'rccuser' in os.getcwd():
     deficit_file = f"{procdir}/model_info/hk_hires.slip"
 elif 'uc03610' in os.getcwd():
     procdir = "/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output"
-    deficit_file = f"{procdir}/../data/model_info/slip_deficit_trenchlock.slip"
+    deficit_file = f"{procdir}/../data/model_info/hk_hires.slip"
     rupture_file = "rupture_df_n50000.csv"
 else:
     procdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output"
-    deficit_file = f"{procdir}/../data\\model_info\\slip_deficit_trenchlock.slip"
+    deficit_file = f"{procdir}/../data\\model_info\\hk_hires.slip"
 
 outdir = os.path.abspath(os.path.join(procdir, inversion_name))
 if not os.path.exists(outdir):
