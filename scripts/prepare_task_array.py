@@ -19,10 +19,12 @@ else:
     rupt_name += '_noNZNSHMscaling'
 
 if uniform_slip:
-    rupt_name += '_uniformSlip'
+    rupt_name += '_uniformSlip.'
+else:
+    rupt_name += '.'
 
-print("Searching for", rupture_dir + '/' + rupt_name + '.*.rupt')
-rupt_list = glob(rupture_dir + '/' + rupt_name + '.*.rupt')
+print("Searching for", rupture_dir + '/' + rupt_name + '*.rupt')
+rupt_list = glob(rupture_dir + '/' + rupt_name + '*.rupt')
 rupt_list.sort()
 
 min_mw = 6.5
@@ -62,7 +64,7 @@ if max_mw > bins[-1]:
 array_bins = np.unique(np.round(np.append(array_bins, max_mw), 4))
 array_bins = array_bins[np.where(array_bins >= min_mw)[0][0]:]
 
-array_file = 'task_arrays_' + rupt_name + '.txt'
+array_file = 'task_arrays_' + rupt_name + 'txt'
 
 f=open(array_file,'w')
 
@@ -81,7 +83,7 @@ for ix, mw in enumerate(array_bins[:-1]):
         # Rounding nonsense due to numpy floating point errors
         for mwn in np.arange(round(mw / mw_step), round(array_bins[ix + 1] / mw_step), round(mw_step / mw_step)):
             mws = f"{mwn * mw_step:.2f}"
-            check_list += [f"{rupture_dir}/{rupt_name}.Mw{mws.replace('.','-')}_{str(n).rjust(6,'0')}.rupt" for n in range(n_start, n_end)]
+            check_list += [f"{rupture_dir}/{rupt_name}Mw{mws.replace('.','-')}_{str(n).rjust(6,'0')}.rupt" for n in range(n_start, n_end)]
             
         total_rupts = len(set(check_list))
         yet_to_make = len(set(check_list) - set(rupt_list))

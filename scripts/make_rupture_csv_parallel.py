@@ -40,8 +40,8 @@ def write_block(rupt_name, rupture_list, end, columns, rake=False):
     block_df.index.name = 'rupt_id'
     block_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{end}{rake_tag}_block.csv')), header=True)
 
-rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures\\'
-rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output/ruptures/'
+rupture_dir = '/mnt/z\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\'
+#rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output/ruptures/'
 
 run_name = 'hikkerk_3e10'
 locking_model = False
@@ -61,10 +61,14 @@ else:
 
 if uniform_slip:
     rupt_name += '_uniformSlip'
+else:
+    rupt_name += '.'
+
+rupt_name += '*.rupt'
 
 print(f'Preparing {rupt_name}...')
 
-rupture_list = glob(f'{rupture_dir}{rupt_name}.*.rupt')
+rupture_list = glob(f'{rupture_dir}{rupt_name}')
 
 if rake:
     rake_tag = '_rake'
