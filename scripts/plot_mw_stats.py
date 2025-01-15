@@ -12,8 +12,8 @@ import seaborn as sns
 import pandas as pd
 import os
 
-velmod = '3e10'
-locking = False
+velmod = 'prem'
+locking = True
 NZSHM = True
 uniformSlip = False
 force_Mw = False
@@ -31,14 +31,16 @@ else:
 if uniformSlip:
     tag += '_uniformSlip'
 else:
-    tag += '.'
+    tag += ''
 
 if force_Mw:
     tag += '_forceMw'
 
+tag += '.'
+
 logs = glob(f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\hikkerk_{tag}*.log")
 logs.sort()
-stats_csv = os.path.abspath(os.path.join(os.path.dirname(logs[0]), '..', f'hikkerk_{tag}_rupture_stats.csv'))
+stats_csv = os.path.abspath(os.path.join(os.path.dirname(logs[0]), '..', f'hikkerk_{tag.strip(".")}rupture_stats.csv'))
 
 remake_csv = True
 min_mw = 6
