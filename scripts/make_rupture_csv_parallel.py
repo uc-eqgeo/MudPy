@@ -40,11 +40,14 @@ def write_block(rupt_name, rupture_list, end, columns, rake=False):
     block_df.index.name = 'rupt_id'
     block_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{end}{rake_tag}_block.csv')), header=True)
 
-rupture_dir = '/mnt/z\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\'
+if '/mnt/' in os.getcwd():
+    rupture_dir = '/mnt/z/McGrath/HikurangiFakeQuakes/hikkerk/output/ruptures/'
+else:
+    rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\'
 #rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output/ruptures/'
 
-run_name = 'hikkerk_3e10'
-locking_model = False
+run_name = 'hikkerk_prem'
+locking_model = True
 NZNSHM_scaling = True
 uniform_slip = False
 rake = False
@@ -66,7 +69,7 @@ else:
 
 rupt_name += '*.rupt'
 
-print(f'Preparing {rupt_name}...')
+print(f'Globbing {rupture_dir}{rupt_name} ...')
 
 rupture_list = glob(f'{rupture_dir}{rupt_name}')
 
@@ -78,6 +81,8 @@ else:
 n_ruptures = len(rupture_list)  # Number of ruptures
 rupture_list = [rupture_list[ix] for ix in np.random.permutation(n_ruptures)]
 print(f"{n_ruptures} found")
+if n_ruptures != 50000:
+    raise Exception("Incorrect number of ruptures")
 deficit = np.genfromtxt(rupture_list[0])
 n_patches = deficit.shape[0]  # Number of patches
 columns = ['mw', 'target_mw'] + [patch for patch in range(n_patches)]
@@ -86,9 +91,9 @@ rupture_df = pd.DataFrame(columns=columns)
 block_size = 1000
 block_starts = np.arange(0, n_ruptures, block_size)
 block_ends = block_starts + block_size
-num_threads_plot = 15
+num_threads_plot = 10
 
-
+rupt_name = rupt_name.replace('*.rupt','').strip('.')
 if __name__ == '__main__':
     with Pool(processes=num_threads_plot) as block_pool:
         block_pool.starmap(write_block, [(rupt_name, rupture_list[start:end], end, columns, rake) for start, end in zip(block_starts, block_ends)])
