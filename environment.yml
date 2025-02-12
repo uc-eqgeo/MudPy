@@ -11,3 +11,4 @@ dependencies:
  - geopandas
  - pygmo
  - pyarrow
+ - obspy
