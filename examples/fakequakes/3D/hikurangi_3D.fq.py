@@ -2,7 +2,6 @@
 Parameter file for 3D fakequakes run
 '''
 
-
 from mudpy import fakequakes,runslip,forward
 import numpy as np
 from obspy.core import UTCDateTime
@@ -10,16 +9,16 @@ import os
 
 
 ########                            GLOBALS                             ########
-home='C:/Users/jmc753/Work/MudPy/examples/fakequakes/3D/'
-home='Z:/McGrath/HikurangiFakeQuakes/'
+home='C:/Users/jdmcg/Documents/MudPy/'
+home='/mnt/c/Users/jdmcg/Documents/MudPy/'
 project_name='hikkerk' # Directory name
 run_name='hikkerk' # Name for this run
-run_base_name='hikkerk_prem'
+run_base_name='hikkerk'
 ################################################################################
 
 
 ##############             What do you want to do??           ##################
-init=0
+init=1
 make_ruptures=1
 make_GFs=0
 make_synthetics=0
@@ -95,9 +94,9 @@ high_stress_depth=30 # SMGA must be below this depth (measured in km)
 rake='vary' # average rake, or 'vary' for variable rake based off fault model
 rise_time = 'MH2017'
 rise_time_depths=[10,15] #Transition depths for rise time scaling (if slip shallower than first index, rise times are twice as long as calculated)
-mean_slip_name=home+project_name+'/data/model_info/'+'hk_hires.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
+mean_slip_name=home+project_name+'/data/model_info/'+'hk_locked.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 mean_slip_name=None
-uniform_slip=True # If true, skip the stochastic aspect of this whole process and just use relatively uniform slip based on velocity model (equivialent to VAUS of Davies 2019)
+uniform_slip=False # If true, skip the stochastic aspect of this whole process and just use relatively uniform slip based on velocity model (equivialent to VAUS of Davies 2019)
 shear_wave_fraction=0.8
 calculate_rupture_onset=False # Calcualte rupture onset times. Slow, and useful for some applications, but not really for just generating ruptures
 

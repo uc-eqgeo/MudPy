@@ -2,7 +2,7 @@ name: fakequakes
 channels:
   - conda-forge
 dependencies:
- - python>3.9
+ - python>3.12
  - numpy
  - scipy
  - matplotlib
@@ -12,3 +12,4 @@ dependencies:
  - pygmo
  - pyarrow
  - obspy
+ - meshio

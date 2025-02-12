@@ -4,6 +4,7 @@ import meshio
 from pyproj import Transformer
 import matplotlib.pyplot as plt
 import math
+import os
 
 def vector_to_bearing(vector):
     # Calculate the angle in radians
@@ -17,15 +18,16 @@ def vector_to_bearing(vector):
 
     return bearing
 
-mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
-vtk_file = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\hik_kerm_rates\\fq_hik_kerm_adjusted_lock_coarse.vtk'
+data_folder = '../data/'
+mesh_folder = data_folder
+vtk_file = 'fq_hik_kerm_adjusted_lock.vtk'
 
 sub_type = 'hk'
-outname = 'hk_hires'
+outname = 'hk_locked'
 
-data = np.load(f'{mesh_folder}\\subduction_quads\\{sub_type}_tile_outlines.npy')
+data = np.load(f'{mesh_folder}\\data\\{sub_type}_tile_outlines.npy')
 
-vtk = meshio.read(vtk_file)
+vtk = meshio.read(os.path.join(data_folder, vtk_file))
 
 
 patch_centers = np.mean(data, axis=1)
@@ -66,7 +68,7 @@ write_to_slip = True
 transformer = Transformer.from_crs("epsg:2193", "epsg:4326")
 
 if write_to_fault:
-    out_file = f"C:\\Users\\jmc753\\Work\\MudPy\\examples\\fakequakes\\3D\\hikkerk3D_test\\data\\model_info\\{outname}.fault"
+    out_file = os.path.join({data_folder}, f"{outname}.fault")
     with open(out_file, 'w') as fid:
         fid.write('# No.\tlon\tlat\tz\tstrike\tdip\ttyp\trt\tlength\twidth\trake\n')
         fid.write('#\t(deg)\t(deg)\t(km)\t(deg)\t(deg)\t()\t()\t(m)\t(m)\t(deg)\n')
@@ -79,7 +81,7 @@ if write_to_fault:
             ll[ix, :] = np.array([lon, lat])
 
 if write_to_slip:
-    out_file = f"C:\\Users\\jmc753\\Work\\MudPy\\examples\\fakequakes\\3D\\hikkerk3D_test\\data\\model_info\\{outname}.slip"
+    out_file = os.path.join({data_folder}, f"{outname}.slip")
     with open(out_file, 'w') as fid:
         fid.write('#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel\n')
         for ix, cell in enumerate(cell_centers):
