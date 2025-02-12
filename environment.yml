@@ -1,0 +1,13 @@
+name: fakequakes
+channels:
+  - conda-forge
+dependencies:
+ - python>3.9
+ - numpy
+ - scipy
+ - matplotlib
+ - pyproj
+ - pandas
+ - geopandas
+ - pygmo
+ - pyarrow
