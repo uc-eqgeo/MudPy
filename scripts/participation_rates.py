@@ -9,13 +9,39 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Define directories
-inversion_dir = 'C:\\Users\\jmc753\\Work\\MudPy\\cluster_processing\\output\\island_merge'
+inversion_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\'
+
+velmod = 'prem'
+locking = True
+NZSHM = True
+uniformSlip = False
+force_Mw = False
+
+if locking:
+    tag = velmod + '_locking'
+else:
+    tag = velmod + '_nolocking'
+
+if NZSHM:
+    tag += '_NZNSHMScaling'
+else:
+    tag += '_noNZNSHMScaling'
+
+if uniformSlip:
+    tag += '_uniformSlip'
+else:
+    tag += ''
+
+if force_Mw:
+    tag += '_forceMw'
+
+inversion_dir += 'FQ_' + tag.replace('uniformSlip', 'uniform').replace('_NZNSHMScaling', '').replace('_noNZNSHMScaling', '') + '_GR70-90'
 
 # Define flags for results csv
 n_ruptures = 5000
 slip_weight = 10
 norm_weight = 1
-gr_weight = 100
+gr_weight = 500
 n_its = 5e5
 archi = '-merged'
 islands = 10
@@ -23,13 +49,13 @@ b, N = 1.1, 21.5
 
 # %% No user inputs below here
 # Create filepaths
-rupture_csv = os.path.join(inversion_dir, '..', 'rupture_df_n50000.csv')  # CSV containing rupture slips
+rupture_csv = os.path.join(inversion_dir, '..', f'hikkerk_{tag}_df_n50000.csv')  # CSV containing rupture slips
 if norm_weight is not None:
     inv_file = f"n{int(n_ruptures)}_S{int(slip_weight)}_N{int(norm_weight)}_GR{int(gr_weight)}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{int(n_its)}_archi{archi}_inverted_ruptures.csv"
 else:
     inv_file = f"n{n_ruptures}_S{slip_weight}_GR{gr_weight}_nIt{n_its}_inverted_ruptures.csv"
 inv_file = os.path.join(inversion_dir, inv_file)
-patch_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\data\\model_info\\hk.fault'
+patch_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\data\\model_info\\hk.fault'
 
 inv_df = pd.read_csv(inv_file, sep='\t')
 

@@ -14,7 +14,7 @@ home='C:/Users/jmc753/Work/MudPy/examples/fakequakes/3D/'
 home='Z:/McGrath/HikurangiFakeQuakes/'
 project_name='hikkerk' # Directory name
 run_name='hikkerk' # Name for this run
-run_base_name='hikkerk_3e10'
+run_base_name='hikkerk_prem'
 ################################################################################
 
 
@@ -40,7 +40,7 @@ except TypeError:
     ncpus=1
 hot_start=0
 model_name='3e10_mu.mod'   # Velocity model
-#model_name='prem.mod'   # Velocity model
+model_name='prem.mod'   # Velocity model
 moho_depth_in_km=25.0
 fault_name='hk.fault'
 slab_name=None    # Slab 1.0 Ascii file
@@ -55,8 +55,8 @@ GF_list='hikkerk_gnss.gflist'
 G_name=run_name  #Name of G matrix for waveforms
 G_name_static=run_name+'_statics' #Name of G matrix for statics
 
-Nrealizations=10 # Number of fake ruptures to generate per magnitude bin
-target_Mw=np.round(np.arange(9.4,9.41,0.01),4) # Of what approximate magnitudes
+Nrealizations=100 # Number of fake ruptures to generate per magnitude bin
+target_Mw=np.round(np.arange(9.2,9.21,0.01),4) # Of what approximate magnitudes
 max_slip=100 #Maximum sip (m) allowed in the model
 max_slip_rule=True #restrict max slip to 3 times Allen & Hayes 2017
 

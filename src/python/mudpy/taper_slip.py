@@ -5,20 +5,40 @@ import geopandas as gpd
 from glob import glob
 
 # %% Prepare global variables
-project_dir = 'Z:/McGrath/HikurangiFakeQuakes/hikkerk3D_hires/'
+project_dir = '/mnt/z/McGrath/HikurangiFakeQuakes/hikkerk/'
 rupture_dir = project_dir + 'output/ruptures/'
 fault_name = 'hk.fault'
 taper_length = 1e4  # Set to zero to revert to untapered length
 taper_method = 'linear'
 
+run_name = 'hikkerk_prem'
+locking_model = True
+NZNSHM_scaling = True
+uniform_slip = False
+
 min_mw = 8.5
 max_mw = 9.5
 
-print('Loading Fault')
+if locking_model:
+    rupt_name = run_name + '_locking'
+else:
+    rupt_name = run_name + '_nolocking'
+
+if NZNSHM_scaling:
+    rupt_name += '_NZNSHMscaling'
+else:
+    rupt_name += '_noNZNSHMscaling'
+
+if uniform_slip:
+    rupt_name += '_uniformSlip'
+
+rupt_name += '.*.rupt'
+
+print('Loading Fault:', fault_name)
 fault = pd.read_csv(project_dir + '/data/model_info/' + fault_name, sep='\t').drop(0).astype(float)
 
-print("Identifying ruptures")
-rupture_list = glob(f'{rupture_dir}/*_??????.rupt')
+print(f"Identifying ruptures: {rupt_name}")
+rupture_list = glob(f'{rupture_dir}/{rupt_name}')
 rupture_list.sort()
 
 # %% Loop through ruptures
@@ -58,6 +78,11 @@ for ix, rupture_file in enumerate(rupture_list[::-1]):
     # Identify slip and no slip patches
     no_slip_patches = rupt_gpd[rupt_gpd['total-slip(m)'] == 0]
     slip_patches = rupt_gpd[rupt_gpd['total-slip(m)'] > 0]
+
+    # Skip if all patches are ruptured
+    if no_slip_patches.shape[0] == 0:
+        print(f'\t{ix}/{len(rupture_list)}:', end='\r')
+        continue
 
     # Calculate distance of slip patches to no slip patches using KDTree
     zero_tree = KDTree(no_slip_patches.geometry.apply(lambda x: (x.x, x.y)).tolist())

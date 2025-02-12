@@ -1,7 +1,6 @@
 #%% fakequakes2occ
 
 import os
-import shutil
 import numpy as np
 import pandas as pd
 
@@ -15,9 +14,9 @@ b, N = bn_dict[bn_combo]
 
 fault_name = "hikkerk"
 velmod = "3e10"
-locking = False
+locking = True
 NZNSHMscaling = True
-uniformSlip = True
+uniformSlip = False
 GR_inv_min = 7.0
 GR_inv_max = 9.0
 
@@ -27,7 +26,7 @@ NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
 uniform = "_uniformSlip" if uniformSlip else ""
 
 n_ruptures = 5000
-slip_weight = 10
+slip_weight = 1000
 gr_weight = 500
 norm_weight = 1
 n_iterations = 5e5
@@ -36,14 +35,20 @@ island = 0
 rupture_csv = f'{fault_name}_{velmod}{lock}{NZNSHM}{uniform}_df_n50000.csv'
 zero_rate = 1e-6
 
-prep_occ = True
+prep_occ = False
 remove_zero_rates = True  # Only removed in the occ data format, not in the merged results
 
 procdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk"
-rupture_dir = f"{procdir}\\output\\FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}"
-model_dir = f"{procdir}\\data\\model_info"
 occ_home_dir = "Z:\\McGrath\\occ-coseismic"
-deficit_file = f"{procdir}\\data\\model_info\\hk_hires.slip"
+if 'mnt' in os.getcwd():
+    drive = procdir.split(':\\')[0]
+    procdir = '/mnt/' + drive.lower() + '/' + '/'.join(procdir.split(':\\')[1].split('\\'))
+    drive = occ_home_dir.split(':\\')[0]
+    occ_home_dir = '/mnt/' + drive.lower() + '/' + '/'.join(occ_home_dir.split(':\\')[1].split('\\'))
+
+rupture_dir = os.path.join(procdir, 'output', f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}")
+model_dir = os.path.join(procdir, 'data', 'model_info')
+deficit_file = os.path.join(procdir, 'data', 'model_info', 'hk_hires.slip')
 rupture_csv = os.path.abspath(os.path.join(rupture_dir, "..", rupture_csv))
 
 norm = f"_N{int(norm_weight)}" if norm_weight is not None else ""
@@ -66,7 +71,7 @@ inversion_df = pd.read_csv(inversion_file, sep='\t')
 archi_df = inversion_df.copy()
 rates = np.hstack([rates, inversion_df[isl].values])
 
-print(f'Reading from {os.path.basename(rupture_dir)}')
+print(f'Reading from {os.path.basename(rupture_dir)}/{tag}')
 for a in range(1, n_archipeligos):
     print(f"Reading archipeligo {a}")
     inversion_file = os.path.join(rupture_dir, f"{tag}_archi{a}_inverted_ruptures.csv")
@@ -84,6 +89,8 @@ deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
 n_patches = deficit.shape[0]
 i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(str(n_patches - 1)) + 1
 slip_array = ruptures_df.iloc[:, i0:i1].values.T * 1000  # convert to mm
+#archi_df['inverted_rate_0'] = np.where(archi_df['Mw'] > 9.2, 0, archi_df['inverted_rate_0']) # Test impact of removing largest ruptures
+#archi_df['inverted_rate_0'] = np.where(archi_df['inverted_rate_0'] < 1e-5 0, archi_df['inverted_rate_0']) # Test impact of lowest rupture_rates
 
 inverted_slip = np.matmul(slip_array, archi_df['inverted_rate_0'].values)
 

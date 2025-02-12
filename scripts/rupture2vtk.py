@@ -13,14 +13,14 @@ mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
 mesh_name = 'hik_kerk3k_with_rake.vtk'
 
-plot_ruptures = False
+plot_ruptures =True
 n_ruptures = 5000
 
 fault_name = "hikkerk"
 velmod = "3e10"
-locking = False
+locking = True
 NZNSHMscaling = True
-uniformSlip = True
+uniformSlip = False
 GR_inv_min = 7.0
 GR_inv_max = 9.0
 
@@ -30,7 +30,7 @@ uniform = "_uniformSlip" if uniformSlip else ""
 
 inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}"
 
-file_keyword = 'archi-merged'
+file_keyword = 'Mw9-08_000010'
 
 write_geojson = True
 
