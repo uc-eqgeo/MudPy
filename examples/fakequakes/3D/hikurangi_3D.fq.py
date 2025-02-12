@@ -10,10 +10,14 @@ import os
 
 ########                            GLOBALS                             ########
 home='C:/Users/jdmcg/Documents/MudPy/'
-home='/mnt/c/Users/jdmcg/Documents/MudPy/'
 project_name='hikkerk' # Directory name
 run_name='' # Ignore this (unneeded)
 run_base_name='plate70' # Name for this rupture set
+
+# Check to see if root is actually /mnt adjust accordingly
+if not ':' in os.path.abspath(os.sep):
+    root = home.split(':')[0]
+    home = os.path.join(os.path.abspath(os.sep), 'mnt', root.lower(), home.split(':')[1][1:])
 ################################################################################
 
 
