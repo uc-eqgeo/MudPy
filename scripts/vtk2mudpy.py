@@ -65,7 +65,7 @@ else:
 
 ll = np.zeros((patch_centers.shape[0], 2))
 
-write_to_fault = False  # Write out the patch geometry to .fault file
+write_to_fault = True  # Write out the patch geometry to .fault file
 write_to_slip = True  # Write out slip deficit to .slip file that matches .fault
 write_vtk_to_slip = False  # Write out slip deficit to .slip file that matches the input VTK file
 
@@ -74,7 +74,7 @@ transformer = Transformer.from_crs("epsg:2193", "epsg:4326")
 
 if write_to_fault:
     print("Write out fault geometry file")
-    out_file = os.path.join(data_folder, f"{sub_type}_{outname}.fault")
+    out_file = os.path.join(data_folder, f"{sub_type}.fault")
     with open(out_file, 'w') as fid:
         fid.write('# No.\tlon\tlat\tz\tstrike\tdip\ttyp\trt\tlength\twidth\trake\n')
         fid.write('#\t(deg)\t(deg)\t(km)\t(deg)\t(deg)\t()\t()\t(m)\t(m)\t(deg)\n')
