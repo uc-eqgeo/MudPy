@@ -12,13 +12,13 @@ import os
 home='C:/Users/jdmcg/Documents/MudPy/'
 home='/mnt/c/Users/jdmcg/Documents/MudPy/'
 project_name='hikkerk' # Directory name
-run_name='hikkerk' # Name for this run
-run_base_name='hikkerk'
+run_name='' # Ignore this (unneeded)
+run_base_name='plate70' # Name for this rupture set
 ################################################################################
 
 
 ##############             What do you want to do??           ##################
-init=1
+init=0
 make_ruptures=1
 make_GFs=0
 make_synthetics=0
@@ -38,7 +38,6 @@ try:
 except TypeError:
     ncpus=1
 hot_start=0
-model_name='3e10_mu.mod'   # Velocity model
 model_name='prem.mod'   # Velocity model
 moho_depth_in_km=25.0
 fault_name='hk.fault'
@@ -54,8 +53,8 @@ GF_list='hikkerk_gnss.gflist'
 G_name=run_name  #Name of G matrix for waveforms
 G_name_static=run_name+'_statics' #Name of G matrix for statics
 
-Nrealizations=100 # Number of fake ruptures to generate per magnitude bin
-target_Mw=np.round(np.arange(9.2,9.21,0.01),4) # Of what approximate magnitudes
+Nrealizations=10 # Number of fake ruptures to generate per magnitude bin
+target_Mw=np.round(np.arange(6.5, 9.0, 0.1), 4) # Of what approximate magnitudes
 max_slip=100 #Maximum sip (m) allowed in the model
 max_slip_rule=True #restrict max slip to 3 times Allen & Hayes 2017
 
@@ -94,7 +93,7 @@ high_stress_depth=30 # SMGA must be below this depth (measured in km)
 rake='vary' # average rake, or 'vary' for variable rake based off fault model
 rise_time = 'MH2017'
 rise_time_depths=[10,15] #Transition depths for rise time scaling (if slip shallower than first index, rise times are twice as long as calculated)
-mean_slip_name=home+project_name+'/data/model_info/'+'hk_locked.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
+mean_slip_name=home+project_name+'/data/model_info/'+'hk_plate70.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 mean_slip_name=None
 uniform_slip=False # If true, skip the stochastic aspect of this whole process and just use relatively uniform slip based on velocity model (equivialent to VAUS of Davies 2019)
 shear_wave_fraction=0.8
