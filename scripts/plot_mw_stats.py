@@ -12,33 +12,44 @@ import seaborn as sns
 import pandas as pd
 import os
 
+velmod = 'prem'
 locking = True
 NZSHM = True
+uniformSlip = False
 force_Mw = False
 
 if locking:
-    tag = 'locking'
+    tag = velmod + '_locking'
 else:
-    tag = 'nolocking'
+    tag = velmod + '_nolocking'
 
 if NZSHM:
-    tag += '_NZNSHM'
+    tag += '_NZNSHMScaling'
 else:
-    tag += '_noNZNSHM'
+    tag += '_noNZNSHMScaling'
+
+if uniformSlip:
+    tag += '_uniformSlip'
+else:
+    tag += ''
 
 if force_Mw:
     tag += '_forceMw'
 
-logs = glob(f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures\\hikkerk3D_{tag}*.log")
-logs.sort()
-stats_csv = os.path.abspath(os.path.join(os.path.dirname(logs[0]), '..', 'rupture_stats.csv'))
+tag += '.'
 
-remake_csv = False
+logs = glob(f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\hikkerk_{tag}*.log")
+logs.sort()
+stats_csv = os.path.abspath(os.path.join(os.path.dirname(logs[0]), '..', f'hikkerk_{tag.strip(".")}rupture_stats.csv'))
+
+remake_csv = True
 min_mw = 6
 max_mw = 10
 if os.path.exists(stats_csv) and not remake_csv:
+    print(f'Loading from {os.path.basename(stats_csv)}....')
     mw_df = pd.read_csv(stats_csv)
 else:
+    print(f'Searching for hikkerk_{tag}*.log....')
     length = []
     width = []
     target = []
@@ -50,7 +61,6 @@ else:
     clat = []
     cz = []
     area = []
-    requested = 100  # Original request per mag bin
     for ix, log in enumerate(logs):
         print(f"Processing {ix + 1}/{len(logs)}", end='\r')
         if float(log.split('Mw')[1].split('_')[0].replace('-','.')) < min_mw:
@@ -156,7 +166,7 @@ plt.plot(sample_mw, sample_mw - 3.8, color='blue', linestyle=':', lw=0.5)
 plt.plot(sample_mw, sample_mw - 4.2, color='blue', linestyle=':', lw=0.5)
 plt.xlabel('Mw')
 plt.ylabel('log10(Area km^2)')
-plt.title(f"{tag} from logfile({len(logs)} ruptures)")
+plt.title(f"{tag} from logfile ({len(logs)} ruptures)")
 plt.xlim([6, 9.5])
 plt.ylim([1.5, 5.5])
 plt.show()
@@ -179,6 +189,7 @@ plt.plot(sample_mw, requested, color='red')
 #plt.axhline(requested)
 plt.axvline(mw_df['target'].min())
 plt.axvline(mw_df['target'].max())
+plt.title(f"{tag} ({len(logs)} ruptures)")
 plt.legend()
 plt.show()
 

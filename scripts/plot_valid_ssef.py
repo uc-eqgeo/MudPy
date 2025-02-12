@@ -40,7 +40,7 @@ ufkcoseis=np.zeros(stations.shape)
 for j in range(len(stations)):
     k=j
     sta=stations[k]
-    print j
+    print(j)
     #Read validation 1
     e_v1=lowpass(np.genfromtxt(val1+sta.lower()+'.syn',dtype="f8",usecols=0,skip_header=4),freq,df=1/dt1,zerophase=True)
     n_v1=lowpass(np.genfromtxt(val1+sta.lower()+'.syn',dtype="f8",usecols=1,skip_header=4),freq,df=1/dt1,zerophase=True)

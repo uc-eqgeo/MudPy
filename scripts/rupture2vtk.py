@@ -13,22 +13,34 @@ mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
 mesh_name = 'hik_kerk3k_with_rake.vtk'
 
-plot_ruptures = True
+plot_ruptures =True
 n_ruptures = 5000
-inversion_name = 'nesi_Final_NZNSHMScaled'
 
-file_keyword = 'archi-merged'
-file_keyword = '3e10*Mw9-4'
+fault_name = "hikkerk"
+velmod = "3e10"
+locking = True
+NZNSHMscaling = True
+uniformSlip = False
+GR_inv_min = 7.0
+GR_inv_max = 9.0
+
+lock = "_locking" if locking else "_nolocking"
+NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
+uniform = "_uniformSlip" if uniformSlip else ""
+
+inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}"
+
+file_keyword = 'Mw9-08_000010'
 
 write_geojson = True
 
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
-rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures"
-output_dir = f"C:\\Users\\jmc753\\Work\\MudPy\\cluster_processing\\output\\{inversion_name}"
+rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures"
+output_dir = f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\{inversion_name}"
 
 if plot_ruptures:
-    rupture_list = glob(f'{rupture_dir}\\*{file_keyword}*.rupt')
+    rupture_list = glob(f'{rupture_dir}\\{fault_name}_{velmod}{lock}{NZNSHM}{uniform}*{file_keyword}*.rupt')
 else:
     rupture_list = glob(os.path.abspath(f'{output_dir}\\n{n_ruptures}*{file_keyword}*.inv'))
 

@@ -73,14 +73,26 @@ mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 mesh_name = 'hik_kerk3k_with_rake.vtk'
 plot_every = 25  # Plot every nth rupture (-ve to plot from largest first)
 
+fault_name = "hikkerk"
+velmod = "3e10"
+locking = False
+NZNSHMscaling = True
+uniformSlip = True
+GR_inv_min = 7.0
+GR_inv_max = 9.0
+
+lock = "_locking" if locking else "_nolocking"
+NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
+uniform = "_uniformSlip" if uniformSlip else ""
+
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
-rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures\\'
+rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\'
 rupture_png_dir = os.path.abspath(os.path.dirname(rupture_dir) + '/..\\rupture_pngs\\')
 os.makedirs(rupture_png_dir, exist_ok=True)
 
 keyword = 'Mw9-49_000018'
-rupture_list = glob(f'{rupture_dir}\\*{keyword}*.rupt')
+rupture_list = glob(f'{rupture_dir}\\{fault_name}_{velmod}{lock}{NZNSHM}{uniform}*{keyword}*.rupt')
 rupture_list.sort()
 
 # xmin, ymin, xmax, ymax
