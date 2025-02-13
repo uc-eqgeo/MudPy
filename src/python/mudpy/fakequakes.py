@@ -1226,7 +1226,7 @@ def build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM'):
     #load background velocity structure
     if background_model=='PREM':
         
-        bg_model_file=environ['MUD']+'/src/aux/prem.nd'
+        bg_model_file=environ['MUD']+'/src/aux2/prem.nd'
         
         #Q values
         Qkappa=1300
@@ -1258,7 +1258,7 @@ def build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM'):
             ztop=zbot
 
         
-        #now read PREM file libe by libne and find appropriate depth tos tart isnerting
+        #now read PREM file line by line and find appropriate depth to start inserting
         fprem=open(bg_model_file,'r')
         found_depth=False
         

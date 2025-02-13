@@ -40,13 +40,13 @@ def write_block(rupt_name, rupture_list, end, columns, rake=False):
     block_df.index.name = 'rupt_id'
     block_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{end}{rake_tag}_block.csv')), header=True)
 
-if '/mnt/' in os.getcwd():
-    rupture_dir = '/mnt/z/McGrath/HikurangiFakeQuakes/hikkerk/output/ruptures/'
-else:
-    rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\'
-#rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output/ruptures/'
-
-run_name = 'hikkerk_prem'
+rupture_dir = 'C:\\Users\\jdmcg\\Documents\\MudPy\\hikkerk\\output\\ruptures\\'
+# Check to see if root is actually /mnt adjust accordingly
+if not ':' in os.path.abspath(os.sep):
+    root = rupture_dir.split(':')[0]
+    rupture_dir = os.path.join(os.path.abspath(os.sep), 'mnt', root.lower(), rupture_dir.split(':')[1][1:])
+    
+run_name = 'plate70'
 locking_model = True
 NZNSHM_scaling = True
 uniform_slip = False
@@ -81,18 +81,22 @@ else:
 n_ruptures = len(rupture_list)  # Number of ruptures
 rupture_list = [rupture_list[ix] for ix in np.random.permutation(n_ruptures)]
 print(f"{n_ruptures} found")
-if n_ruptures != 50000:
-    raise Exception("Incorrect number of ruptures")
+
 deficit = np.genfromtxt(rupture_list[0])
 n_patches = deficit.shape[0]  # Number of patches
 columns = ['mw', 'target_mw'] + [patch for patch in range(n_patches)]
 rupture_df = pd.DataFrame(columns=columns)
 
 block_size = 1000
+block_size = block_size if n_ruptures > block_size else n_ruptures
 block_starts = np.arange(0, n_ruptures, block_size)
 block_ends = block_starts + block_size
 num_threads_plot = 10
 
+n_blocks = block_starts.shape[0]
+num_threads_plot = num_threads_plot if n_blocks > num_threads_plot else n_blocks
+
+print(f"Using {num_threads_plot} threads for create rupture csv blocks...")
 rupt_name = rupt_name.replace('*.rupt','').strip('.')
 if __name__ == '__main__':
     with Pool(processes=num_threads_plot) as block_pool:
@@ -107,4 +111,4 @@ if __name__ == '__main__':
         rupture_df = pd.read_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{block}{rake_tag}_block.csv')))
         rupture_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{n_ruptures}{rake_tag}.csv')), mode='a', header=False, index=False)
         total_ruptures += rupture_df.shape[0]
-    print(f"\nCompleted {total_ruptures} ruptures! :) ", os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{n_ruptures}{rake_tag}.csv')))
+    print(f"\nCompleted {total_ruptures} ruptures! :) \n", os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{n_ruptures}{rake_tag}.csv')))

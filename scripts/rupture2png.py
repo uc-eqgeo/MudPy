@@ -9,9 +9,7 @@ from matplotlib.colors import LogNorm
 import os
 import pandas as pd
 import geopandas as gpd
-import sys
-sys.path.append('C:/Users/jmc753/Work/RSQSim/rsqsim-python-tools/src/rsqsim_api')
-from rsqsim_api.visualisation.utilities import plot_background
+from utilities import plot_background
 import pickle
 
 
@@ -107,7 +105,7 @@ if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')
     background = plot_background(plot_lakes=False, bounds=bounds,
                             plot_highways=False, plot_rivers=False, hillshading_intensity=0.3,
                             pickle_name=os.path.join(rupture_png_dir,'temp.pkl'), hillshade_fine=True,
-                            hillshade_kermadec=True,
+                            hillshade_kermadec=False,
                             plot_edge_label=False, figsize=(10, 10))
     new_pngs = True
 

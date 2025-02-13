@@ -13,7 +13,7 @@ bn_combo = 2
 b, N = bn_dict[bn_combo]
 
 fault_name = "hikkerk"
-velmod = "3e10"
+velmod = ""
 locking = True
 NZNSHMscaling = True
 uniformSlip = False
