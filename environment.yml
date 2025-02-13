@@ -13,3 +13,5 @@ dependencies:
  - pyarrow
  - obspy
  - meshio
+ - mpi4py
+ - openmpi
