@@ -12,10 +12,10 @@ Script for running multiple subsets of full rupture catalgoue
 start = time()
 # %% Define Parameters
 # Naming and inputs
-inversion_name = 'FQ_3e10_nolocking_GR70-90'  # Name of directory results will be stored in
-deficit_file = "hk_hires.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
-rupture_file = "rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
-n_ruptures = 5000  # Number of ruptures to use in each island
+inversion_name = 'FQ_plate_70_GR70-90'  # Name of directory results will be stored in
+deficit_file = "hk_plate70.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
+rupture_file = "plate70_locking_NZNSHMscaling_df_n250.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
+n_ruptures = 250  # Number of ruptures to use in each island
 
 b, N = 1.1, 21.5  # B and N values to use for the GR relation
 min_Mw = 7.0  # Minimum magnitude to use to match GR-Rate
@@ -27,9 +27,9 @@ norm_weight = 1  # Relative misfit of slip deficit (int)
 GR_weight = 500  # Mistfit of GR relation (int)
 
 # Pygmo requirements
-n_iterations = 500000  # Maximum number of iterations for each inversion
+n_iterations = 50000  # Maximum number of iterations for each inversion
 ftol = 0.0001  # Stopping Criteria
-n_islands = 10  # Number of islands
+n_islands = 1  # Number of islands
 pop_size = 20  # Number of populations per island
 archipeligo = False  # True - Consider all islands as part of an archipeligo, using same rupture set. False: Run islands individually, with different rupture sets
 topology_name = 'None'  # 'None', 'Ring', 'FullyConnected'
@@ -48,8 +48,12 @@ elif 'uc03610' in os.getcwd():
     deficit_file = f"{procdir}/../data/model_info/hk_hires.slip"
     rupture_file = "rupture_df_n50000.csv"
 else:
-    procdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output"
-    deficit_file = f"{procdir}/../data\\model_info\\hk_hires.slip"
+    procdir = "C:\\Users\\jdmcg\\Documents\\MudPy\\hikkerk\\output"
+    # Check to see if root is actually /mnt adjust accordingly
+    if not ':' in os.path.abspath(os.sep):
+        root = procdir.split(':')[0]
+        procdir = os.path.join(os.path.abspath(os.sep), 'mnt', root.lower(), procdir.split(':')[1][1:])
+    deficit_file = f"{procdir}/../data\\model_info\\{deficit_file}"
 
 outdir = os.path.abspath(os.path.join(procdir, inversion_name))
 if not os.path.exists(outdir):
