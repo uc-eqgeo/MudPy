@@ -9,9 +9,7 @@ from matplotlib.colors import LogNorm
 import os
 import pandas as pd
 import geopandas as gpd
-import sys
-sys.path.append('C:/Users/jmc753/Work/RSQSim/rsqsim-python-tools/src/rsqsim_api')
-from rsqsim_api.visualisation.utilities import plot_background
+from utilities import plot_background
 import pickle
 
 
