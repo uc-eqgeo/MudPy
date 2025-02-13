@@ -105,7 +105,7 @@ if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')
     background = plot_background(plot_lakes=False, bounds=bounds,
                             plot_highways=False, plot_rivers=False, hillshading_intensity=0.3,
                             pickle_name=os.path.join(rupture_png_dir,'temp.pkl'), hillshade_fine=True,
-                            hillshade_kermadec=True,
+                            hillshade_kermadec=False,
                             plot_edge_label=False, figsize=(10, 10))
     new_pngs = True
 

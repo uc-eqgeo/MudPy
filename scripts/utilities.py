@@ -202,8 +202,8 @@ def plot_coast(ax: plt.Axes, clip_boundary: list = None, edgecolor: str = "0.5",
 
 def plot_hillshade(ax, alpha: float = 0.3, vertical_exaggeration: float = 0.01, cmap: LinearSegmentedColormap = None,
                    vmin: float = -10000., vmax: float = 10000, clip_bounds: list = None):
-    hillshade_name = "data/bathymetry/niwa_combined_10000.tif"
-    hillshade = pathlib.Path(__file__).parent / hillshade_name
+    bathydir = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "data", "bathymetry"))
+    hillshade = os.path.join(bathydir, "niwa_combined_10000.tif")
     xds = rioxarray.open_rasterio(hillshade)
     clipped = xds.rio.clip_box(*clip_bounds)
     xds.close()
