@@ -1289,8 +1289,8 @@ def build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM'):
         f.close()
 
         # make TauPy npz
-        taup_in=home+project_name+'/structure/'+nd_name
-        taup_out=home+project_name+'/structure/'
+        taup_in=path.relpath(home+project_name+'/structure/'+nd_name)
+        taup_out=path.relpath(home+project_name+'/structure/')
         taup_create.build_taup_model(taup_in,output_folder=taup_out)
         
     else: #To be done later (ha)

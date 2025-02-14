@@ -58,7 +58,7 @@ def plot_2d_surface(mesh, title, rupture_png_dir, hypo, min_slip=0.1, max_slip=5
     # plt.xlabel('X')
     # plt.ylabel('Y')
     # Plot coastline ontop
-    coastfile = "C:/Users/jmc753/Work/occ-coseismic/data/coastline/nz_coastline.geojson"
+    coastfile = os.path.join(os.path.dirname(__file__), '..', 'data', 'coastline', 'nz_coastline.geojson')
     coastline = gpd.read_file(coastfile)
     coastline.plot(ax=ax["main_figure"], color="k", linewidth=0.5)
     plt.title(title)
@@ -66,39 +66,36 @@ def plot_2d_surface(mesh, title, rupture_png_dir, hypo, min_slip=0.1, max_slip=5
     plt.savefig(os.path.join(rupture_png_dir, f'{title}.pdf'), dpi=300, format='pdf')
     plt.close()
 
-mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
+project_name = 'hikkerk'
+run_base_name = 'plate70'
 
-mesh_name = 'hik_kerk3k_with_rake.vtk'
-plot_every = 25  # Plot every nth rupture (-ve to plot from largest first)
-
-fault_name = "hikkerk"
-velmod = "3e10"
-locking = False
-NZNSHMscaling = True
-uniformSlip = True
-GR_inv_min = 7.0
-GR_inv_max = 9.0
-
-lock = "_locking" if locking else "_nolocking"
-NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
-uniform = "_uniformSlip" if uniformSlip else ""
-
-vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
-vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
-rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\'
-rupture_png_dir = os.path.abspath(os.path.dirname(rupture_dir) + '/..\\rupture_pngs\\')
-os.makedirs(rupture_png_dir, exist_ok=True)
-
-keyword = 'Mw9-49_000018'
-rupture_list = glob(f'{rupture_dir}\\{fault_name}_{velmod}{lock}{NZNSHM}{uniform}*{keyword}*.rupt')
-rupture_list.sort()
+keyword = 'Mw'  # Keyword found in rupture file name (will look for everything that contains this)
+plot_every = -10  # Plot every nth rupture (-ve to plot from largest first)
 
 # xmin, ymin, xmax, ymax
 bounds = [int(bound) for bound in '1500000/5250000/3000000/7300000'.split('/')]
 bounds = [int(bound) for bound in '1500000/5250000/2200000/6200000'.split('/')]
 
-new_background = False  # Recreate the background plot
+new_background = False  # Recreate the background plot (only do if changing bounds)
 new_pngs = True    # Overwrite any previously created pngs
+
+# Shouldn't have to change below here
+locking = True
+NZNSHMscaling = False
+uniformSlip = False
+
+lock = "_locking" if locking else "_nolocking"
+NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
+uniform = "_uniformSlip" if uniformSlip else ""
+
+vtk = meshio.read(os.path.join(os.path.dirname(__file__), '..', 'data', 'hk_tiles.vtk'))
+proc_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', project_name, 'output'))
+rupture_dir = os.path.join(proc_dir, 'ruptures')
+rupture_png_dir = os.path.join(proc_dir, 'rupture_pngs')
+os.makedirs(rupture_png_dir, exist_ok=True)
+
+rupture_list = glob(os.path.join(rupture_dir, f'{run_base_name}{lock}{NZNSHM}{uniform}*{keyword}*.rupt'))
+rupture_list.sort()
 
 if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')):
     print('Plotting new background')

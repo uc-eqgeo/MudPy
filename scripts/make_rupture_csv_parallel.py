@@ -42,13 +42,13 @@ def write_block(rupt_name, rupture_list, end, columns, rake=False):
 
 rupture_dir = 'C:\\Users\\jdmcg\\Documents\\MudPy\\hikkerk\\output\\ruptures\\'
 # Check to see if root is actually /mnt adjust accordingly
-if not ':' in os.path.abspath(os.sep):
+if not ':' in os.path.abspath(os.sep) and ':' in rupture_dir:
     root = rupture_dir.split(':')[0]
     rupture_dir = os.path.join(os.path.abspath(os.sep), 'mnt', root.lower(), rupture_dir.split(':')[1][1:])
     
 run_name = 'plate70'
 locking_model = True
-NZNSHM_scaling = True
+NZNSHM_scaling = False
 uniform_slip = False
 rake = False
 

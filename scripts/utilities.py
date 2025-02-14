@@ -17,7 +17,7 @@ import os
 import rioxarray
 
 coast_shp_fine_name = "data/coastline/nz-coastlines-and-islands-polygons-topo-150k.shp"
-coast_shp_coarse_name = "data/coastline/nz-coastlines-and-islands-polygons-topo-1500k.shp"
+coast_shp_coarse_name = "../data/coastline/nz-coastlines-and-islands-polygons-topo-1500k.shp"
 coast_nat_earth_name = "data/coastline/natural_earth_nztm.shp"
 coast_shp_fine = pathlib.Path(__file__).parent / coast_shp_fine_name
 coast_shp_coarse = pathlib.Path(__file__).parent / coast_shp_coarse_name

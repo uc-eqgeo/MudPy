@@ -15,7 +15,7 @@ run_name='' # Ignore this (unneeded)
 run_base_name='plate70' # Name for this rupture set
 
 # Check to see if root is actually /mnt adjust accordingly
-if not ':' in os.path.abspath(os.sep):
+if not ':' in os.path.abspath(os.sep) and ':' in home:
     root = home.split(':')[0]
     home = os.path.join(os.path.abspath(os.sep), 'mnt', root.lower(), home.split(':')[1][1:])
 ################################################################################
@@ -82,7 +82,7 @@ fcorner=1.0
 hurst=0.4 # Melgar and Hayes 2019 found Hurst exponent is probably closer to 0.4
 Ldip='auto' # Correlation length scaling, 'auto' uses Melgar & Hayes 2019
 Lstrike='auto' # MB2002 uses Mai & Beroza 2002
-NZNSHM_scaling = True # Enforce New Zealand NSHM scaling law of Mw = log10(area) + 4.0
+NZNSHM_scaling = False # Enforce New Zealand NSHM scaling law of Mw = log10(area) + 4.0
 lognormal=True # Keep this as true
 slip_standard_deviation=0.46 # Value from Melgar & Hayes 2019
 
@@ -118,7 +118,7 @@ if init==1:
 #Generate rupture models
 if make_ruptures==1:
     mean_slip_name_list = [mean_slip_name]
-    NZNSHM_scaling_list = [True]
+    NZNSHM_scaling_list = [NZNSHM_scaling]
     for mean_slip_name in mean_slip_name_list:
         for NZNSHM_scaling in NZNSHM_scaling_list:
             if mean_slip_name is None:

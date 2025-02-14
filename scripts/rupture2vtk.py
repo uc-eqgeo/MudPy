@@ -9,38 +9,38 @@ import pandas as pd
 import geopandas as gpd
 from shapely.geometry import Polygon
 
-mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
+plot_ruptures = False  # True to plot ruptures, False to plot the outputs of the slip inversion
+n_ruptures = 250  # Number of ruptures that were in each island of the inversion
 
-mesh_name = 'hik_kerk3k_with_rake.vtk'
+project_name = 'hikkerk'
+run_base_name = 'plate70'
 
-plot_ruptures =True
-n_ruptures = 5000
-
-fault_name = "hikkerk"
-velmod = "3e10"
-locking = True
-NZNSHMscaling = True
-uniformSlip = False
 GR_inv_min = 7.0
 GR_inv_max = 9.0
+
+file_keyword = ''
+
+write_geojson = True  # Will write a geojson that can be viewed in GIS software
+write_vtks = False  # No need to set this to true - you don't have the software to view it anyway
+
+# Shouldn't need to change below here
+locking = True
+NZNSHMscaling = False
+uniformSlip = False
 
 lock = "_locking" if locking else "_nolocking"
 NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
 uniform = "_uniformSlip" if uniformSlip else ""
 
-inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}"
+inversion_name = f"FQ_{run_base_name}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}"
 
-file_keyword = 'Mw9-08_000010'
-
-write_geojson = True
-
-vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
-vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
-rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures"
-output_dir = f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\{inversion_name}"
+vtk = meshio.read(os.path.join(os.path.dirname(__file__), '..', 'data', 'hk_tiles.vtk'))
+proc_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', project_name, 'output'))
+rupture_dir = os.path.join(proc_dir, 'ruptures')
+output_dir = os.path.join(proc_dir, inversion_name)
 
 if plot_ruptures:
-    rupture_list = glob(f'{rupture_dir}\\{fault_name}_{velmod}{lock}{NZNSHM}{uniform}*{file_keyword}*.rupt')
+    rupture_list = glob(f'{rupture_dir}\\{run_base_name}{lock}{NZNSHM}{uniform}*{file_keyword}*.rupt')
 else:
     rupture_list = glob(os.path.abspath(f'{output_dir}\\n{n_ruptures}*{file_keyword}*.inv'))
 
@@ -100,8 +100,9 @@ for rupture_file in rupture_list:
     rupture_mesh = meshio.Mesh(points=points, cells=[(element, cells)], cell_data=col_dict)
 
     outfile = f"{rupture_file.replace('.Mw', '+Mw').split('.')[0].replace('+Mw', '.Mw')}{suffix}.vtk"
-    rupture_mesh.write(outfile, file_format="vtk")
-    print(f"Written {outfile}")
+    if write_vtks:
+        rupture_mesh.write(outfile, file_format="vtk")
+        print(f"Written {outfile}")
 
     if write_geojson:
         for key in col_dict.keys():
