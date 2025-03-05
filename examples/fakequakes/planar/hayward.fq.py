@@ -6,11 +6,12 @@ Parameter file for fakequakes run, with Christine's Hayward discretization
 from mudpy import fakequakes,runslip,forward,viewFQ
 import numpy as np
 from obspy.core import UTCDateTime
+import os
 
 
 
 ########                            GLOBALS                             ########
-home='C:/Users/jmc753/Work/MudPy/examples/fakequakes/planar/'
+home=os.getcwd() + '/examples/fakequakes/planar/'
 project_name='testing'
 run_name='hayward'
 ################################################################################

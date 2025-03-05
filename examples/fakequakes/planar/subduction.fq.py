@@ -6,10 +6,11 @@ Fakequakes runs with a simple planar geometry
 from mudpy import fakequakes, runslip, forward
 import numpy as np
 from obspy.core import UTCDateTime
+import os
 
 
 ########                            GLOBALS                             ########
-home = 'C:/Users/jmc753/Work/MudPy/examples/fakequakes/planar/'
+home = os.getcwd() + '/examples/fakequakes/planar/'
 project_name = 'hikkerk'
 run_name = 'subduction'
 ################################################################################

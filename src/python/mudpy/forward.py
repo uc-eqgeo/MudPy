@@ -791,7 +791,7 @@ def make_parallel_hfsims(home,project_name,rupture_name,ncpus,sta,sta_lon,sta_la
     Set up for MPI calculation of HF stochastics
     '''
     from numpy import savetxt,arange,genfromtxt,where
-    from os import environ
+    from os import getcwd
     import subprocess
     from shlex import split
     
@@ -813,7 +813,7 @@ def make_parallel_hfsims(home,project_name,rupture_name,ncpus,sta,sta_lon,sta_la
         savetxt(home+project_name+'/output/ruptures/mpi_rupt.'+str(k)+'.'+rupture_name,mpi_source,fmt=fmt)
     #Make mpi system call
     print("MPI: Starting Stochastic High Frequency Simulation on ", ncpus, "CPUs")
-    mud_source=environ['MUD']+'/src/python/mudpy/'
+    mud_source=getcwd()+'/src/python/mudpy/'
     mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'hfsims_parallel.py run_parallel_hfsims '+home+' '+project_name+' '+rupture_name+' '+str(N)+' '+str(M0)+' '+sta+' '+str(sta_lon)+' '+str(sta_lat)+' '+model_name+' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(moho_depth_in_km)+' '+component+' '+str(total_duration)+' '+str(hf_dt)+' '+str(stress_parameter)+' '+str(kappa)+' '+str(Qexp)+' '+str(Pwave)+' '+str(Swave)+' '+str(high_stress_depth)+' '+str(Qmethod)+' '+str(scattering)+' '+str(Qc_exp)+' '+str(baseline_Qc)
     mpi=split(mpi)
     p=subprocess.Popen(mpi)
@@ -4138,9 +4138,9 @@ def get_Mw(rupture_file):
 def gnss_noise_model():
     
     from numpy import genfromtxt
-    from os import environ
+    from os import getcwd
     
-    mudpy_aux_folder=environ['MUD']+'/src/aux/'
+    mudpy_aux_folder=getcwd()+'/src/aux/'
     
     g=genfromtxt(mudpy_aux_folder+'gnss_noise_model.txt')
     periods=g[:,0]

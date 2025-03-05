@@ -17,7 +17,7 @@ def init(home,project_name):
         Nothing
     '''
     from shutil import rmtree,copy
-    from os import path,makedirs,environ
+    from os import path,makedirs,getcwd
     clob='y'
     proj_dir=home+project_name+'/'
     if path.exists(proj_dir):  #Path exists, clobber?
@@ -56,7 +56,7 @@ def init(home,project_name):
         makedirs(proj_dir+'analysis')
         makedirs(proj_dir+'analysis/frequency')
         #Copy templates into appropriate files
-        mudpy=environ['MUD']+'/run/'
+        mudpy=getcwd()+'/run/'
         copy(mudpy+'template.fault',proj_dir+'data/model_info/')
         copy(mudpy+'template.gflist',proj_dir+'data/station_info/')
         copy(mudpy+'template.sta',proj_dir+'data/station_info/')
@@ -198,7 +198,7 @@ def make_parallel_green(home,project_name,station_file,fault_name,model_name,dt,
         Nothing
     '''
     from numpy import arange,savetxt,genfromtxt
-    from os import path,makedirs,environ
+    from os import path,makedirs,getcwd
     from shlex import split
     import subprocess
     
@@ -235,7 +235,7 @@ def make_parallel_green(home,project_name,station_file,fault_name,model_name,dt,
         savetxt(home+project_name+'/data/model_info/mpi_source.'+str(k)+'.fault',mpi_source,fmt=fmt)
     #Make mpi system call
     print("MPI: Starting GFs computation on", ncpus, "CPUs\n")
-    mud_source=environ['MUD']+'/src/python/mudpy/'
+    mud_source=getcwd()+'/src/python/mudpy/'
     if static==1 and okada==True:
         print('Static Okada solution requested, no need to run GFs...')
         pass
@@ -271,7 +271,7 @@ def make_parallel_teleseismics_green(home,project_name,station_file,fault_name,m
         Nothing
     '''
     from numpy import arange,savetxt,genfromtxt
-    from os import path,makedirs,environ
+    from os import path,makedirs,getcwd
     from shlex import split
     import subprocess
     
@@ -302,7 +302,7 @@ def make_parallel_teleseismics_green(home,project_name,station_file,fault_name,m
     
     #Make mpi system call
     print("MPI: Starting GFs computation on", ncpus, "CPUs\n")
-    mud_source=environ['MUD']+'/src/python/mudpy/'
+    mud_source=getcwd+'/src/python/mudpy/'
 
 
     mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'parallel.py run_parallel_teleseismics_green '+home+' '+project_name+' '+str(time_epi)+' '+station_file+' '+model_name+' '+teleseismic_vel_mod+' '+str(endtime)
@@ -391,7 +391,7 @@ def make_parallel_synthetics(home,project_name,station_file,fault_name,model_nam
     from numpy import loadtxt
     import subprocess
     from shlex import split
-    from os import environ
+    from os import getcwd
     
     station_file=home+project_name+'/data/station_info/'+station_file
     fault_file=home+project_name+'/data/model_info/'+fault_name
@@ -408,7 +408,7 @@ def make_parallel_synthetics(home,project_name,station_file,fault_name,model_nam
         savetxt(home+project_name+'/data/model_info/mpi_source.'+str(k)+'.fault',mpi_source,fmt=fmt)
     #Make mpi system call
     print("MPI: Starting synthetics computation on", ncpus, "CPUs\n")
-    mud_source=environ['MUD']+'/src/python/mudpy/'
+    mud_source=getcwd()+'/src/python/mudpy/'
     mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'parallel.py run_parallel_synthetics '+home+' '+project_name+' '+station_file+' '+model_name+' '+str(integrate)+' '+str(static)+' '+str(quasistatic2dynamic)+' '+str(tsunami)+' '+str(time_epi)+' '+str(beta)+' '+str(custom_stf)+' '+str(impulse)+' '+str(insar)+' '+str(okada)+' '+str(mu)+' '+str(NFFT)+' '+str(dt)
     print(mpi)
     mpi=split(mpi)

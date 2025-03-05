@@ -9,7 +9,7 @@ import os
 
 
 ########                            GLOBALS                             ########
-home='C:/Users/jdmcg/Documents/MudPy/'
+home=os.getcwd() + '/'
 project_name='hikkerk' # Directory name
 run_name='' # Ignore this (unneeded)
 run_base_name='plate70' # Name for this rupture set

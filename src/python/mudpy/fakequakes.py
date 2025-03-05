@@ -20,7 +20,7 @@ def init(home,project_name):
         Nothing
     '''
     from shutil import rmtree,copy
-    from os import path,makedirs,environ
+    from os import path,makedirs,getcwd
     clob='y'
     proj_dir=path.expanduser(home+project_name+'/')
     if path.exists(proj_dir):  #Path exists, clobber?
@@ -55,7 +55,7 @@ def init(home,project_name):
         makedirs(proj_dir+'analysis')
         makedirs(proj_dir+'analysis/frequency')
         #Copy templates into appropriate files
-        mudpy=environ['MUD']+'/run/'
+        mudpy=getcwd()+'/run/'
         #copy(mudpy+'template.fault',proj_dir+'data/model_info/')
         #copy(mudpy+'template.gflist',proj_dir+'data/station_info/')
         #copy(mudpy+'template.sta',proj_dir+'data/station_info/')
@@ -1215,7 +1215,7 @@ def build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM'):
     '''
     
     from numpy import genfromtxt
-    from os import environ,path
+    from os import path,getcwd
     from obspy.taup import taup_create, TauPyModel
     
     #mudpy source folder
@@ -1226,7 +1226,7 @@ def build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM'):
     #load background velocity structure
     if background_model=='PREM':
         
-        bg_model_file=environ['MUD']+'/src/aux2/prem.nd'
+        bg_model_file=getcwd()+'/src/aux2/prem.nd'
         
         #Q values
         Qkappa=1300
@@ -1386,7 +1386,7 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         nucleate_on_coupling, calculate_rupture_onset=True, NZNSHM_scaling=False,stochastic_slip=True,Nstart=0):
     
     from numpy import ceil
-    from os import environ
+    from os import getcwd
     import subprocess
     from shlex import split
     
@@ -1414,7 +1414,7 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
     else:
         #Make mpi system call
         print("MPI: Starting " + str(Nrealizations_parallel*ncpus) + " FakeQuakes Rupture Generations on ", ncpus, "CPUs")
-        mud_source=environ['MUD']+'/src/python/mudpy/'
+        mud_source=getcwd()+'/src/python/mudpy/'
 
         mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name \
             +' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time) \

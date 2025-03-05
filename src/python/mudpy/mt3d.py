@@ -114,7 +114,7 @@ def make_parallel_green(home,project_name,station_file,fault_name,model_name,dt,
         Nothing
     '''
     from numpy import loadtxt,arange,savetxt
-    from os import path,makedirs,environ
+    from os import getcwd
     from shlex import split
     import subprocess
     
@@ -133,7 +133,7 @@ def make_parallel_green(home,project_name,station_file,fault_name,model_name,dt,
         savetxt(home+project_name+'/data/model_info/mpi_source.'+str(k)+'.fault',mpi_source,fmt=fmt)
     #Make mpi system call
     print("MPI: Starting GFs computation on", ncpus, "CPUs\n")
-    mud_source=environ['MUD']+'/src/python/mudpy/'
+    mud_source=getcwd()+'/src/python/mudpy/'
 
     #Parameters that are not used but neede by function call
     static=1
@@ -175,7 +175,7 @@ def make_parallel_synthetics(home,project_name,station_file,source_name,model_na
     from numpy import loadtxt
     import subprocess
     from shlex import split
-    from os import environ
+    from os import getcwd
     
     station_file=home+project_name+'/data/station_info/'+station_file
     fault_file=home+project_name+'/data/model_info/'+source_name
@@ -197,7 +197,7 @@ def make_parallel_synthetics(home,project_name,station_file,source_name,model_na
     
     #Make mpi system call
     print("MPI: Starting synthetics computation on", ncpus, "CPUs\n")
-    mud_source=environ['MUD']+'/src/python/mudpy/'
+    mud_source=getcwd()+'/src/python/mudpy/'
     mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'parallel.py run_parallel_synthetics_mt3d '+home+' '+project_name+' '+station_file+' '+model_name+' '+str(forceMT)+' '+str(mt[0])+' '+str(mt[1])+' '+str(mt[2])+' '+str(mt[3])+' '+str(mt[4])+' '+str(mt[5])+' '+str(insar)
     mpi=split(mpi)
     p=subprocess.Popen(mpi)

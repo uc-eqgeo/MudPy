@@ -6,11 +6,12 @@ Parameter file for 3D fakequakes run
 from mudpy import fakequakes,runslip,forward
 import numpy as np
 from obspy.core import UTCDateTime
+import os
 
 
 
 ########                            GLOBALS                             ########
-home='C:/Users/jmc753/Work/MudPy/examples/fakequakes/3D/'
+home=os.getcwd() + '/examples/fakequakes/3D/'
 project_name='hikkerk3D_test'
 run_name='hikkerk3D'
 ################################################################################
