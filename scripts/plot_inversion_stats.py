@@ -27,13 +27,14 @@ locking = True
 NZNSHMscaling = True
 uniformSlip = False
 GR_inv_min = 7.0
-GR_inv_max = 9.0
+GR_inv_max = 9.5
+dir_suffix = '_max9'
 
 lock = "_locking" if locking else "_nolocking"
 NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
 uniform = "_uniformSlip" if uniformSlip else ""
 
-inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}"
+inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}{dir_suffix}"
 n_ruptures = 5000
 slip_weight = 1000
 norm_weight = 1
@@ -54,7 +55,8 @@ plot_gr = True
 plot_rates = True
 plot_lines = True
 plot_distributions = True
-plot_hypocenters = True
+plot_hypocenters = False
+out_formats = ['png']
 
 drive = 'z'
 if drive.lower() == 'c':
@@ -181,7 +183,9 @@ for run in range(n_runs):
             plt.title(f" {input_tag} {max_iter} {island}")
         # if plot_results:
         #     sns.scatterplot(x=bins['Mw_bin'], y=np.log10(inverted_bins + 1e-12), s=15, label=f'Inverted Bins {n_iter[order[run]]}', edgecolors=None)
-        plt.savefig(f"{outdir}\\{input_tag}_GR_{island}.pdf", dpi=300, format='pdf')
+        for format in out_formats:
+            print(f"{outdir}\\{input_tag}_GR_{island}_isl_{archi}.{format}")
+            plt.savefig(f"{outdir}\\{input_tag}_GR_{island}_isl_{archi}.{format}", dpi=300, format=format)
         plt.show()
 # %% Plot rate comparisons
 if plot_rates:
