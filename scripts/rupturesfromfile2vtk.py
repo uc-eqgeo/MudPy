@@ -1,0 +1,234 @@
+# %%
+import numpy as np
+import meshio
+from pyproj import Transformer
+from scipy.spatial import KDTree
+from glob import glob
+import os
+import sys
+import pandas as pd
+import geopandas as gpd
+from shapely.geometry import Polygon
+from matplotlib.collections import PolyCollection
+from matplotlib.colors import LogNorm
+import matplotlib.pyplot as plt
+sys.path.append('C:/Users/jmc753/Work/RSQSim/rsqsim-python-tools/src/rsqsim_api')
+from rsqsim_api.visualisation.utilities import plot_background
+import pickle
+
+
+def plot_2d_surface(mesh, title, rupture_png_dir, hypo, min_slip=0.1, max_slip=50, log=False, color_by='total'):
+    # Load background map
+    fig, ax = pickle.load(open(f"{rupture_png_dir}/temp.pkl", "rb"))
+    # Extract points and cells from the mesh
+    points = mesh.points[:, :2]  # Assuming 2D projection (only X and Y)
+    cells = mesh.cells_dict[list(mesh.cells_dict.keys())[0]]
+    colors = mesh.cell_data[color_by][0]  # Get the 'total' scalar values
+    colors = np.where(colors == 0, 1e-6, colors)
+
+    # Create polygons from cells and corresponding colors
+    polygons = [points[cell] for cell in cells]
+
+    # Plot using PolyCollection
+    #fig, ax = plt.subplots()
+    if log:
+        collection = PolyCollection(polygons,
+                            array=colors,
+                            cmap='magma',
+                            edgecolor=None,
+                            norm=LogNorm(vmin=max(min_slip, colors.min()), vmax=max_slip)
+                            )
+    else:
+        collection = PolyCollection(polygons, array=colors, cmap='magma', edgecolor=None)
+        collection.set_clim(vmax=max_slip)
+    alpha = np.where(colors == 1e-6, 0.25, 1)
+    collection.set_alpha(alpha)
+
+    ax['main_figure'].add_collection(collection)
+    ax['main_figure'].autoscale_view()
+
+    # Add colorbar and labels
+    cbar = plt.colorbar(collection, ax=ax['main_figure'], orientation='vertical', label=color_by)
+    if log:
+        ticks = np.arange(np.log10(min_slip), np.log10(max_slip), 1)
+        ticks = list(10**ticks) + [max_slip]
+        tick_labels = [f"{t:.0e}" for t in ticks]  # Format as scientific notation
+        cbar.set_ticks(ticks)
+        cbar.set_ticklabels(ticks)
+    
+    
+    plt.plot(hypo[0], hypo[1], 'b+', markersize=10)    # Hypocenter
+    # plt.plot(hypo[2], hypo[3], 'ro', markersize=10)    # Centroid
+    # plt.xlabel('X')
+    # plt.ylabel('Y')
+    # Plot coastline ontop
+    coastfile = "C:/Users/jmc753/Work/occ-coseismic/data/coastline/nz_coastline.geojson"
+    coastline = gpd.read_file(coastfile)
+    coastline.plot(ax=ax["main_figure"], color="k", linewidth=0.5)
+    plt.title(title)
+    plt.savefig(os.path.join(rupture_png_dir, f'{title}.png'))
+    # plt.savefig(os.path.join(rupture_png_dir, f'{title}.pdf'), dpi=300, format='pdf')
+    plt.close()
+
+mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
+
+mesh_name = 'hik_kerk3k_with_rake.vtk'
+
+n_ruptures = 5000
+
+fault_name = "hikkerk"
+velmod = "3e10"
+locking = True
+NZNSHMscaling = True
+uniformSlip = False
+GR_inv_min = 7.0
+GR_inv_max = 9.0
+min_Mw = 9
+max_Mw = None
+slip_weight = 10
+gr_weight = 500
+norm_weight = 1
+n_iterations = 5e5
+n_archipeligos = 10
+island = 0
+min_rate = 1e-7
+
+bn_dict = {1: [0.95, 16.5],
+           2: [1.1, 21.5],
+           3: [1.24, 27.9]}
+
+bn_combo = 2
+
+b, N = bn_dict[bn_combo]
+
+lock = "_locking" if locking else "_nolocking"
+NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
+uniform = "_uniformSlip" if uniformSlip else ""
+norm = f"_N{int(norm_weight)}" if norm_weight is not None else ""
+max_Mw_tag = f"_maxMw{float(max_Mw)}".replace('.', '-') if max_Mw is not None else ""
+max_Mw_tag += f"_minMw{float(min_Mw)}".replace('.', '-') if min_Mw is not None else ""
+results_file = f"n{int(n_ruptures)}_S{int(slip_weight)}{norm}_GR{int(gr_weight)}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{int(n_iterations)}{max_Mw_tag}_archi-merged_inverted_ruptures.csv"
+inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}"
+
+write_geojson = False
+write_pngs = True
+new_background = False  # Recreate the background plot
+
+# xmin, ymin, xmax, ymax
+bounds = [int(bound) for bound in '1500000/5250000/3000000/7300000'.split('/')]
+# bounds = [int(bound) for bound in '1500000/5250000/2200000/6200000'.split('/')]
+
+vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
+vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
+rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures"
+output_dir = f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\{inversion_name}"
+results_file = os.path.abspath(f'{output_dir}\\{results_file}')
+
+rupture_png_dir = os.path.abspath(os.path.dirname(rupture_dir) + '/..\\rupture_pngs_min9\\')
+os.makedirs(rupture_png_dir, exist_ok=True)
+
+if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')):
+    print('Plotting new background')
+    background = plot_background(plot_lakes=False, bounds=bounds,
+                            plot_highways=False, plot_rivers=False, hillshading_intensity=0.3,
+                            pickle_name=os.path.join(rupture_png_dir,'temp.pkl'), hillshade_fine=True,
+                            hillshade_kermadec=True,
+                            plot_edge_label=False, figsize=(10, 10))
+    new_pngs = True
+
+all_ruptures_list = glob(f'{rupture_dir}\\{fault_name}_{velmod}{lock}{NZNSHM}{uniform}*.rupt')
+results_df = pd.read_csv(results_file, sep='\t', index_col=0)
+results_df = results_df[results_df['inverted_rate_0'] > min_rate]
+results_df = results_df.sort_values(by='inverted_rate_0', ascending=False)
+print(f"Making rupture vtks for {results_df.shape[0]} ruptures")
+
+rupture_list = [[rupt for rupt in all_ruptures_list if rupture in rupt][0] for rupture in results_df.index.values]
+
+
+
+# Create interpolation object for mapping ruptures to the mesh
+transformer = Transformer.from_crs("epsg:4326", "epsg:2193")
+for rupture_file in rupture_list:
+    rupture_file = os.path.abspath(rupture_file)
+    rupture = pd.read_csv(rupture_file, sep='\t', index_col=0).reset_index(drop=True)
+    patch_coords = np.zeros((rupture.shape[0], 4))
+    patch_coords[:, 0] = rupture.index.to_numpy()
+    if rupture['lon'].max() <= 180:
+        patch_coords[:, 2], patch_coords[:, 1] = transformer.transform(rupture['lat'], rupture['lon'])
+    else:
+        patch_coords[:, 1], patch_coords[:, 2] = rupture['lat'], rupture['lon']
+    if abs(rupture['z(km)'].max()) > 100:  # Convert to m, negative down
+        patch_coords[:, 3] = rupture['z(km)'] * -1
+    else:
+        patch_coords[:, 3] = rupture['z(km)'] * -1000
+
+    cells = vtk.cells[0].data
+    n_cells = cells.shape[0]
+    cell_centers = np.zeros((n_cells, 3))
+    for ii in range(n_cells):
+        if vtk.cells[0].data[ii, :].shape[0] == 3:
+            p1, p2, p3 = vtk.cells[0].data[ii, :]
+            cell_centers[ii, :] = np.mean(np.vstack([vtk.points[p1, :], vtk.points[p2, :], vtk.points[p3, :]]), axis=0)
+            element = 'triangle'
+            suffix = ''
+        else:
+            p1, p2, p3, p4 = vtk.cells[0].data[ii, :]
+            cell_centers[ii, :] = np.mean(np.vstack([vtk.points[p1, :], vtk.points[p2, :], vtk.points[p3, :], vtk.points[p4, :]]), axis=0)
+            element = 'polygon'
+            suffix = '_rect'
+
+    hikurangi_kd_tree = KDTree(patch_coords[:, 1:])
+    _, nearest_indices = hikurangi_kd_tree.query(cell_centers)
+
+    points = vtk.points
+
+    ss, ds = False, False
+    col_dict = {}
+
+    for col in rupture.columns:
+        if col in ['lat', 'lon', 'z(km)']:
+            continue
+        if len(np.unique(rupture[col])) > 1:  # Don't bother with constants
+            col_dict[col] = [rupture.loc[nearest_indices, col].values]
+            print('Adding', col)
+            if 'ss' in col:
+                ss, ss_col = True, col
+            elif 'ds' in col:
+                ds, ds_col = True, col
+
+    if all([ds, ss]):
+        col_dict['total'] = [np.sqrt(rupture[ss_col]**2 + rupture[ds_col]**2)]
+
+    rupture_mesh = meshio.Mesh(points=points, cells=[(element, cells)], cell_data=col_dict)
+
+    outfile = f"{rupture_file.replace('.Mw', '+Mw').split('.')[0].replace('+Mw', '.Mw')}{suffix}.vtk"
+    rupture_mesh.write(outfile, file_format="vtk")
+    print(f"Written {outfile}")
+
+    with open(rupture_file.replace('.rupt', '.log'), 'r') as fid:
+        lines = fid.readlines()
+        lon, lat, z = [float(coord) for coord in lines[17].replace('\n', '').split(' ')[-1].strip('()').split(',')]   # Hypocenter
+        lat, lon = transformer.transform(lat, lon)
+        clon, clat, z = [float(coord) for coord in lines[19].replace('\n', '').split(' ')[-1].strip('()').split(',')]  # Centroid
+        clat, clon = transformer.transform(clat, clon)
+
+    # Plot the mesh as a 2D surface
+    plot_2d_surface(rupture_mesh, os.path.basename(rupture_file), rupture_png_dir, [lon, lat, clon, clat], max_slip=50, log=True, color_by='total-slip(m)')
+
+    if write_geojson:
+        for key in col_dict.keys():
+            col_dict[key] = col_dict[key][0]
+
+        cell_poly = []
+        for cell in rupture_mesh.cells[0].data:
+            cell_poly.append(Polygon(rupture_mesh.points[cell]))
+
+        col_dict["geometry"] = cell_poly
+        col_dict["id"] = rupture.index.values
+
+        gdf = gpd.GeoDataFrame(col_dict)
+        gdf.set_crs(epsg=2193, inplace=True)
+        gdf.to_file(outfile.replace('.vtk', '.geojson'), driver="GeoJSON")
+        print(f"Written {outfile.replace('.vtk', '.geojson')}")
+
+print('Complete :)')
