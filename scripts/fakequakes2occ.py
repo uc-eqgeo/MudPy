@@ -18,7 +18,11 @@ locking = True
 NZNSHMscaling = True
 uniformSlip = False
 GR_inv_min = 7.0
-GR_inv_max = 9.0
+GR_inv_max = 9.5
+file_suffix = '_max9'
+
+max_Mw = None  # Trim maximum Mw
+min_Mw = None
 
 sz = "hk" if fault_name == "hikkerk" else ""
 lock = "_locking" if locking else "_nolocking"
@@ -26,7 +30,7 @@ NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
 uniform = "_uniformSlip" if uniformSlip else ""
 
 n_ruptures = 5000
-slip_weight = 1000
+slip_weight = 10
 gr_weight = 500
 norm_weight = 1
 n_iterations = 5e5
@@ -46,16 +50,18 @@ if 'mnt' in os.getcwd():
     drive = occ_home_dir.split(':\\')[0]
     occ_home_dir = '/mnt/' + drive.lower() + '/' + '/'.join(occ_home_dir.split(':\\')[1].split('\\'))
 
-rupture_dir = os.path.join(procdir, 'output', f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}")
+rupture_dir = os.path.join(procdir, 'output', f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}{file_suffix}")
 model_dir = os.path.join(procdir, 'data', 'model_info')
 deficit_file = os.path.join(procdir, 'data', 'model_info', 'hk_hires.slip')
 rupture_csv = os.path.abspath(os.path.join(rupture_dir, "..", rupture_csv))
 
 norm = f"_N{int(norm_weight)}" if norm_weight is not None else ""
+max_Mw_tag = f"_maxMw{float(max_Mw)}".replace('.', '-') if max_Mw is not None else ""
+max_Mw_tag += f"_minMw{float(min_Mw)}".replace('.', '-') if min_Mw is not None else ""
 
 tag = f"n{int(n_ruptures)}_S{int(slip_weight)}{norm}_GR{int(gr_weight)}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{int(n_iterations)}"
 
-occ_proc_dir = os.path.join(occ_home_dir, 'data', 'sz_solutions', f"FakeQuakes_{sz}_{velmod}{lock}{uniform}_{tag}_narchi{n_archipeligos}")
+occ_proc_dir = os.path.join(occ_home_dir, 'data', 'sz_solutions', f"FakeQuakes_{sz}_{velmod}{lock}{uniform}_{tag}{file_suffix}{max_Mw_tag}_narchi{n_archipeligos}")
 
 # Write rupture inversion file to occ
 rates = np.array([])
@@ -81,7 +87,13 @@ for a in range(1, n_archipeligos):
 
 archi_df = archi_df.rename({'Unnamed: 0' : ''}, axis=1)
 archi_df['inverted_rate_0'] = archi_df['inverted_rate_0'].apply(lambda x: (x / n_archipeligos))
-archi_df.to_csv(os.path.join(rupture_dir, f"{tag}_archi-merged_inverted_ruptures.csv"), sep='\t', index=False)
+if max_Mw is not None:
+    rates[archi_df['Mw'] > max_Mw] = 0
+    archi_df.loc[archi_df['Mw'] > max_Mw, 'inverted_rate_0'] = 0
+if min_Mw is not None:
+    rates[archi_df['Mw'] < min_Mw] = 0
+    archi_df.loc[archi_df['Mw'] < min_Mw, 'inverted_rate_0'] = 0
+archi_df.to_csv(os.path.join(rupture_dir, f"{tag}{max_Mw_tag}_archi-merged_inverted_ruptures.csv"), sep='\t', index=False)
 
 deficit = np.genfromtxt(deficit_file)
 deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
@@ -98,9 +110,9 @@ inv_results = pd.read_csv(os.path.join(rupture_dir, f"{tag}_archi0_inversion_res
 inv_results['inverted-deficit(mm/yr)'] = inverted_slip
 inv_results['misfit_rel(mm/yr)'] = inv_results['inverted-deficit(mm/yr)'] / deficit
 inv_results['misfit_abs(mm/yr)'] = inv_results['inverted-deficit(mm/yr)'] - deficit
-inv_results.to_csv(os.path.join(rupture_dir, f"{tag}_archi-merged_inversion_results.inv"), sep='\t', index=False)
+inv_results.to_csv(os.path.join(rupture_dir, f"{tag}{max_Mw_tag}_archi-merged_inversion_results.inv"), sep='\t', index=False)
 
-print(f"Written Merged Dataset {tag}_archi-merged_inversion_results.inv")
+print(f"Written Merged Dataset {tag}{max_Mw_tag}_archi-merged_inversion_results.inv")
 
 rates[rates < zero_rate] = 0
 rates /= n_archipeligos
