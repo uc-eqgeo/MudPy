@@ -16,6 +16,9 @@ locking = True
 NZSHM = True
 uniformSlip = False
 force_Mw = False
+GR_inv_min = 6.5
+GR_inv_max = 9.5
+dir_suffix = '_max9'
 
 if locking:
     tag = velmod + '_locking'
