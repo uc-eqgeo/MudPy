@@ -31,7 +31,7 @@ NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
 uniform = "_uniformSlip" if uniformSlip else ""
 
 n_ruptures = 5000
-slip_weight = 10
+slip_weight = 1000
 gr_weight = 500
 norm_weight = 1
 n_iterations = 5e5
@@ -52,6 +52,7 @@ if 'mnt' in os.getcwd():
     occ_home_dir = '/mnt/' + drive.lower() + '/' + '/'.join(occ_home_dir.split(':\\')[1].split('\\'))
 
 rupture_dir = os.path.join(procdir, 'output', f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}{file_suffix}")
+
 model_dir = os.path.join(procdir, 'data', 'model_info')
 deficit_file = os.path.join(procdir, 'data', 'model_info', 'hk_hires.slip')
 rupture_csv = os.path.abspath(os.path.join(rupture_dir, "..", rupture_csv))

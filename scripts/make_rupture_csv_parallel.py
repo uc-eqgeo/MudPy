@@ -67,7 +67,7 @@ if uniform_slip:
 else:
     rupt_name += '.'
 
-rupt_name += '*.rupt'
+    rupt_name += '*.rupt'
 
 print(f'Globbing {rupture_dir}{rupt_name} ...')
 
@@ -84,6 +84,7 @@ rupt_name = rupt_name.replace('*.rupt','').strip('.')
 total_ruptures = len(rupture_list)  # Total number of prepared ruptures
 rupture_list = [rupture_list[ix] for ix in np.random.permutation(total_ruptures) if float(rupture_list[ix].split('.Mw')[-1].split('_')[0].replace('-', '.')) < max_Mw and float(rupture_list[ix].split('.Mw')[-1].split('_')[0].replace('-', '.')) >= min_Mw]
 n_ruptures = len(rupture_list)  # Number of ruptures
+
 print(f"{total_ruptures} found, {n_ruptures} between {min_Mw}-{max_Mw}Mw")
 if n_ruptures != 50000 and max_Mw < 9.5 and min_Mw > 6.5:
     raise Exception("Incorrect number of ruptures")
@@ -128,6 +129,7 @@ block_starts = np.arange(0, n_ruptures, block_size)
 block_ends = block_starts + block_size
 num_threads_plot = 10
 
+rupt_name = rupt_name.replace('*.rupt','').strip('.')
 if __name__ == '__main__':
     if not rake and check_prepared:
         print(f"Extracting from {os.path.basename(premade_df_file)}")

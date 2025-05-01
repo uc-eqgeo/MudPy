@@ -35,8 +35,9 @@ NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
 uniform = "_uniformSlip" if uniformSlip else ""
 
 inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}{dir_suffix}"
+
 n_ruptures = 5000
-slip_weight = 10
+slip_weight = 1000
 norm_weight = 1
 GR_weight = 500
 max_iter = 5e5
@@ -217,6 +218,7 @@ if plot_rates:
         plt.show()
 
         kept_ruptures = ruptures[ruptures[island] >= 10 ** zero_rate]
+
         plt.hist(kept_ruptures['Mw'], bins=np.arange(6.5, 9.5, 0.01), density=False, histtype="step", cumulative=-1)
         plt.title(f"Ruptures > Mw 8: {kept_ruptures[kept_ruptures['Mw'] > 8].shape[0]}")
         plt.show()
