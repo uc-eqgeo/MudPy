@@ -364,6 +364,7 @@ def get_mean_slip(target_Mw,fault_array,vel_mod):
     '''
     Depending on the target magnitude calculate the necessary uniform slip
     on the fault given the 1D layered Earth velocity model
+    Can also now use 3D rigidty model if required: Assumes column 1 is rigidity in Pa (JDM 2025-05-01)
     '''
     
     from numpy import genfromtxt,zeros,ones
@@ -371,9 +372,16 @@ def get_mean_slip(target_Mw,fault_array,vel_mod):
     
     vel=genfromtxt(vel_mod)
     areas=fault_array[:,8]*fault_array[:,9]
-    mu=zeros(len(fault_array))
-    for k in range(len(mu)):
-        mu[k]=get_mu(vel,fault_array[k,3])
+    # Check to see if we're using 3D velocity model or not
+    # Check is if vel is same size as fault array, and first rigidity value is > 1KPa
+    if vel.shape[1] == len(fault_array) and vel[0, 1] > 1e3:
+        # Use 3D velocity model
+        mu = vel[:, 1]
+    else:
+        # Use layered model
+        mu=zeros(len(fault_array))
+        for k in range(len(mu)):
+            mu[k]=get_mu(vel,fault_array[k,3])
     target_moment=10**(1.5*target_Mw+9.1)
     mean_slip=ones(len(fault_array))*target_moment/sum(areas*mu)
     
@@ -1468,7 +1476,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
     
     #Get TauPyModel
     # Edit for launching as task arrays - multiple calls to read/write same data when doing task arrays can cause errors, so retry if needed
-    retry = 0
+    retry = 0 if calculate_rupture_onset else 11  # If not calculating rupture onset, set retry to 0 to avoid infinite loop
     while retry < 10:
         try:
             velmod = TauPyModel(model=home+project_name+'/structure/'+model_name.split('.')[0])

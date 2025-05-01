@@ -98,12 +98,12 @@ else:
     tag = f"_{mean_slip_name.strip('.slip')}"
     mean_slip_name = os.path.join(home, project_name, 'data', 'model_info', mean_slip_name) # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 
-tag += f'_{model_name.strip(".mod")}'
+tag += f'_{model_name[:-4]}'
 
 if NZNSHM_scaling:
-    tag += '_NZNSHMscaling'
+    tag += '_NSHMarea'
 else:
-    tag += '_noNZNSHMscaling'
+    tag += '_noNSHMarea'
 
 if uniform_slip:
     stochastic_slip = False
