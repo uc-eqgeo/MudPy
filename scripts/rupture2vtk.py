@@ -22,13 +22,14 @@ locking = True
 NZNSHMscaling = True
 uniformSlip = False
 GR_inv_min = 7.0
-GR_inv_max = 9.0
+GR_inv_max = 9.5
+dir_suffix = ''
 
 lock = "_locking" if locking else "_nolocking"
 NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
 uniform = "_uniformSlip" if uniformSlip else ""
 
-inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}"
+inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}{dir_suffix}"
 
 file_keyword = 'Mw9-08_000010'
 

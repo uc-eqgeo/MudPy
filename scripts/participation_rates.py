@@ -16,6 +16,9 @@ locking = True
 NZSHM = True
 uniformSlip = False
 force_Mw = False
+GR_inv_min = 6.5
+GR_inv_max = 9.5
+dir_suffix = '_max9'
 
 if locking:
     tag = velmod + '_locking'
@@ -35,7 +38,9 @@ else:
 if force_Mw:
     tag += '_forceMw'
 
-inversion_dir += 'FQ_' + tag.replace('uniformSlip', 'uniform').replace('_NZNSHMScaling', '').replace('_noNZNSHMScaling', '') + '_GR70-90'
+inversion_dir += 'FQ_' + tag.replace('uniformSlip', 'uniform').replace('_NZNSHMScaling', '').replace('_noNZNSHMScaling', '') + f"_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}{dir_suffix}"
+
+print(inversion_dir)
 
 # Define flags for results csv
 n_ruptures = 5000

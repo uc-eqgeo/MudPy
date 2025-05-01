@@ -28,12 +28,14 @@ NZNSHMscaling = True
 uniformSlip = False
 GR_inv_min = 7.0
 GR_inv_max = 9.0
+dir_suffix = ''
 
 lock = "_locking" if locking else "_nolocking"
 NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
 uniform = "_uniformSlip" if uniformSlip else ""
 
-inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}"
+inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}{dir_suffix}"
+
 n_ruptures = 5000
 slip_weight = 1000
 norm_weight = 1
@@ -45,16 +47,19 @@ plot_ruptures = False   # Plot sample ruptures
 min_Mw, max_Mw = 6.5, 9.5
 plot_all_islands = False
 zero_rate = -6  # Rate at which a ruptures is considered not to have occurred
+n_islands = 10
 write_islands = False   # Write out islands with a zero'd rate
 archi = '-merged'  #  '-merged' or number for which archipeligo to plot
 if archi == '-merged':
-    zero_rate -= 1  # Take into account the 10x slip reduction when merging 10 archipeligos for best result
+    print('Adjusting zero rate for {} islands'.format(n_islands))
+    zero_rate = np.log10((10 ** zero_rate) / n_islands)  # Take into account the 10x slip reduction when merging 10 archipeligos for best result
 init = ''
 plot_gr = True
 plot_rates = True
 plot_lines = True
 plot_distributions = True
-plot_hypocenters = True
+plot_hypocenters = False
+out_formats = ['png']
 
 drive = 'z'
 if drive.lower() == 'c':
@@ -181,7 +186,9 @@ for run in range(n_runs):
             plt.title(f" {input_tag} {max_iter} {island}")
         # if plot_results:
         #     sns.scatterplot(x=bins['Mw_bin'], y=np.log10(inverted_bins + 1e-12), s=15, label=f'Inverted Bins {n_iter[order[run]]}', edgecolors=None)
-        plt.savefig(f"{outdir}\\{input_tag}_GR_{island}.pdf", dpi=300, format='pdf')
+        for format in out_formats:
+            print(f"{outdir}\\{input_tag}_GR_{island}_isl_{archi}.{format}")
+            plt.savefig(f"{outdir}\\{input_tag}_GR_{island}_isl_{archi}.{format}", dpi=300, format=format)
         plt.show()
 # %% Plot rate comparisons
 if plot_rates:
@@ -205,12 +212,13 @@ if plot_rates:
         if zero_rate != 0:
             for ax in (g.ax_joint, g.ax_marg_y):
                 ax.axhline(zero_rate, color='crimson', ls='--', lw=3)
-            g.figure.suptitle(f"{input_tag} {island} Dropped: {np.sum(np.log10(ruptures[island]) < zero_rate)}")
+            g.figure.suptitle(f"{input_tag} {island} Kept: {np.sum(np.log10(ruptures[island]) >= zero_rate)}/{ruptures.shape[0]}")
         else:
             g.figure.suptitle(f"{input_tag} {island}")
         plt.show()
 
-        kept_ruptures = ruptures[ruptures[island] > 10 ** zero_rate]
+        kept_ruptures = ruptures[ruptures[island] >= 10 ** zero_rate]
+
         plt.hist(kept_ruptures['Mw'], bins=np.arange(6.5, 9.5, 0.01), density=False, histtype="step", cumulative=-1)
         plt.title(f"Ruptures > Mw 8: {kept_ruptures[kept_ruptures['Mw'] > 8].shape[0]}")
         plt.show()

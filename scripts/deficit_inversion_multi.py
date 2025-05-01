@@ -18,8 +18,8 @@ rupture_file = "rupture_df_n50000.csv"  # Name of the file containing the ruptur
 n_ruptures = 5000  # Number of ruptures to use in each island
 
 b, N = 1.1, 21.5  # B and N values to use for the GR relation
-min_Mw = 7.0  # Minimum magnitude to use to match GR-Rate
-max_Mw = 9.0  # Maximum magnitude to use to match GR-Rate
+min_Mw = 6.5  # Minimum magnitude to use to match GR-Rate
+max_Mw = 9.5  # Maximum magnitude to use to match GR-Rate
 
 # Weighting
 rate_weight = 10  # Absolute misfit of slip deficit (int)
@@ -145,7 +145,8 @@ class deficitInversion:
             GR_lims_ix = np.where((self.Mw_bins >= self.min_Mw) & (self.Mw_bins <= self.max_Mw), False, True)  # Use bins outside min-max magnitude (that that few high Mw events aren't totally unweighted)
             # GR_rms = np.sqrt(np.mean((inv_GR - self.GR_rate) ** 2))  # Penalise for deviating from GR-rate
             GR_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_ix]) - np.log10(self.GR_rate[GR_ix])) ** 2))  # Penalise for deviating from log(N)
-            GR_lims_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_lims_ix]) - np.log10(self.GR_rate[GR_lims_ix])) ** 2))  # Penalise for deviating from log(N)
+            if any(GR_lims_ix):
+                GR_lims_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_lims_ix]) - np.log10(self.GR_rate[GR_lims_ix])) ** 2))  # Penalise for deviating from log(N)
 
         cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight) + (GR_lims_rms)  # Allow for variable weighting between slip deficit and GR-rate
 
@@ -350,7 +351,7 @@ if __name__ == "__main__":
         print(f"\tEvolving archipeligo {ix}...   ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})")
         archi.evolve()
 
-    # Write out results when niversion has ended
+    # Write out results when inversion has ended
     for ix, archi in enumerate(archi_list):
         archi.wait()
         write_results(ix, archi, inversion_list[ix], outtag, deficit_file, archipeligo_islands)
