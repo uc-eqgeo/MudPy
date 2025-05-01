@@ -42,7 +42,7 @@ logs = glob(f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\hikke
 logs.sort()
 stats_csv = os.path.abspath(os.path.join(os.path.dirname(logs[0]), '..', f'hikkerk_{tag.strip(".")}rupture_stats.csv'))
 
-remake_csv = True
+remake_csv = False
 min_mw = 6
 max_mw = 10
 if os.path.exists(stats_csv) and not remake_csv:

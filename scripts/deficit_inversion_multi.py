@@ -351,7 +351,7 @@ if __name__ == "__main__":
         print(f"\tEvolving archipeligo {ix}...   ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})")
         archi.evolve()
 
-    # Write out results when niversion has ended
+    # Write out results when inversion has ended
     for ix, archi in enumerate(archi_list):
         archi.wait()
         write_results(ix, archi, inversion_list[ix], outtag, deficit_file, archipeligo_islands)

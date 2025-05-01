@@ -13,15 +13,16 @@ bn_combo = 2
 b, N = bn_dict[bn_combo]
 
 fault_name = "hikkerk"
-velmod = "3e10"
+velmod = "prem"
 locking = True
 NZNSHMscaling = True
 uniformSlip = False
-GR_inv_min = 7.0
+GR_inv_min = 6.5
 GR_inv_max = 9.5
-file_suffix = '_max9'
+file_suffix = ''  # Suffic for the FQ directory
+occ_suffix = ''  # Suffix for the OCC directory
 
-max_Mw = None  # Trim maximum Mw
+max_Mw = 9.2  # Trim maximum Mw
 min_Mw = None
 
 sz = "hk" if fault_name == "hikkerk" else ""
@@ -61,7 +62,7 @@ max_Mw_tag += f"_minMw{float(min_Mw)}".replace('.', '-') if min_Mw is not None e
 
 tag = f"n{int(n_ruptures)}_S{int(slip_weight)}{norm}_GR{int(gr_weight)}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{int(n_iterations)}"
 
-occ_proc_dir = os.path.join(occ_home_dir, 'data', 'sz_solutions', f"FakeQuakes_{sz}_{velmod}{lock}{uniform}_{tag}{file_suffix}{max_Mw_tag}_narchi{n_archipeligos}")
+occ_proc_dir = os.path.join(occ_home_dir, 'data', 'sz_solutions', f"FakeQuakes_{sz}_{velmod}{lock}{uniform}_{tag}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}_narchi{n_archipeligos}{max_Mw_tag}")
 
 # Write rupture inversion file to occ
 rates = np.array([])
