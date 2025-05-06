@@ -139,10 +139,12 @@ gr_matrix = np.zeros((bins_list[0].shape[0], ruptures_list[0].shape[0])).astype(
 rupture_matrix = np.zeros((ruptures_list[0].shape[0], ruptures_list[0].shape[0])).astype('bool')
 rupture_bin_matrix = np.zeros((ruptures_list[0].shape[0], ruptures_list[0].shape[0])).astype('bool')
 
+# Create a GR matrix for each magnitude bin
 for ix, mag in enumerate(bins_list[0]['Mw_bin']):
-    gr_matrix[ix, :] = (np.round(ruptures_list[0]['Mw'], 1) >= mag)
+    gr_matrix[ix, :] = (ruptures_list[0]['Mw'] >= mag)
 gr_matrix = gr_matrix.astype('int')
 
+# Create a GR matrix for each individual ruputure
 for ix, mag in enumerate(ruptures_list[0]['Mw']):
     rupture_matrix[ix, :] = (ruptures_list[0]['Mw'] >= mag)
     rupture_bin_matrix[ix, :] = (ruptures_list[0]['Mw'] == mag)
@@ -186,7 +188,7 @@ for run in range(n_runs):
                 # sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures[island]), s=2, label='Inverted rate', color='orange', edgecolors=None, zorder=2)
                 sns.scatterplot(x=ruptures['Mw'], y=np.log10(inverted_rate), s=10, color='red', label='Inverted GR', edgecolors=None, zorder=5)
                 sns.scatterplot(x=ruptures['Mw'], y=np.log10(inverted_rate_bins), s=10, color='orange', label='Inverted Rate Bins', edgecolors=None, zorder=5)
-                sns.scatterplot(x=bins_list[0].Mw_bin, y=np.log10(inverted_bins), s=10, color='blue', label='Inverted Bins', edgecolors=None, zorder=5)
+                sns.scatterplot(x=bins_list[0].Mw_bin, y=np.log10(inverted_bins), s=7, color='blue', label='Inverted Bins', edgecolors=None, zorder=5)
 
             plt.ylabel('log10(N)')
             plt.xlim([min_Mw, max_Mw])
