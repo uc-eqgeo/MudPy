@@ -31,7 +31,7 @@ load_distances=1
 
 #######  OCC Parameters #######
 ncpus=1
-model_name='nzatom.mod'   # Velocity model
+model_name='hk_nzatom.mu'   # Velocity model
 fault_name='hk.fault'
 UTM_zone='60'
 scaling_law='T' # T for thrust, S for strike-slip, N for normal
@@ -98,7 +98,7 @@ else:
     tag = f"_{mean_slip_name.strip('.slip')}"
     mean_slip_name = os.path.join(home, project_name, 'data', 'model_info', mean_slip_name) # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 
-tag += f'_{model_name[:-4]}'
+tag += f'_{model_name.split('.')[0]}'
 
 if NZNSHM_scaling:
     tag += '_NSHMarea'

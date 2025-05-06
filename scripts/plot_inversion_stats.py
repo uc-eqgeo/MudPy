@@ -22,34 +22,40 @@ bn_dict = {1: [0.95, 16.5],
 
 
 fault_name = "hikkerk"
-velmod = "3e10"
-locking = True
-NZNSHMscaling = True
-uniformSlip = False
-GR_inv_min = 7.0
-GR_inv_max = 9.0
-dir_suffix = ''
+velmod = "3e10"  # Velocity/Slip deficit model
+locking = False  # Was locking used in the rupture generation
+NZNSHMscaling = True # Was NZNSHM scaling used in the rupture generation
+uniformSlip = False # Was uniform slip used in the rupture generation
+GR_inv_min = 7.0  # Minimum GR value for the inversion weighting
+GR_inv_max = 9.0  # Maximum GR value for the inversion weighting
+tapered_gr = True  # Was tapered MFD used in the inversion (Rollins and Avouac 2019)
+taper_max_Mw = 9.5  # Max Mw used for the tapered MFD
+alpha_s = 1  # Tapered MFD alpha value
+dir_suffix = '_GR70-90'  # Extra identifier for the directory name (e.g. '_test')
 
 lock = "_locking" if locking else "_nolocking"
 NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
 uniform = "_uniformSlip" if uniformSlip else ""
 
-inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}{dir_suffix}"
+if tapered_gr:
+    inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}{dir_suffix}"
+else:
+    inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}{dir_suffix}"
 
 n_ruptures = 5000
-slip_weight = 1000
+slip_weight = 10
 norm_weight = 1
 GR_weight = 500
-max_iter = 5e5
+max_iter = 5e4
 bn_combo = 2
 b, N = bn_dict[bn_combo]
 plot_ruptures = False   # Plot sample ruptures
 min_Mw, max_Mw = 6.5, 9.5
 plot_all_islands = False
 zero_rate = -6  # Rate at which a ruptures is considered not to have occurred
-n_islands = 10
+n_islands = 1
 write_islands = False   # Write out islands with a zero'd rate
-archi = '-merged'  #  '-merged' or number for which archipeligo to plot
+archi = '0'  #  '-merged' or number for which archipeligo to plot
 if archi == '-merged':
     print('Adjusting zero rate for {} islands'.format(n_islands))
     zero_rate = np.log10((10 ** zero_rate) / n_islands)  # Take into account the 10x slip reduction when merging 10 archipeligos for best result
@@ -65,9 +71,9 @@ drive = 'z'
 if drive.lower() == 'c':
     procdir = 'C:\\Users\\jmc753\\Work\\MudPy\\nesi_outputs'
 elif drive.lower() == 'z':
-    procdir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk'
+    procdir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires'
 
-rupt_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures'
+rupt_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output\\ruptures'
 
 deficit_file = f"{procdir}\\data\\model_info\\hk_hires.slip"
 outdir = f"{procdir}\\output\\{inversion_name}"
@@ -81,10 +87,13 @@ if max_iter == 0:
 
 slip_weight, norm_weight, GR_weight, max_iter = [int(val) for val in [slip_weight, norm_weight, GR_weight, max_iter]]
 
+if tapered_gr:
+    taper_tag = f"_taper{taper_max_Mw}Mw_alphas{alpha_s:.1f}".replace('.', '-') if tapered_gr else ""
+
 if norm_weight is not None:
-    results_tag = f"n{n_ruptures}_S{slip_weight}_N{norm_weight}_GR{GR_weight}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{max_iter}"
+    results_tag = f"n{n_ruptures}_S{slip_weight}_N{norm_weight}_GR{GR_weight}{taper_tag}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{max_iter}"
 else:
-    results_tag = f"n{n_ruptures}_S{slip_weight}_GR{GR_weight}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{max_iter}"
+    results_tag = f"n{n_ruptures}_S{slip_weight}_GR{GR_weight}{taper_tag}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{max_iter}"
 
 if init:
     results_tag += f"-init{init}"
