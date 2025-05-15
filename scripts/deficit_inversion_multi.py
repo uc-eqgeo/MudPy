@@ -23,6 +23,7 @@ b, N = 1.1, 21.5  # B and N values to use for the GR relation
 tapered_gr = True # Use tapered GR relation of Rollins and Avouac (2019)
 taper_max_Mw = 9.5  # Maximum magnitude to use in tapered GR relation
 alpha_s = 1 # Portion of moment taken up by coseismic slip for tapered GR relation
+max_patch = 6233 # ID of the patch at which to stop using when running the inversion (-1 for all patches)
 
 # Weighting
 rate_weight = 10  # Absolute misfit of slip deficit (int)
@@ -236,14 +237,14 @@ def write_results(ix, archi, inversion, outtag, deficit_file, archipeligo_island
 
     out = np.zeros((deficit.shape[0], 8))
     out[:, :4] = deficit[:, :4]
-    out[:, 4] = inversion.deficit
-    out[:, 5] = reconstructed_deficit
-    out[:, 6] = reconstructed_deficit / inversion.deficit  # Fractional misfit
-    out[:, 7] = reconstructed_deficit - inversion.deficit  # Absolute misfit
+    out[:, 4] = deficit[:, 9] # Target deficit (mm/yr)
+    out[:inversion.n_patches, 5] = reconstructed_deficit
+    out[:inversion.n_patches, 6] = reconstructed_deficit / inversion.deficit  # Fractional misfit
+    out[:inversion.n_patches, 7] = reconstructed_deficit - inversion.deficit  # Absolute misfit
 
     outfile = os.path.join(outdir, f"{outtag}_inversion_results.inv")
     np.savetxt(outfile, out, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f\t%.6f",
-            header='#No\tlon\tlat\tz(km)\ttarget-deficit(mm/yr)\tinverted-deficit(mm/yr)\tmisfit_rel(mm/yr)\tmisfit_abs(mm/yr)')
+            header='#No\tlon\tlat\tz(km)\ttarget-deficit(mm/yr)\tinverted-deficit(mm/yr)\tmisfit_rel\tmisfit_abs(mm/yr)')
 
 
 # %% Main function
@@ -254,7 +255,7 @@ if __name__ == "__main__":
     rupture_csv = os.path.join(procdir, rupture_file)
 
     taper_tag = f"_taper{taper_max_Mw}Mw_alphas{alpha_s:.1f}".replace('.', '-') if tapered_gr else ""
-    outtag = f"n{n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}{taper_tag}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}"
+    outtag = f"n{n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}{taper_tag}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_pMax{max_patch}"
 
     # Check there is the correct number of ruptures available to invert
     if archipeligo and n_ruptures > total_ruptures:
@@ -284,7 +285,7 @@ if __name__ == "__main__":
 
     # Load target deficit
     deficit = np.genfromtxt(deficit_file)
-    deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
+    deficit = deficit[:max_patch, 9]  # d in d=Gm, keep in mm/yr
 
     if tapered_gr:
         rigidity = pd.read_csv(rigidity_file, sep=' ', index_col=0)
@@ -297,7 +298,13 @@ if __name__ == "__main__":
         else:
             raise Exception(f"No rigidity columns found in {rigidity_file} - put rigidity in the name of the column")
     else:
-        Mo_rate = 0
+        mu_A = 0
+
+    if max_patch > -1:
+        cols = [str(i) for i in range(max_patch)]
+        for ii, ruptures_df in enumerate(ruptures_df_list):
+            inversion_ruptures = ruptures_df.loc[ruptures_df[cols].sum(axis=1) > 0].index
+            ruptures_df = ruptures_df[['rupt_id', 'mw', 'target_mw'] + cols].loc[inversion_ruptures]
 
     inversion_list = []
     for ruptures_df in ruptures_df_list:
@@ -322,6 +329,7 @@ if __name__ == "__main__":
     else:
         initial_rates = 10 ** ((upper_lim - lower_lim.min()) * np.random.rand(n_ruptures) + lower_lim.min())  # Randomly initialise rates to values between lower and upper limit (for when working in log space)
 
+    print(f"Preparing run {os.path.join(outdir, outtag)}")
     # Output the initial conditions
     outfile = os.path.join(outdir, f"{outtag}_input_ruptures.csv")
     out = np.zeros((inversion.n_ruptures, 7))
