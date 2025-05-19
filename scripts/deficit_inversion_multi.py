@@ -16,7 +16,7 @@ inversion_name = 'FQ_3e10_nolocking_GR70-90'  # Name of directory results will b
 deficit_file = "hk_hires.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
 rigidity_file = "hk_nzatom.mu"
 rupture_file = "rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
-n_ruptures = 5000  # Number of ruptures to use in each island
+n_ruptures = 50000  # Number of ruptures to use in each island
 patch_area = 25e6  # Area of each patch (m^2) - used to calculate moment rate from slip rate
 
 b, N = 1.1, 21.5  # B and N values to use for the GR relation
@@ -31,7 +31,7 @@ norm_weight = 1  # Relative misfit of slip deficit (int)
 GR_weight = 500 # Mistfit of GR relation (int)
 
 # Pygmo requirements
-n_iterations = 50000  # Maximum number of iterations for each inversion
+n_iterations = 500  # Maximum number of iterations for each inversion
 ftol = 0.0001  # Stopping Criteria
 n_islands = 1  # Number of islands
 pop_size = 5  # Number of populations per island
@@ -62,7 +62,7 @@ if not os.path.exists(outdir):
 # %% Pygmo Classes and Functions
 class deficitInversion:
     def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float,
-                 Mo_rate: float, tapered_gr: bool = True, taper_max_Mw: float = 9.5, alpha_s: float = 1, min_Mw: float = 6, max_Mw: float = 10):
+                 mu_A: np.ndarray, tapered_gr: bool = True, taper_max_Mw: float = 9.5, alpha_s: float = 1, min_Mw: float = 6, max_Mw: float = 10):
 
         self.name = "Slip Deficit Inversion"
         self.deficit = deficit  # Slip deficit (on same grid as ruptures)
@@ -75,7 +75,9 @@ class deficitInversion:
         self.GR_weight = GR_weight  # Weighting for GR-rate misfit
         self.min_Mw = min_Mw  # Minimum magnitude to use for GR-rate
         self.max_Mw = max_Mw  # Maximum magnitude to use for GR-rate
-        self.Mo_rate = Mo_rate # Moment rate (in N/m^2) - used to calculate tapered GR-rate
+        self.tapered_gr = tapered_gr  # Use tapered GR-rate relation
+        self.mu_A = mu_A # uA contribution of Mo = uAS - used to calculate tapered GR-rate
+        self.alpha_s = alpha_s  # Portion of moment taken up by coseismic slip for tapered GR relation
 
         print("Reading rupture dataframe...")
         self.n_ruptures = ruptures_df.shape[0]
@@ -90,7 +92,7 @@ class deficitInversion:
         self.sparse_slip = bsr_array(ruptures_df.iloc[:, i0:i1].values.T * 1000)  # Slip in mm, convert from m to mm, place in sparse matrix
 
         self.make_gr_matrix()
-        self.GR_rate = self.mfd(tapered_gr, self.Mw_bins)  # Calculate target MFD
+        self.GR_rate = self.mfd(tapered_gr, self.Mw_bins, self.deficit)  # Calculate target MFD
 
     # Properties to call matricies as full arrays
     @property
@@ -101,9 +103,10 @@ class deficitInversion:
     def gr_matrix(self):
         return self.sparse_gr_matrix.toarray()
 
-    def mfd(self, tapered_gr: bool, Mw: np.ndarray):
+    def mfd(self, tapered_gr: bool, Mw: np.ndarray, slip: np.ndarray = None):
         if tapered_gr:
-            return ((1 - ((2 * self.b) / 3)) / ((2 * self.b) / 3)) * ((alpha_s * Mo_rate) / self.Mo_max) * ((self.Mo_max / self.mw2mo(Mw)) ** ((2 * self.b) / 3) - 1)
+            Mo_rate = np.sum(self.mu_A * (slip * 1e-3))  # Calculate moment using slip rates (convert to m) and rigidity-area (N)
+            return ((1 - ((2 * self.b) / 3)) / ((2 * self.b) / 3)) * ((self.alpha_s * Mo_rate) / self.Mo_max) * ((self.Mo_max / self.mw2mo(Mw)) ** ((2 * self.b) / 3) - 1)
         else:
             return 10 ** (self.a - (self.b * Mw))
 
@@ -146,9 +149,11 @@ class deficitInversion:
 
         rms, norm_rms, GR_rms, GR_lims_rms = 0, 0, 0, 0
 
+        if any([self.rate_weight > 0, self.norm_weight > 0, self.tapered_gr]):
+            total_slip = self.sparse_slip @ (10 ** x)  # Calculate slip by multiplying slip matrix by rupture rate vector (sparse matricies can't use matmul)
+
         # Calculate slip-deficit component (Based on NSHM SRM constraint weights)
         if any([self.rate_weight > 0, self.norm_weight > 0]):
-            total_slip = self.sparse_slip @ (10 ** x)  # Calculate slip by multiplying slip ratrix by rupture rate vector (sparse matricies can't use matmul)
             rate_misfit = total_slip - self.deficit
             if self.rate_weight > 0:
                 rms = np.sqrt(np.mean(rate_misfit ** 2))  # Calculate root mean square misfit of slip - Penalises large absolute differences
@@ -157,10 +162,13 @@ class deficitInversion:
 
         # Calculate GR-rate component
         if self.GR_weight > 0:
-            inv_GR = self.sparse_gr_matrix @ (10 ** x)  # Calculate GR-rate for each magnitude bin based on inverted slip rates
             GR_ix = np.where((self.Mw_bins >= self.min_Mw) & (self.Mw_bins <= self.max_Mw), True, False)  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
             GR_lims_ix = np.where((self.Mw_bins >= self.min_Mw) & (self.Mw_bins <= self.max_Mw), False, True)  # Use bins outside min-max magnitude (that that few high Mw events aren't totally unweighted)
             # GR_rms = np.sqrt(np.mean((inv_GR - self.GR_rate) ** 2))  # Penalise for deviating from GR-rate
+            if self.tapered_gr:
+                inv_GR = self.mfd(tapered_gr, self.Mw_bins, total_slip)  # Calculate Tapered GR-rate for each magnitude bin based on inverted slip rates and new moment
+            else:
+                inv_GR = self.sparse_gr_matrix @ (10 ** x)  # Calculate Linear GR-rate for each magnitude bin based on inverted slip rates
             GR_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_ix]) - np.log10(self.GR_rate[GR_ix])) ** 2))  # Penalise for deviating from log(N)
             if any(GR_lims_ix):
                 GR_lims_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_lims_ix]) - np.log10(self.GR_rate[GR_lims_ix])) ** 2))  # Penalise for deviating from log(N)
@@ -214,7 +222,7 @@ def write_results(ix, archi, inversion, outtag, deficit_file, archipeligo_island
     out = np.zeros((inversion.n_ruptures, archipeligo_islands + 5))
     out[:, 0] = inversion.Mw
     out[:, 1] = initial_rates
-    out[:, 2] = inversion.mfd(tapered_gr, inversion.Mw)
+    out[:, 2] = inversion.mfd(tapered_gr, inversion.Mw, inversion.deficit)  # Target GR-rate
     out[:, 3], out[:, 4] = 10 ** lower_lim, 10 ** upper_lim
     out[:, 5:] = preferred_rate
 
@@ -291,8 +299,9 @@ if __name__ == "__main__":
         rigidity = pd.read_csv(rigidity_file, sep=' ', index_col=0)
         rigidity_cols = [col for col in rigidity.columns if 'rigidity' in col.lower()]
         if len(rigidity_cols) == 1:
-            rigidity = rigidity[rigidity_cols[0]].values
+            rigidity = rigidity[rigidity_cols[0]].values[:max_patch]
             Mo_rate = np.sum(rigidity * patch_area * (deficit * 1e-3))
+            mu_A = rigidity * patch_area  # uA part of Mo = uAs, value per patch.
         elif len(rigidity_cols) > 1:
             raise Exception(f"Multiple rigidity columns found in {rigidity_file} - only 1 should have rigidity in the name")
         else:
@@ -304,11 +313,11 @@ if __name__ == "__main__":
         cols = [str(i) for i in range(max_patch)]
         for ii, ruptures_df in enumerate(ruptures_df_list):
             inversion_ruptures = ruptures_df.loc[ruptures_df[cols].sum(axis=1) > 0].index
-            ruptures_df = ruptures_df[['rupt_id', 'mw', 'target_mw'] + cols].loc[inversion_ruptures]
+            ruptures_df_list[ii] = ruptures_df[['rupt_id', 'mw', 'target_mw'] + cols].loc[inversion_ruptures]
 
     inversion_list = []
     for ruptures_df in ruptures_df_list:
-        inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, tapered_gr=tapered_gr, taper_max_Mw=taper_max_Mw, Mo_rate=Mo_rate))
+        inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, tapered_gr=tapered_gr, taper_max_Mw=taper_max_Mw, mu_A=mu_A))
 
     # %% Write out starting conditions
     inversion = inversion_list[0]
@@ -338,7 +347,7 @@ if __name__ == "__main__":
     out[:, 2] = inversion.target
     out[:, 3] = initial_rates
     out[:, 4], out[:, 5] = lower_lim, upper_lim
-    out[:, 6] = inversion.mfd(tapered_gr, inversion.Mw)
+    out[:, 6] = inversion.mfd(tapered_gr, inversion.Mw, inversion.deficit)
     np.savetxt(outfile, out, fmt="%.0f\t%.4f\t%.4f\t%.6e\t%.6e\t%.6e\t%.6e", header='No\tMw\ttarget\tinitial_rate\tlower\tupper\ttarget_rate')
 
     outfile = os.path.join(outdir, f"{outtag}_input_bins.csv")
