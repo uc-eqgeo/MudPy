@@ -180,11 +180,11 @@ for run in range(n_runs):
 
             #sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['upper']), s=5, color='green', label='Individual limit', edgecolors=None, zorder=1)
             sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['lower'] + 1e-30), s=5, color='green', edgecolors=None, zorder=1)
-            #sns.scatterplot(x=ruptures['Mw'], y=np.log10(initial_rate), s=20, color='blue', label='Initial GR', edgecolors=None, zorder=4)
-            #sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['initial_rate']), s=1, label='Initial rate', color='blue', edgecolors=None, zorder=1)
+            sns.scatterplot(x=ruptures['Mw'], y=np.log10(initial_rate), s=20, color='grey', label='Initial GR', edgecolors=None, zorder=4)
+            sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures['initial_rate']), s=1, label='Initial rupture rate', color='blue', edgecolors=None, zorder=1)
 
             if plot_gr:
-                #sns.histplot(x=ruptures['Mw'], y=np.log10(ruptures[island]), binwidth=binwidth, zorder=0)
+                # sns.histplot(x=ruptures['Mw'], y=np.log10(ruptures[island]), binwidth=binwidth, zorder=0)
                 # sns.scatterplot(x=ruptures['Mw'], y=np.log10(ruptures[island]), s=2, label='Inverted rate', color='orange', edgecolors=None, zorder=2)
                 sns.scatterplot(x=ruptures['Mw'], y=np.log10(inverted_rate), s=10, color='red', label='Inverted GR', edgecolors=None, zorder=5)
                 sns.scatterplot(x=ruptures['Mw'], y=np.log10(inverted_rate_bins), s=10, color='orange', label='Inverted Rate Bins', edgecolors=None, zorder=5)
@@ -435,7 +435,8 @@ if archi == '-merged':
 else:
     ruptures_df = pd.read_csv(rupture_df_file, nrows=n_ruptures)
 # %% Plot patch specific GR relations
-patch_numbers = np.arange(0, 14800, 100)
+patch_numbers = np.arange(0, 6300, 3)
+# patch_numbers = np.arange(0, 14800, 100)
 island_to_use = 0
 
 if isinstance(island_to_use, (int, float)):

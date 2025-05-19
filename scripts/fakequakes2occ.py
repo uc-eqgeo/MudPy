@@ -110,7 +110,7 @@ inverted_slip = np.matmul(slip_array, archi_df['inverted_rate_0'].values)
 
 inv_results = pd.read_csv(os.path.join(rupture_dir, f"{tag}_archi0_inversion_results.inv"), sep='\t')
 inv_results['inverted-deficit(mm/yr)'] = inverted_slip
-inv_results['misfit_rel(mm/yr)'] = inv_results['inverted-deficit(mm/yr)'] / deficit
+inv_results['misfit_rel'] = inv_results['inverted-deficit'] / deficit
 inv_results['misfit_abs(mm/yr)'] = inv_results['inverted-deficit(mm/yr)'] - deficit
 inv_results.to_csv(os.path.join(rupture_dir, f"{tag}{max_Mw_tag}_archi-merged_inversion_results.inv"), sep='\t', index=False)
 

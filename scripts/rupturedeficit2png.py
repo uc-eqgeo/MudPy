@@ -165,7 +165,7 @@ for ix, rupture_file in enumerate(rupture_list):
     # Plot the mesh as a 2D surface
     #plot_2d_surface(rupture_mesh, os.path.basename(rupture_file).replace('.inv', '_target'), rupture_png_dir, [], min_slip=0.1, max_slip=50, log=False, color_by='target-deficit(mm/yr)')
     #plot_2d_surface(rupture_mesh, os.path.basename(rupture_file).replace('.inv', '_inverted'), rupture_png_dir, [], min_slip=0.1, max_slip=50, log=False, color_by='inverted-deficit(mm/yr)')
-    #plot_2d_surface(rupture_mesh, os.path.basename(rupture_file).replace('.inv', '_misfit_rel'), rupture_png_dir, [], min_slip=0, max_slip=2, log=False, color_by='misfit_rel(mm/yr)', cmap="RdYlBu_r")
+    #plot_2d_surface(rupture_mesh, os.path.basename(rupture_file).replace('.inv', '_misfit_rel'), rupture_png_dir, [], min_slip=0, max_slip=2, log=False, color_by='misfit_rel', cmap="RdYlBu_r")
     plot_2d_surface(rupture_mesh, os.path.basename(rupture_file).replace('.inv', '_misfit_abs'), rupture_png_dir, [], min_slip=-5, max_slip=5, log=False, color_by='misfit_abs(mm/yr)', cmap="RdYlBu_r")
     print(f"{os.path.basename(rupture_file)}\t{ix+1}/{len(rupture_list)}")
 print('Complete :)')

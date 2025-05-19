@@ -13,16 +13,16 @@ mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
 mesh_name = 'hik_kerk3k_with_rake.vtk'
 
-plot_ruptures =True
+plot_ruptures = False
 n_ruptures = 5000
 
 fault_name = "hikkerk"
 velmod = "3e10"
-locking = True
-NZNSHMscaling = True
+locking = False
+NZNSHMscaling = False
 uniformSlip = False
 GR_inv_min = 7.0
-GR_inv_max = 9.5
+GR_inv_max = 9.0
 dir_suffix = ''
 
 lock = "_locking" if locking else "_nolocking"
@@ -31,14 +31,14 @@ uniform = "_uniformSlip" if uniformSlip else ""
 
 inversion_name = f"FQ_{velmod}{lock}{uniform.replace('Slip', '')}_GR{str(GR_inv_min).replace('.', '')}-{str(GR_inv_max).replace('.', '')}{dir_suffix}"
 
-file_keyword = 'Mw9-08_000010'
+file_keyword = 'GR500'
 
 write_geojson = True
 
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
-rupture_dir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures"
-output_dir = f"Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\{inversion_name}"
+rupture_dir = f"Z:\\McGrath\\HikurangiFakeQuakes\\{fault_name}\\output\\ruptures"
+output_dir = f"Z:\\McGrath\\HikurangiFakeQuakes\\{fault_name}\\output\\{inversion_name}"
 
 if plot_ruptures:
     rupture_list = glob(f'{rupture_dir}\\{fault_name}_{velmod}{lock}{NZNSHM}{uniform}*{file_keyword}*.rupt')
