@@ -1,27 +1,19 @@
 import numpy as np
 from glob import glob
 
-rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output/ruptures'
+rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerm/output/ruptures'
 
-run_name = 'hikkerk_3e10'
-locking_model = True 
+run_name = 'hikkerm'
+velmod = 'wuatom'
+locking_model = 'hk_lock'
 NZNSHM_scaling = True
 uniform_slip = False
 
-if locking_model:
-    rupt_name = run_name + '_locking'
-else:
-    rupt_name = run_name + '_nolocking'
+locking_model = locking_model.replace('hk_', '')
+area = '_NSHMarea' if NZNSHM_scaling else '_noNSHMArea'
+uniform = '_uniformSlip.' if uniform_slip else '.'
 
-if NZNSHM_scaling:
-    rupt_name += '_NZNSHMscaling'
-else:
-    rupt_name += '_noNZNSHMscaling'
-
-if uniform_slip:
-    rupt_name += '_uniformSlip.'
-else:
-    rupt_name += '.'
+rupt_name = f"{run_name}_{locking_model}_{velmod}{area}{uniform}"
 
 print("Searching for", rupture_dir + '/' + rupt_name + '*.rupt')
 rupt_list = glob(rupture_dir + '/' + rupt_name + '*.rupt')
