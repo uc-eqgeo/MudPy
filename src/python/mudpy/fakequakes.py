@@ -370,13 +370,16 @@ def get_mean_slip(target_Mw,fault_array,vel_mod):
     
     vel=genfromtxt(vel_mod)
     areas=fault_array[:,8]*fault_array[:,9]
-    # Check to see if we're using 3D velocity model or not
-    # Check is if vel is same size as fault array, and first rigidity value is > 1KPa
-    if vel.shape[1] == len(fault_array) and vel[0, 1] > 1e3:
-        # Use 3D velocity model
+    # Check to see if we're using 3D rigidity model or not (.mu for 3D, .mod for layered)
+    if vel_mod.endswith('.mu'):
+        # Check if vel_mod is same size as fault array, and first rigidity value is > 1KPa
+        assert vel.shape[0] == len(fault_array), 'Rigidity  model and fault array do not match in size'
+        # Check if first value is > 1KPa
+        assert vel[0, 1] > 1e3, 'First value of rigidity model is very low - check rigidity is in Pa'
+        # Use 3D rigidity model
         mu = vel[:, 1]
     else:
-        # Use layered model
+        # Use layered velocity model
         mu=zeros(len(fault_array))
         for k in range(len(mu)):
             mu[k]=get_mu(vel,fault_array[k,3])

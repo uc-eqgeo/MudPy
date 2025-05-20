@@ -31,12 +31,12 @@ load_distances=1
 
 #######  OCC Parameters #######
 ncpus=10
-model_name='nzatom_wu2003.mu'   # Velocity model
+model_name='wuatom.mu'   # Velocity model. .mod for layered velocity, .mu for 3D rigidity
 fault_name='hk.fault'
 UTM_zone='60'
 scaling_law='T' # T for thrust, S for strike-slip, N for normal
 
-Nrealizations=150 # Number of fake ruptures to generate per magnitude bin
+Nrealizations=1 # Number of fake ruptures to generate per magnitude bin
 target_Mw=np.round(np.arange(6.5,7.0,0.01),4) # Of what approximate magnitudes
 
 # Correlation function parameters

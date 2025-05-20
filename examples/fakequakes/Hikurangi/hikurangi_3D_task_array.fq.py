@@ -34,7 +34,7 @@ load_distances=1
 
 #######  OCC Parameters #######
 ncpus=1
-model_name='nzatom_wu2003.mod'   # Velocity model
+model_name='wuatom.mod'   # Velocity model. .mod for layered velocity, .mu for 3D rigidity
 fault_name='hk.fault'
 UTM_zone='60'
 scaling_law='T' # T for thrust, S for strike-slip, N for normal
