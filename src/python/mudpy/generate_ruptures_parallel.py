@@ -12,7 +12,8 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset, NZNSHM_scaling, stochastic_slip):
+        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset, NZNSHM_scaling, stochastic_slip,
+        sub_fault_start, sub_fault_end):
     
     '''
     Depending on user selected flags parse the work out to different functions
@@ -44,9 +45,8 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
     for rMw in range(len(tMw)):
         target_Mw[rMw]=float(tMw[rMw])
         
-
     #Should I calculate or load the distances?
-    if load_distances==1:  
+    if load_distances==1:
         Dstrike=load(home+project_name+'/data/distances/'+distances_name+'.strike.npy')
         Ddip=load(home+project_name+'/data/distances/'+distances_name+'.dip.npy')
     else:
@@ -62,7 +62,8 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
     vel_mod_file=home+project_name+'/structure/'+model_name
     
     #Get TauPyModel
-    velmod = TauPyModel(model=home+project_name+'/structure/'+model_name.split('.')[0])
+    if calculate_rupture_onset:  # If not calculating rupture onset, don't need to load the model. Can't handle 3D rigidity anyway
+        velmod = TauPyModel(model=home+project_name+'/structure/'+model_name.split('.')[0])
     
     # Define the subfault hypocenter (if hypocenter is prescribed)
     if hypocenter is None:
@@ -89,6 +90,11 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
             raise ValueError('Should not have coupling values greater than 1. Quitting...')
     else:
         patch_coupling = ones(len(whole_fault[:,1]))
+
+    # Allow for a specific range of sub_faults to be used to nucleate ruptures
+    nucleation_faults = zeros(len(whole_fault[:,1]))
+    nucleation_faults[sub_fault_start:sub_fault_end] = 1
+    patch_coupling = patch_coupling * nucleation_faults
 
     #Now loop over the number of realizations
     realization=0
@@ -487,6 +493,8 @@ if __name__ == '__main__':
             stochastic_slip=True
         else:
             stochastic_slip=False
+        sub_fault_start=int(sys.argv[44])
+        sub_fault_end=int(sys.argv[45])
         
         run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
         load_distances,distances_name,UTM_zone,tMw,model_name,hurst,Ldip,Lstrike,
@@ -494,7 +502,8 @@ if __name__ == '__main__':
         source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,force_magnitude,
         force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,
-        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset,NZNSHM_scaling,stochastic_slip)
+        max_slip_rule,rank,size,nucleate_on_coupling,calculate_rupture_onset,NZNSHM_scaling,stochastic_slip,
+        sub_fault_start,sub_fault_end)
     else:
         print("ERROR: You're not allowed to run "+sys.argv[1]+" from the shell or it does not exist")
         

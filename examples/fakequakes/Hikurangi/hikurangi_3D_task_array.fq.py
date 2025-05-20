@@ -34,7 +34,7 @@ load_distances=1
 
 #######  OCC Parameters #######
 ncpus=1
-model_name='3e10_mu.mod'   # Velocity model
+model_name='nzatom_wu2003.mod'   # Velocity model
 fault_name='hk.fault'
 UTM_zone='60'
 scaling_law='T' # T for thrust, S for strike-slip, N for normal
@@ -47,6 +47,7 @@ hypocenter=None #=None is random hypocenter
 rake='vary' # average rake, or 'vary' for variable rake based off fault model
 mean_slip_name = 'hk_hires.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 uniform_slip=False # If true, skip the stochastic aspect of this whole process and just use relatively uniform slip based on velocity model (equivialent to VAUS of Davies 2019)
+sub_fault_end=6233  # Max patch number to nucleate faults on (-1 for all patches)
 
 #Enforcement of rules on area scaling and hypo location
 force_area=False
@@ -111,15 +112,15 @@ if __name__ == "__main__":
     if mean_slip_name is None:
         tag = '_noMeanSlip'
     else:
-        tag = f"_{mean_slip_name.strip('.slip')}"
+        tag = f"_{mean_slip_name.replace('.slip', '').replace('hk_', '')}"
         mean_slip_name = os.path.join(home, project_name, 'data', 'model_info', mean_slip_name) # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 
     tag += f'_{model_name.strip(".mod")}'
 
     if NZNSHM_scaling:
-        tag += '_NZNSHMscaling'
+        tag += '_NSHMarea'
     else:
-        tag += '_noNZNSHMscaling'
+        tag += '_noNSHMarea'
 
     if uniform_slip:
         stochastic_slip = False
@@ -137,4 +138,4 @@ if __name__ == "__main__":
             force_hypocenter=force_hypocenter,
             max_slip_rule=max_slip_rule,use_hypo_fraction=use_hypo_fraction, 
             calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling,
-            stochastic_slip=stochastic_slip)
+            stochastic_slip=stochastic_slip, sub_fault_end=sub_fault_end)
