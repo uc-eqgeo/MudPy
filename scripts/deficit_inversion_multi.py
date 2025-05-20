@@ -258,6 +258,13 @@ def write_results(ix, archi, inversion, outtag, deficit_file, archipeligo_island
     out[:inversion.n_patches, 5] = reconstructed_deficit
     out[:inversion.n_patches, 6] = reconstructed_deficit / inversion.deficit  # Fractional misfit
     out[:inversion.n_patches, 7] = reconstructed_deficit - inversion.deficit  # Absolute misfit
+    if tapered_gr:
+        header += "\ttransition_deficit(mm/yr)\ttransition_rel(mm/yr)\ttransition_abs(mm/yr)"
+        format += "\t%.6f\t%.6f\t%.6f"
+        transitional_deficit = np.hstack([reconstructed_deficit, np.matmul(inversion.extra_slip.toarray(), preferred_rate[:, 0])]).T.reshape(-1, 1)
+        transitional_rel = transitional_deficit / deficit[:, 9].reshape(-1, 1)
+        transitional_abs = transitional_deficit - deficit[:, 9].reshape(-1, 1)
+        out = np.hstack([out, transitional_deficit, transitional_rel, transitional_abs])
 
     outfile = os.path.join(outdir, f"{outtag}_inversion_results.inv")
     np.savetxt(outfile, out, fmt=format, header=header)
@@ -332,7 +339,7 @@ if __name__ == "__main__":
             # Reduce the dataframe to the ROI ruptures
             ruptures_df = ruptures_df.loc[inversion_ruptures]
             # Find the patches that are ruptured by the ROI ruptures
-            slip_patches = ruptures_df[[str(i) for i in range(int(ruptures_df.columns[-1]))]].sum(axis=0).values
+            slip_patches = ruptures_df[[str(i) for i in range(int(ruptures_df.columns[-1]) + 1)]].sum(axis=0).values
             slip_patches_id = [str(col) for col in np.where(slip_patches > 0)[0]]
             all_slip_patches += slip_patches_id
             ruptures_df_list[ii] = ruptures_df[['rupt_id', 'mw', 'target_mw'] + slip_patches_id]
