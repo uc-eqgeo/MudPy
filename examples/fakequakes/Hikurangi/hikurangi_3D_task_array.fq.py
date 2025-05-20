@@ -12,8 +12,8 @@ import os
 
 
 ########                            GLOBALS                             ########
-home=os.path.join('/nesi', 'nobackup', 'uc03610', 'jack', 'fakequakes')
-project_name='hikkerm_finals' # Directory name
+home=os.path.join('/nesi', 'nobackup', 'uc03610', 'jack', 'fakequakes') + os.sep
+project_name='hikkerm' # Directory name
 run_name='hikkerm' # Name for this run
 
 ######### Fixing run paths to work with linux or windows ###########
