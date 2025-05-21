@@ -17,7 +17,8 @@ run_name='hikkerm' # Name for this run
 if 'mnt' in os.getcwd().split(os.sep)[:2]:
     root = home.split(':')[0].lower() + os.sep
     home = '/mnt/' + root + (os.sep).join(home.split(os.sep)[1:])
-
+elif 'uc03610' in os.getcwd():
+    home = '/nesi/nobackup/uc03610/jack/fakequakes/'
 ################################################################################
 
 
@@ -30,7 +31,7 @@ load_distances=1
 #############                 Run-time parameters            ##################
 
 #######  OCC Parameters #######
-ncpus=10
+ncpus=1
 model_name='wuatom.mu'   # Velocity model. .mod for layered velocity, .mu for 3D rigidity
 fault_name='hk.fault'
 UTM_zone='60'
@@ -91,8 +92,8 @@ if not os.path.exists(project_dir):
     os.makedirs(os.path.join(project_dir, 'structure'))
     raise Exception(f'Project directory {project_dir} created.\nPlease fill with model info')
 
-if not os.path.exists(os.path.join(project_dir, 'output')):
-    os.makedirs(os.path.join(project_dir, 'output'))
+if not os.path.exists(os.path.join(project_dir, 'output', 'ruptures')):
+    os.makedirs(os.path.join(project_dir, 'output', 'ruptures'))
 
 #Generate rupture models
 if mean_slip_name is None:

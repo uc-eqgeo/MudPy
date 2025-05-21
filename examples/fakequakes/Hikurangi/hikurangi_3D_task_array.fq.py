@@ -91,8 +91,8 @@ if not os.path.exists(project_dir):
     os.makedirs(os.path.join(project_dir, 'structure'))
     raise Exception(f'Project directory {project_dir} created.\nPlease fill with model info')
 
-if not os.path.exists(os.path.join(project_dir, 'output')):
-    os.makedirs(os.path.join(project_dir, 'output'))
+if not os.path.exists(os.path.join(project_dir, 'output', 'ruptures')):
+        os.makedirs(os.path.join(project_dir, 'output', 'ruptures'))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="")
