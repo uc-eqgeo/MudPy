@@ -34,7 +34,7 @@ load_distances=1
 
 #######  OCC Parameters #######
 ncpus=1
-model_name='wuatom.mod'   # Velocity model. .mod for layered velocity, .mu for 3D rigidity
+model_name='wuatom.mu'   # Velocity model. .mod for layered velocity, .mu for 3D rigidity
 fault_name='hk.fault'
 UTM_zone='60'
 scaling_law='T' # T for thrust, S for strike-slip, N for normal
@@ -45,7 +45,7 @@ NZNSHM_scaling = True # Enforce New Zealand NSHM scaling law of Mw = log10(area)
 # Rupture parameters
 hypocenter=None #=None is random hypocenter
 rake='vary' # average rake, or 'vary' for variable rake based off fault model
-mean_slip_name = 'hk_hires.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
+mean_slip_name = 'hk_lock.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 uniform_slip=False # If true, skip the stochastic aspect of this whole process and just use relatively uniform slip based on velocity model (equivialent to VAUS of Davies 2019)
 sub_fault_end=6233  # Max patch number to nucleate faults on (-1 for all patches)
 

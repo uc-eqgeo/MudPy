@@ -1352,11 +1352,12 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
     
     #Need to make tauPy file
     vel_mod_file=home+project_name+'/structure/'+model_name
-    #Get TauPyModel
-    try:  # Error seems to come from multiple calls to read/write same data when doing task arrays
-        build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM')
-    except:  # If error, then space out retries
-        print('Error building TauPyModel. Hoping one exists and just using that instead....')
+    #Get TauPyModel if using a layered velocity model
+    if vel_mod_file.endswith('.mod'):
+        try:  # Error seems to come from multiple calls to read/write same data when doing task arrays
+            build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM')
+        except:  # If error, then space out retries
+            print('Error building TauPyModel. Hoping one exists and just using that instead....')
 
     #Write ruptures.list file
     write_rupt_list(home,project_name,run_name,target_Mw,Nrealizations,ncpus)
