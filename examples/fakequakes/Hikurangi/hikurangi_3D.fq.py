@@ -17,7 +17,8 @@ run_name='hikkerm' # Name for this run
 if 'mnt' in os.getcwd().split(os.sep)[:2]:
     root = home.split(':')[0].lower() + os.sep
     home = '/mnt/' + root + (os.sep).join(home.split(os.sep)[1:])
-
+elif 'uc03610' in os.getcwd():
+    home = '/nesi/nobackup/uc03610/jack/fakequakes/'
 ################################################################################
 
 
@@ -31,13 +32,13 @@ load_distances=1
 
 #######  OCC Parameters #######
 ncpus=1
-model_name='hk_nzatom.mu'   # Velocity model
+model_name='wuatom.mu'   # Velocity model. .mod for layered velocity, .mu for 3D rigidity
 fault_name='hk.fault'
 UTM_zone='60'
 scaling_law='T' # T for thrust, S for strike-slip, N for normal
 
-Nrealizations=10 # Number of fake ruptures to generate per magnitude bin
-target_Mw=np.round(np.arange(7.0,7.5,0.1),4) # Of what approximate magnitudes
+Nrealizations=1 # Number of fake ruptures to generate per magnitude bin
+target_Mw=np.round(np.arange(6.5,7.0,0.01),4) # Of what approximate magnitudes
 
 # Correlation function parameters
 NZNSHM_scaling = True # Enforce New Zealand NSHM scaling law of Mw = log10(area) + 4.0
@@ -47,6 +48,7 @@ hypocenter=None #=None is random hypocenter
 rake='vary' # average rake, or 'vary' for variable rake based off fault model
 mean_slip_name = 'hk_lock.slip'  # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 uniform_slip=False # If true, skip the stochastic aspect of this whole process and just use relatively uniform slip based on velocity model (equivialent to VAUS of Davies 2019)
+sub_fault_end=6233  # Max patch number to nucleate faults on (-1 for all patches)
 
 #Enforcement of rules on area scaling and hypo location
 force_area=False
@@ -88,17 +90,19 @@ if not os.path.exists(project_dir):
     os.makedirs(os.path.join(project_dir, 'data', 'distances'))
     os.makedirs(os.path.join(project_dir, 'data', 'model_info'))
     os.makedirs(os.path.join(project_dir, 'structure'))
-    os.makedirs(os.path.join(project_dir, 'output', 'ruptures'))
     raise Exception(f'Project directory {project_dir} created.\nPlease fill with model info')
+
+if not os.path.exists(os.path.join(project_dir, 'output', 'ruptures')):
+    os.makedirs(os.path.join(project_dir, 'output', 'ruptures'))
 
 #Generate rupture models
 if mean_slip_name is None:
     tag = '_noMeanSlip'
 else:
-    tag = f"_{mean_slip_name.strip('.slip')}"
+    tag = f"_{mean_slip_name.replace('.slip', '').replace('hk_', '')}"
     mean_slip_name = os.path.join(home, project_name, 'data', 'model_info', mean_slip_name) # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 
-tag += f'_{model_name.split('.')[0]}'
+tag += f"_{model_name.split('.')[0]}"
 
 if NZNSHM_scaling:
     tag += '_NSHMarea'
@@ -121,4 +125,4 @@ fakequakes.generate_ruptures(home,project_name,run_name,fault_name,slab_name,
         force_hypocenter=force_hypocenter,
         max_slip_rule=max_slip_rule,use_hypo_fraction=use_hypo_fraction, 
         calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling,
-        stochastic_slip=stochastic_slip)
+        stochastic_slip=stochastic_slip, sub_fault_end=sub_fault_end)

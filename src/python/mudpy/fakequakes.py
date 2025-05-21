@@ -3,7 +3,7 @@ D.Melgar 03/2016
 
 Generate synthetic slip distributions using the K-L expansion method.
 This grew (a lot) from RJ Leveque's KL2d_vonKarman notebook. I modified
-it to work in a similar way to the MudPy ivnersions
+it to work in a similar way to the MudPy inversions
 '''
 
 
@@ -90,7 +90,6 @@ def llz2utm(lon,lat,projection_zone='None'):
     p = Proj(proj='utm',zone=z,ellps='WGS84')
     x,y=p(lon,lat)
     return x,y
-
 
 
 def subfault_distances_3D(home,project_name,fault_name,slab_name,projection_zone):
@@ -359,8 +358,7 @@ def subfault_distances_3D(home,project_name,fault_name,slab_name,projection_zone
     return Dstrike,Ddip
 
 
-
-def get_mean_slip(target_Mw,fault_array,vel_mod):
+def get_mean_slip(target_Mw,fault_array,vel_mod,ifaults=None):
     '''
     Depending on the target magnitude calculate the necessary uniform slip
     on the fault given the 1D layered Earth velocity model
@@ -372,13 +370,17 @@ def get_mean_slip(target_Mw,fault_array,vel_mod):
     
     vel=genfromtxt(vel_mod)
     areas=fault_array[:,8]*fault_array[:,9]
-    # Check to see if we're using 3D velocity model or not
-    # Check is if vel is same size as fault array, and first rigidity value is > 1KPa
-    if vel.shape[1] == len(fault_array) and vel[0, 1] > 1e3:
-        # Use 3D velocity model
-        mu = vel[:, 1]
+    # Check to see if we're using 3D rigidity model or not (.mu for 3D, .mod for layered)
+    if vel_mod.endswith('.mu'):
+        # Check if first value is > 10KPa
+        assert vel[0, 1] > 1e4, 'First value of rigidity model is very low - check rigidity is in Pa'
+        # Use 3D rigidity model
+        if ifaults is None:
+            mu = vel[:, 1]
+        else:
+            mu = vel[ifaults, 1]
     else:
-        # Use layered model
+        # Use layered velocity model
         mu=zeros(len(fault_array))
         for k in range(len(mu)):
             mu[k]=get_mu(vel,fault_array[k,3])
@@ -386,7 +388,6 @@ def get_mean_slip(target_Mw,fault_array,vel_mod):
     mean_slip=ones(len(fault_array))*target_moment/sum(areas*mu)
     
     return mean_slip,mu
-    
 
     
 def vonKarman_correlation(Dstrike,Ddip,Lstrike,Ldip,hurst):
@@ -527,7 +528,6 @@ def rectify_slip(slip_unrectified,percent_reject=10):
         rejected=False
     
     return slip,rejected,percent_negative
-
 
 
 def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
@@ -943,10 +943,7 @@ def get_rise_times(M0,slip,fault_array,rise_time_depths,stoc_rake,rise_time='MH2
     #rise_times=depth_scale*k*(slip**0.5)
     
     return rise_times
-    
- 
 
-    
     
 def get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
         rise_time_depths,M0,velmod,sigma_rise_time=0.2,shear_wave_fraction_shallow=0.49,shear_wave_fraction_deep=0.8):
@@ -1121,7 +1118,7 @@ def get_rupture_onset(home,project_name,slip,fault_array,model_name,hypocenter,
     t_onset_final[i]=0
 
     return t_onset_final, length2fault  
-                
+
 
 def get_centroid(fault):
     '''
@@ -1162,7 +1159,8 @@ def get_stochastic_rake(rake,Nsamples,sigma_rake=10,max_variation=45):
     stoc_rake[i]=min_rake[i]
     
     return stoc_rake                                                                                                
-   
+
+  
 def write_all_event_summary(home,project_name,run_name):
     '''
     Write a sumamry file with Mw, max slip, rise_time,onset time for all events
@@ -1211,7 +1209,6 @@ def write_all_event_summary(home,project_name,run_name):
         out[k,6]=peak_onset
         
     savetxt(fout,out,fmt='%8.2f')
-    
     
     
 def build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM'):
@@ -1304,10 +1301,7 @@ def build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM'):
     else: #To be done later (ha)
         print('ERROR: That background velocity model does not exist')
         
-    
-    
-    
-    
+
 def write_rupt_list(home,project_name,run_name,target_Mw,Nrealizations,ncpus):
     '''
     Writes ruptures.list file, note this does not check whether all ruptures
@@ -1336,9 +1330,6 @@ def write_rupt_list(home,project_name,run_name,target_Mw,Nrealizations,ncpus):
 
     f.close()
 
-    
-        
-    
 
 def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
 		load_distances,distances_name,UTM_zone,target_Mw,model_name,hurst,Ldip,
@@ -1348,7 +1339,7 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
 		slip_tol=1e-2,force_hypocenter=False,no_random=False,use_hypo_fraction=True,
 		shear_wave_fraction_shallow=0.49,shear_wave_fraction_deep=0.8,max_slip_rule=True,
         calculate_rupture_onset=True, NZNSHM_scaling=False, nucleate_on_coupling=False,
-        stochastic_slip=True, Nstart=0):
+        stochastic_slip=True, Nstart=0, sub_fault_start=0, sub_fault_end=-1):
     '''
     Set up rupture generation-- use ncpus if available
     '''
@@ -1361,11 +1352,12 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
     
     #Need to make tauPy file
     vel_mod_file=home+project_name+'/structure/'+model_name
-    #Get TauPyModel
-    try:  # Error seems to come from multiple calls to read/write same data when doing task arrays
-        build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM')
-    except:  # If error, then space out retries
-        print('Error building TauPyModel. Hoping one exists and just using that instead....')
+    #Get TauPyModel if using a layered velocity model
+    if vel_mod_file.endswith('.mod'):
+        try:  # Error seems to come from multiple calls to read/write same data when doing task arrays
+            build_TauPyModel(home,project_name,vel_mod_file,background_model='PREM')
+        except:  # If error, then space out retries
+            print('Error building TauPyModel. Hoping one exists and just using that instead....')
 
     #Write ruptures.list file
     write_rupt_list(home,project_name,run_name,target_Mw,Nrealizations,ncpus)
@@ -1379,10 +1371,7 @@ def generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
     force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
     no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
     nucleate_on_coupling, calculate_rupture_onset=calculate_rupture_onset,NZNSHM_scaling=NZNSHM_scaling,
-    stochastic_slip=stochastic_slip,Nstart=Nstart)
-
-
-
+    stochastic_slip=stochastic_slip,Nstart=Nstart,sub_fault_start=sub_fault_start,sub_fault_end=sub_fault_end)
 
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           
 def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_name,mesh_name,
@@ -1391,10 +1380,11 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,ncpus,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,use_hypo_fraction,shear_wave_fraction_shallow,shear_wave_fraction_deep,max_slip_rule,
-        nucleate_on_coupling, calculate_rupture_onset=True, NZNSHM_scaling=False,stochastic_slip=True,Nstart=0):
+        nucleate_on_coupling, calculate_rupture_onset=True, NZNSHM_scaling=False,stochastic_slip=True,Nstart=0,
+        sub_fault_start=0, sub_fault_end=-1):
     
     from numpy import ceil
-    from os import environ
+    from os import environ,sep
     import subprocess
     from shlex import split
     
@@ -1418,17 +1408,17 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule,
         nucleate_on_coupling, calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling,
-        stochastic_slip=stochastic_slip,Nstart=Nstart)
+        stochastic_slip=stochastic_slip,sub_fault_start=sub_fault_start,sub_fault_end=sub_fault_end,Nstart=Nstart)
     else:
         #Make mpi system call
         print("MPI: Starting " + str(Nrealizations_parallel*ncpus) + " FakeQuakes Rupture Generations on ", ncpus, "CPUs")
         mud_source=environ['MUD']+'/src/python/mudpy/'
 
-        mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name \
+        mpi='mpiexec -n '+str(ncpus)+' python '+mud_source+'generate_ruptures_parallel.py run_parallel_generate_ruptures '+home.replace(sep, '/')+' '+project_name+' '+run_name+' '+fault_name+' '+str(slab_name)+' '+str(mesh_name)+' '+str(load_distances)+' '+distances_name \
             +' '+UTM_zone+' '+str(tMw)+' '+model_name+' '+str(hurst)+' '+Ldip+' '+Lstrike+' '+str(num_modes)+' '+str(Nrealizations_parallel)+' '+str(rake)+' '+str(rise_time) \
             +' '+str(rise_time_depths0)+' '+str(rise_time_depths1)+' '+str(time_epi)+' '+str(max_slip)+' '+source_time_function+' '+str(lognormal)+' '+str(slip_standard_deviation)+' '+scaling_law+' '+str(ncpus)+' '+str(force_magnitude) \
-            +' '+str(force_area)+' '+str(mean_slip_name)+' "'+str(hypocenter)+'" '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule) \
-            +' '+str(nucleate_on_coupling)+' '+str(calculate_rupture_onset)+' '+str(NZNSHM_scaling)+' '+str(stochastic_slip)
+            +' '+str(force_area)+' '+str(mean_slip_name).replace(sep, '/')+' '+str(hypocenter)+' '+str(slip_tol)+' '+str(force_hypocenter)+' '+str(no_random)+' '+str(use_hypo_fraction)+' '+str(shear_wave_fraction_shallow)+' '+str(shear_wave_fraction_deep)+' '+str(max_slip_rule) \
+            +' '+str(nucleate_on_coupling)+' '+str(calculate_rupture_onset)+' '+str(NZNSHM_scaling)+' '+str(stochastic_slip)+' '+str(sub_fault_start)+' '+str(sub_fault_end)
         
         print(mpi)
         
@@ -1436,16 +1426,15 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
         p=subprocess.Popen(mpi)
         p.communicate()
 
-    
-    
-    
+   
 def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
         load_distances,distances_name,UTM_zone,target_Mw,model_name,hurst,Ldip,
         Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
         max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
         force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
         no_random,shypo,use_hypo_fraction,shear_wave_fraction,max_slip_rule,nucleate_on_coupling,
-        calculate_rupture_onset=True, NZNSHM_scaling=False, stochastic_slip=True, Nstart=0):
+        calculate_rupture_onset=True, NZNSHM_scaling=False, stochastic_slip=True,
+        sub_fault_start=0, sub_fault_end=-1, Nstart=0):
     
     '''
     Depending on user selected flags parse the work out to different functions
@@ -1536,6 +1525,11 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                     raise ValueError('Should not have coupling values greater than 1. Quitting...')
             else:
                 patch_coupling = ones(len(whole_fault[:,1]))
+            
+            # Allow for a specific range of sub_faults to be used to nucleate ruptures
+            nucleation_faults = zeros(len(whole_fault[:,1]))
+            nucleation_faults[sub_fault_start:sub_fault_end] = 1
+            patch_coupling = patch_coupling * nucleation_faults
 
             #Sucess criterion
             success=False
@@ -1569,9 +1563,9 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 
                 #Get the mean uniform slip for the target magnitude
                 if mean_slip_name==None:
-                    mean_slip,mu=get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file)
+                    mean_slip,mu=get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file,ifaults)
                 else:
-                    foo,mu=get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file)
+                    foo,mu=get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file,ifaults)
                     mean_fault=genfromtxt(mean_slip_name)
                     mean_slip=(mean_fault[:,8]**2+mean_fault[:,9]**2)**0.5
                     
@@ -1752,5 +1746,3 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             realization+=1
     
     print('... Done generating rupture scenarios')
-
-    

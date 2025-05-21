@@ -41,9 +41,12 @@ rupture_dir = f"Z:\\McGrath\\HikurangiFakeQuakes\\{fault_name}\\output\\ruptures
 output_dir = f"Z:\\McGrath\\HikurangiFakeQuakes\\{fault_name}\\output\\{inversion_name}"
 
 if plot_ruptures:
-    rupture_list = glob(f'{rupture_dir}\\{fault_name}_{velmod}{lock}{NZNSHM}{uniform}*{file_keyword}*.rupt')
+    search_term = f'{rupture_dir}\\{fault_name}_{velmod}{lock}{NZNSHM}{uniform}*{file_keyword}*.rupt'
 else:
-    rupture_list = glob(os.path.abspath(f'{output_dir}\\n{n_ruptures}*{file_keyword}*.inv'))
+    search_term = os.path.abspath(f'{output_dir}\\n{n_ruptures}*{file_keyword}*.inv')
+
+print(f'Searching for {search_term}')
+rupture_list = glob(search_term)
 
 # Create interpolation object for mapping ruptures to the mesh
 transformer = Transformer.from_crs("epsg:4326", "epsg:2193")

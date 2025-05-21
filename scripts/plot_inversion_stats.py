@@ -31,6 +31,7 @@ GR_inv_max = 9.0  # Maximum GR value for the inversion weighting
 tapered_gr = True  # Was tapered MFD used in the inversion (Rollins and Avouac 2019)
 taper_max_Mw = 9.5  # Max Mw used for the tapered MFD
 alpha_s = 1  # Tapered MFD alpha value
+max_patch = 6233  # Patch number of max ROI (-1 for all patches)
 dir_suffix = '_GR70-90'  # Extra identifier for the directory name (e.g. '_test')
 
 lock = "_locking" if locking else "_nolocking"
@@ -90,10 +91,15 @@ slip_weight, norm_weight, GR_weight, max_iter = [int(val) for val in [slip_weigh
 if tapered_gr:
     taper_tag = f"_taper{taper_max_Mw}Mw_alphas{alpha_s:.1f}".replace('.', '-') if tapered_gr else ""
 
-if norm_weight is not None:
-    results_tag = f"n{n_ruptures}_S{slip_weight}_N{norm_weight}_GR{GR_weight}{taper_tag}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{max_iter}"
+if max_patch == -1:
+    pMax = ''
 else:
-    results_tag = f"n{n_ruptures}_S{slip_weight}_GR{GR_weight}{taper_tag}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_nIt{max_iter}"
+    pMax = f"_pMax{max_patch}"
+
+if norm_weight is not None:
+    results_tag = f"n{n_ruptures}_S{slip_weight}_N{norm_weight}_GR{GR_weight}{taper_tag}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}{pMax}_nIt{max_iter}"
+else:
+    results_tag = f"n{n_ruptures}_S{slip_weight}_GR{GR_weight}{taper_tag}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}{pMax}_nIt{max_iter}"
 
 if init:
     results_tag += f"-init{init}"
