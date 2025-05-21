@@ -150,9 +150,9 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 
                 #Get the mean uniform slip for the target magnitude
                 if mean_slip_name==None:
-                    mean_slip,mu=fakequakes.get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file)
+                    mean_slip,mu=fakequakes.get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file,ifaults)
                 else:
-                    foo,mu=fakequakes.get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file)
+                    foo,mu=fakequakes.get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file,ifaults)
                     mean_fault=genfromtxt(mean_slip_name)
                     mean_slip=(mean_fault[:,8]**2+mean_fault[:,9]**2)**0.5
                     

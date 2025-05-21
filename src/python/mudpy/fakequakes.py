@@ -358,7 +358,7 @@ def subfault_distances_3D(home,project_name,fault_name,slab_name,projection_zone
     return Dstrike,Ddip
 
 
-def get_mean_slip(target_Mw,fault_array,vel_mod):
+def get_mean_slip(target_Mw,fault_array,vel_mod,ifaults=None):
     '''
     Depending on the target magnitude calculate the necessary uniform slip
     on the fault given the 1D layered Earth velocity model
@@ -372,12 +372,13 @@ def get_mean_slip(target_Mw,fault_array,vel_mod):
     areas=fault_array[:,8]*fault_array[:,9]
     # Check to see if we're using 3D rigidity model or not (.mu for 3D, .mod for layered)
     if vel_mod.endswith('.mu'):
-        # Check if vel_mod is same size as fault array, and first rigidity value is > 1KPa
-        assert vel.shape[0] == len(fault_array), 'Rigidity  model and fault array do not match in size'
-        # Check if first value is > 1KPa
-        assert vel[0, 1] > 1e3, 'First value of rigidity model is very low - check rigidity is in Pa'
+        # Check if first value is > 10KPa
+        assert vel[0, 1] > 1e4, 'First value of rigidity model is very low - check rigidity is in Pa'
         # Use 3D rigidity model
-        mu = vel[:, 1]
+        if ifaults is None:
+            mu = vel[:, 1]
+        else:
+            mu = vel[ifaults, 1]
     else:
         # Use layered velocity model
         mu=zeros(len(fault_array))
@@ -1561,9 +1562,9 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 
                 #Get the mean uniform slip for the target magnitude
                 if mean_slip_name==None:
-                    mean_slip,mu=get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file)
+                    mean_slip,mu=get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file,ifaults)
                 else:
-                    foo,mu=get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file)
+                    foo,mu=get_mean_slip(target_Mw[kmag],fault_array,vel_mod_file,ifaults)
                     mean_fault=genfromtxt(mean_slip_name)
                     mean_slip=(mean_fault[:,8]**2+mean_fault[:,9]**2)**0.5
                     
