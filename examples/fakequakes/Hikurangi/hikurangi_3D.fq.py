@@ -102,7 +102,7 @@ else:
     tag = f"_{mean_slip_name.replace('.slip', '').replace('hk_', '')}"
     mean_slip_name = os.path.join(home, project_name, 'data', 'model_info', mean_slip_name) # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 
-tag += f"_{model_name.split('.')[0]}"
+tag += f"_{'.'.join([name_part for name_part in model_name.split('.')[:-1]])}"
 
 if NZNSHM_scaling:
     tag += '_NSHMarea'
