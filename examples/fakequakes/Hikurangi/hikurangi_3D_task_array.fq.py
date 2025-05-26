@@ -117,7 +117,7 @@ if __name__ == "__main__":
         tag = f"_{mean_slip_name.replace('.slip', '').replace('hk_', '')}"
         mean_slip_name = os.path.join(home, project_name, 'data', 'model_info', mean_slip_name) # Variable that contains the mean slip distribution (i.e. slip deficit model) - full file path (Needs to be in .rupt format)
 
-    tag += f'_{model_name.strip(".mod")}'
+    tag += f'_{'.'.join([name_part for name_part in model_name.split('.')[:-1]])}'
 
     if NZNSHM_scaling:
         tag += '_NSHMarea'
@@ -140,4 +140,4 @@ if __name__ == "__main__":
             force_hypocenter=force_hypocenter,
             max_slip_rule=max_slip_rule,use_hypo_fraction=use_hypo_fraction, 
             calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling,
-            stochastic_slip=stochastic_slip, sub_fault_end=sub_fault_end)
+            stochastic_slip=stochastic_slip, sub_fault_end=sub_fault_end,Nstart=int(Nstart))
