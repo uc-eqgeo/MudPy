@@ -41,33 +41,23 @@ def write_block(rupt_name, rupture_list, end, columns, rake=False):
     block_df.to_csv(os.path.abspath(os.path.join(rupture_dir, "..", f'{rupt_name}_df_n{end}{rake_tag}_block.csv')), header=True)
 
 if '/mnt/' in os.getcwd():
-    rupture_dir = '/mnt/z/McGrath/HikurangiFakeQuakes/hikkerk/output/ruptures/'
+    rupture_dir = '/mnt/z/McGrath/HikurangiFakeQuakes/hikkerm/output/ruptures/'
+elif 'uc03610' in os.getcwd():
+    rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerm/output/ruptures/'
 else:
-    rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\'
-#rupture_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output/ruptures/'
+    rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerm\\output\\ruptures\\'
 
-run_name = 'hikkerk_prem'
-locking_model = True
+run_name = 'hikkerm'
+locking_model = 'hk_lock'
+velmod = 'wuatom'
 NZNSHM_scaling = True
 uniform_slip = False
 rake = False
 
-if locking_model:
-    rupt_name = run_name + '_locking'
-else:
-    rupt_name = run_name + '_nolocking'
+NSHMarea = 'NSHMarea' if NZNSHM_scaling else 'noNSHMarea'
+uniform_slip = '_uniformSlip' if uniform_slip else ''
 
-if NZNSHM_scaling:
-    rupt_name += '_NZNSHMscaling'
-else:
-    rupt_name += '_noNZNSHMscaling'
-
-if uniform_slip:
-    rupt_name += '_uniformSlip'
-else:
-    rupt_name += '.'
-
-    rupt_name += '*.rupt'
+rupt_name = f"{run_name}_{locking_model.replace('hk_', '')}_{velmod}_{NSHMarea}{uniform_slip}.*.rupt"
 
 print(f'Globbing {rupture_dir}{rupt_name} ...')
 
@@ -78,7 +68,7 @@ if rake:
 else:
     rake_tag = ''
 min_Mw = 6.5
-max_Mw = 9.0
+max_Mw = 7.0
 
 rupt_name = rupt_name.replace('*.rupt','').strip('.')
 total_ruptures = len(rupture_list)  # Total number of prepared ruptures
