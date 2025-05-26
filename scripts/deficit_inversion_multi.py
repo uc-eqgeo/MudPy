@@ -9,17 +9,22 @@ from time import time
 """
 Script for running multiple subsets of full rupture catalgoue
 """
+bn_dict = {1: [0.95, 16.5],
+           2: [1.1, 21.5],
+           3: [1.24, 27.9]}
+
 start = time()
 # %% Define Parameters
 # Naming and inputs
-inversion_name = 'FQ_3e10_nolocking_GR70-90'  # Name of directory results will be stored in
-deficit_file = "hk_hires.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
+inversion_name = 'hk_lock'  # Name of directory results will be stored in
+deficit_file = "hk_lock.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
 rigidity_file = "hk_nzatom.mu"
 rupture_file = "rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
 n_ruptures = 5000  # Number of ruptures to use in each island
 patch_area = 5e3 ** 2 # Area of each patch (m^2) - used to calculate moment rate from slip rate
 
-b, N = 1.1, 21.5  # B and N values to use for the GR relation (N value used only for linear GR rates and assigning upper limits)
+bn_combo = 2
+b, N = bn_dict[bn_combo]  # B and N values to use for the GR relation (N value used only for linear GR rates and assigning upper limits)
 tapered_gr = True # Use tapered GR relation of Rollins and Avouac (2019)
 taper_max_Mw = 9.5  # Maximum magnitude to use in tapered GR relation
 alpha_s = 1 # Portion of moment taken up by coseismic slip for tapered GR relation
@@ -31,10 +36,10 @@ norm_weight = 1  # Relative misfit of slip deficit (int)
 GR_weight = 500 # Mistfit of GR relation (int)
 
 # Pygmo requirements
-n_iterations = 100000  # Maximum number of iterations for each inversion
+n_iterations = 500000  # Maximum number of iterations for each inversion
 ftol = 0.0001  # Stopping Criteria
 n_islands = 1  # Number of islands
-pop_size = 5  # Number of populations per island
+pop_size = 20  # Number of populations per island
 archipeligo = False  # True - Consider all islands as part of an archipeligo, using same rupture set. False: Run islands individually, with different rupture sets
 topology_name = 'None'  # 'None', 'Ring', 'FullyConnected'
 ring_plus = 1  # Number of connections to add to ring topology
@@ -46,7 +51,7 @@ if 'rccuser' in os.getcwd():
     procdir = "/home/rccuser/MudPy/hires_ruptures"
     model_info_dir = f"{procdir}/model_info"
 elif 'uc03610' in os.getcwd():
-    procdir = "/nesi/nobackup/uc03610/jack/fakequakes/hikkerk/output"
+    procdir = "/nesi/nobackup/uc03610/jack/fakequakes/hikkerm/output"
     model_info_dir = f"{procdir}/../data/model_info"
 else:
     procdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output"
@@ -278,7 +283,8 @@ if __name__ == "__main__":
     rupture_csv = os.path.join(procdir, rupture_file)
 
     taper_tag = f"_taper{taper_max_Mw}Mw_alphas{alpha_s:.1f}".replace('.', '-') if tapered_gr else ""
-    outtag = f"n{n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}{taper_tag}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}_pMax{max_patch}"
+    gr_tag = f"b{str(b).replace('.','-')}" if tapered_gr else f"b{str(b).replace('.','-')}_N{str(N).replace('.','-')}" 
+    outtag = f"n{n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}{taper_tag}_{gr_tag}_pMax{max_patch}"
 
     # Check there is the correct number of ruptures available to invert
     if archipeligo and n_ruptures > total_ruptures:
