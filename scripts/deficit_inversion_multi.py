@@ -18,8 +18,8 @@ start = time()
 # Naming and inputs
 inversion_name = 'hk_lock'  # Name of directory results will be stored in
 deficit_file = "hk_lock.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
-rigidity_file = "hk_nzatom.mu"
-rupture_file = "rupture_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
+rigidity_file = "wuatom.mu"
+rupture_file = "hikkerm_lock_wuatom_NSHMarea_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
 n_ruptures = 5000  # Number of ruptures to use in each island
 patch_area = 5e3 ** 2 # Area of each patch (m^2) - used to calculate moment rate from slip rate
 
@@ -38,7 +38,7 @@ GR_weight = 500 # Mistfit of GR relation (int)
 # Pygmo requirements
 n_iterations = 500000  # Maximum number of iterations for each inversion
 ftol = 0.0001  # Stopping Criteria
-n_islands = 1  # Number of islands
+n_islands = 10  # Number of islands
 pop_size = 20  # Number of populations per island
 archipeligo = False  # True - Consider all islands as part of an archipeligo, using same rupture set. False: Run islands individually, with different rupture sets
 topology_name = 'None'  # 'None', 'Ring', 'FullyConnected'
@@ -333,6 +333,7 @@ if __name__ == "__main__":
     if max_patch > -1:
         cols = [str(i) for i in range(max_patch)]
         all_slip_patches = cols.copy()
+        mu_A_list = []
         rupture_ROI_thresh = 10  # Percentage threshold of rupture area that must be within the ROI to be included in the inversion
         for ii, ruptures_df in enumerate(ruptures_df_list):
             # Find total number of slip patches for each rupture
@@ -347,14 +348,18 @@ if __name__ == "__main__":
             # Find the patches that are ruptured by the ROI ruptures
             slip_patches = ruptures_df[[str(i) for i in range(int(ruptures_df.columns[-1]) + 1)]].sum(axis=0).values
             slip_patches_id = [str(col) for col in np.where(slip_patches > 0)[0]]
+            island_slip_patches = [str(patch) for patch in np.sort(np.array(list(set(cols + slip_patches_id))).astype('int'))]
             all_slip_patches += slip_patches_id
-            ruptures_df_list[ii] = ruptures_df[['rupt_id', 'mw', 'target_mw'] + slip_patches_id]
-        all_slip_patches = np.sort(np.array(list(set(all_slip_patches))).astype('int'))  # Get the indexes of all patches that are ruptured
+            ruptures_df_list[ii] = ruptures_df[['rupt_id', 'mw', 'target_mw'] + island_slip_patches]
+            mu_A_list.append(mu_A[np.array(island_slip_patches).astype('int')])
+        # all_slip_patches = np.sort(np.array(list(set(all_slip_patches))).astype('int'))  # Get the indexes of all patches that are ruptured
         deficit = deficit[:max_patch]  # Only keep the slip deficit for the ROI
-        mu_A = mu_A[all_slip_patches]  # Only keep the rigidity for the potential ruptured patches inside and out of ROI
+        # mu_A = mu_A[all_slip_patches]  # Only keep the rigidity for the potential ruptured patches inside and out of ROI
+    else:
+        mu_A_list = [mu_A] * len(ruptures_df_list)  # If not using tapered GR, just use the same mu_A for all islands
 
     inversion_list = []
-    for ruptures_df in ruptures_df_list:
+    for ruptures_df, mu_A in zip(ruptures_df_list, mu_A_list):
         inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, tapered_gr=tapered_gr, taper_max_Mw=taper_max_Mw, mu_A=mu_A, max_patch=max_patch))
 
     # %% Write out starting conditions
