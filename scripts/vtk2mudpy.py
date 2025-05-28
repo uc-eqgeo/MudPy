@@ -19,16 +19,11 @@ def vector_to_bearing(vector):
     return bearing
 
 mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
-vtk_file = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\hik_kerm_rates\\fq_hik_kerm_adjusted_lock_coarse.vtk'
+vtk_file = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\hik_kerm_rates\\fq_hik_kerm_adjusted_lw2025_final_slip_rates_coarse.vtk'
 
 sub_type = 'hk'
-outdir = 'C:\\Users\\jmc753\\Work\\MudPy\\examples\\fakequakes\\3D\\hikkerk3D_test\\data\\model_info'
-outname = 'hk_hires'
-
-mesh_folder = 'Z:\\McGrath\\HikurangiFakeQuakes\\FrontiersAbroad\\data\\model_info'
-vtk_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\FrontiersAbroad\\data\\model_info\\hik_kerm_adjusted_creep.vtk'
-outdir = 'Z:\\McGrath\\HikurangiFakeQuakes\\FrontiersAbroad\\data\\model_info'
-outname = 'hk_plate70'
+outdir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerm\\data\\model_info'
+outname = 'hk_lw2025'
 
 data = np.load(f'{mesh_folder}\\subduction_quads\\{sub_type}_tile_outlines.npy')
 
