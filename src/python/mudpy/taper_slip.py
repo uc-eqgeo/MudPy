@@ -3,36 +3,49 @@ from scipy.spatial import KDTree
 import pandas as pd
 import geopandas as gpd
 from glob import glob
+import os
+import shapely
+import matplotlib.pyplot as plt
 
 # %% Prepare global variables
-project_dir = '/mnt/z/McGrath/HikurangiFakeQuakes/hikkerk/'
-rupture_dir = project_dir + 'output/ruptures/'
+project_dir = 'Z:\\McGrath/HikurangiFakeQuakes/hikkerm/'
+if 'uc03610' in os.getcwd():
+    home = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerm'
+
+run_name = 'hikkerm'
+velmod = 'wuatom'
+locking_model = 'hk_lock'
+NZNSHM_scaling = True
+uniform_slip = False
+
+locking_model = locking_model.replace('hk_', '')
+area = '_NSHMarea' if NZNSHM_scaling else '_noNSHMArea'
+uniform = '_uniformSlip' if uniform_slip else ''
+
+rupt_name = f"{run_name}_{locking_model}_{velmod}{area}{uniform}.*.rupt"
+
+rupture_dir = os.path.join(project_dir, 'output', 'ruptures')
 fault_name = 'hk.fault'
 taper_length = 1e4  # Set to zero to revert to untapered length
 taper_method = 'linear'
 
-run_name = 'hikkerk_prem'
-locking_model = True
-NZNSHM_scaling = True
-uniform_slip = False
+min_mw = 6
+max_mw = 10
 
-min_mw = 8.5
-max_mw = 9.5
+# if locking_model:
+#     rupt_name = run_name + '_locking'
+# else:
+#     rupt_name = run_name + '_nolocking'
 
-if locking_model:
-    rupt_name = run_name + '_locking'
-else:
-    rupt_name = run_name + '_nolocking'
+# if NZNSHM_scaling:
+#     rupt_name += '_NZNSHMscaling'
+# else:
+#     rupt_name += '_noNZNSHMscaling'
 
-if NZNSHM_scaling:
-    rupt_name += '_NZNSHMscaling'
-else:
-    rupt_name += '_noNZNSHMscaling'
+# if uniform_slip:
+#     rupt_name += '_uniformSlip'
 
-if uniform_slip:
-    rupt_name += '_uniformSlip'
-
-rupt_name += '.*.rupt'
+# rupt_name += '.*.rupt'
 
 print('Loading Fault:', fault_name)
 fault = pd.read_csv(project_dir + '/data/model_info/' + fault_name, sep='\t').drop(0).astype(float)
@@ -46,7 +59,7 @@ for ix, rupture_file in enumerate(rupture_list[::-1]):
     rupture_id = rupture_file.split('.')[-2]
 
     mw = float(rupture_id.split('_')[0].strip('Mw').replace('-','.'))
-    if mw < min_mw or mw >= max_mw:
+    if mw < min_mw or mw > max_mw:
         print(f'\t{ix}/{len(rupture_list)}:', end='\r')
         continue
 
@@ -79,15 +92,28 @@ for ix, rupture_file in enumerate(rupture_list[::-1]):
     no_slip_patches = rupt_gpd[rupt_gpd['total-slip(m)'] == 0]
     slip_patches = rupt_gpd[rupt_gpd['total-slip(m)'] > 0]
 
-    # Skip if all patches are ruptured
-    if no_slip_patches.shape[0] == 0:
-        print(f'\t{ix}/{len(rupture_list)}:', end='\r')
-        continue
+    # Identify boundary patches of the rupture
+    slip_patches_center = shapely.MultiPoint([(data.geometry.x, data.geometry.y) for ix, data in slip_patches.iterrows()])
+    ratio = 0.02
+    # Use concave hull to accurately map the rupture boundary, iteratively checking that you're not overfitting
+    slip_boundary = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=ratio).exterior)
+    slip_boundary_check = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=ratio + 0.01).exterior)
+    convex_hull = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=1).exterior).length
+    while slip_boundary.length > slip_boundary_check.length * 1.1 or slip_boundary.length > convex_hull * 1.5:
+        ratio += 0.05
+        slip_boundary = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=ratio).exterior)
+        slip_boundary_check = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=ratio + 0.01).exterior)
+    # Calculate distance to the boundary for each patch
+    edge_distances = shapely.distance(slip_boundary, slip_patches.geometry) + fault.loc[slip_patches.index, 'width'] / 2
 
-    # Calculate distance of slip patches to no slip patches using KDTree
-    zero_tree = KDTree(no_slip_patches.geometry.apply(lambda x: (x.x, x.y)).tolist())
-    edge_distances = zero_tree.query(slip_patches.geometry.apply(lambda x: (x.x, x.y)).tolist())[0] - fault.loc[slip_patches.index, 'width'] / 2
-    
+    plt.scatter([point.x for point in slip_patches_center.geoms], [point.y for point in slip_patches_center.geoms], c=edge_distances.values, s=50, vmin=0, vmax=taper_length, cmap='tab20c')
+    plt.plot(slip_boundary_check.xy[0], slip_boundary_check.xy[1], label='Boundary check', color='black', linestyle='--')
+    plt.plot(slip_boundary.xy[0], slip_boundary.xy[1], label='Boundary', color='red')
+    plt.legend()
+    plt.colorbar()
+    plt.title(f'{os.path.basename(rupture_file)}:\n{taper_aim}, ratio={ratio:.3f}')
+    plt.show()
+
     # First untaper if that is needed
     if untaper:
         slip_taper = np.where(edge_distances < previous_taper, previous_taper / edge_distances, 1)
