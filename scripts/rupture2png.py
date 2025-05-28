@@ -65,42 +65,55 @@ def plot_2d_surface(mesh, title, rupture_png_dir, hypo, min_slip=0.1, max_slip=5
     coastline.plot(ax=ax["main_figure"], color="k", linewidth=0.5)
     plt.title(title)
     plt.savefig(os.path.join(rupture_png_dir, f'{title}.png'))
-    plt.savefig(os.path.join(rupture_png_dir, f'{title}.pdf'), dpi=300, format='pdf')
+    # plt.savefig(os.path.join(rupture_png_dir, f'{title}.pdf'), dpi=300, format='pdf')
     plt.close()
 
 mesh_folder = 'C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks'
 
 mesh_name = 'hik_kerk3k_with_rake.vtk'
-plot_every = 25  # Plot every nth rupture (-ve to plot from largest first)
+plot_every = -1  # Plot every nth rupture (-ve to plot from largest first)
 
-fault_name = "hikkerk"
-velmod = "3e10"
-locking = False
-NZNSHMscaling = True
-uniformSlip = True
-GR_inv_min = 7.0
-GR_inv_max = 9.0
+# fault_name = "hikkerk"
+# velmod = "3e10"
+# locking = False
+# NZNSHMscaling = True
+# uniformSlip = True
+# GR_inv_min = 7.0
+# GR_inv_max = 9.0
 
-lock = "_locking" if locking else "_nolocking"
-NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
-uniform = "_uniformSlip" if uniformSlip else ""
+# lock = "_locking" if locking else "_nolocking"
+# NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
+# uniform = "_uniformSlip" if uniformSlip else ""
+
+run_name = 'hikkerm'
+velmod = 'wuatom'
+locking_model = 'hk_lock'
+NZNSHM_scaling = True
+uniform_slip = False
+
+locking_model = locking_model.replace('hk_', '')
+area = '_NSHMarea' if NZNSHM_scaling else '_noNSHMArea'
+uniform = '_uniformSlip' if uniform_slip else ''
+
+rupt_name = f"{run_name}_{locking_model}_{velmod}{area}{uniform}.*.rupt"
+
 
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
-rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\ruptures\\'
+rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerm\\output\\ruptures\\'
 rupture_png_dir = os.path.abspath(os.path.dirname(rupture_dir) + '/..\\rupture_pngs\\')
 os.makedirs(rupture_png_dir, exist_ok=True)
 
-keyword = 'Mw9-49_000018'
-rupture_list = glob(f'{rupture_dir}\\{fault_name}_{velmod}{lock}{NZNSHM}{uniform}*{keyword}*.rupt')
+keyword = ''
+rupture_list = glob(f'{rupture_dir}\\{rupt_name}')
 rupture_list.sort()
 
 # xmin, ymin, xmax, ymax
 bounds = [int(bound) for bound in '1500000/5250000/3000000/7300000'.split('/')]
-bounds = [int(bound) for bound in '1500000/5250000/2200000/6200000'.split('/')]
+# bounds = [int(bound) for bound in '1500000/5250000/2200000/6200000'.split('/')]
 
 new_background = False  # Recreate the background plot
-new_pngs = True    # Overwrite any previously created pngs
+new_pngs = False    # Overwrite any previously created pngs
 
 if new_background or not os.path.exists(os.path.join(rupture_png_dir,'temp.pkl')):
     print('Plotting new background')
