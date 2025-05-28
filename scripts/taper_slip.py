@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 # %% Prepare global variables
 project_dir = 'Z:\\McGrath/HikurangiFakeQuakes/hikkerm/'
 if 'uc03610' in os.getcwd():
-    home = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerm'
+    project_dir = '/nesi/nobackup/uc03610/jack/fakequakes/hikkerm'
 
 run_name = 'hikkerm'
 velmod = 'wuatom'
