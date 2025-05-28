@@ -29,7 +29,7 @@ fault_name = 'hk.fault'
 taper_length = 1e4  # Set to zero to revert to untapered length
 taper_method = 'linear'
 
-min_mw = 6
+min_mw = 7.5
 max_mw = 10
 
 # if locking_model:
@@ -98,21 +98,22 @@ for ix, rupture_file in enumerate(rupture_list[::-1]):
     # Use concave hull to accurately map the rupture boundary, iteratively checking that you're not overfitting
     slip_boundary = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=ratio).exterior)
     slip_boundary_check = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=ratio + 0.01).exterior)
-    convex_hull = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=1).exterior).length
-    while slip_boundary.length > slip_boundary_check.length * 1.1 or slip_boundary.length > convex_hull * 1.5:
-        ratio += 0.05
+    convex_hull = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=1).exterior)
+    while slip_boundary.length > slip_boundary_check.length * 1.1 or slip_boundary.length > convex_hull.length * 1.5:
+        ratio += 0.01
         slip_boundary = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=ratio).exterior)
         slip_boundary_check = shapely.LineString(shapely.concave_hull(slip_patches_center, ratio=ratio + 0.01).exterior)
     # Calculate distance to the boundary for each patch
     edge_distances = shapely.distance(slip_boundary, slip_patches.geometry) + fault.loc[slip_patches.index, 'width'] / 2
 
-    plt.scatter([point.x for point in slip_patches_center.geoms], [point.y for point in slip_patches_center.geoms], c=edge_distances.values, s=50, vmin=0, vmax=taper_length, cmap='tab20c')
-    plt.plot(slip_boundary_check.xy[0], slip_boundary_check.xy[1], label='Boundary check', color='black', linestyle='--')
-    plt.plot(slip_boundary.xy[0], slip_boundary.xy[1], label='Boundary', color='red')
-    plt.legend()
-    plt.colorbar()
-    plt.title(f'{os.path.basename(rupture_file)}:\n{taper_aim}, ratio={ratio:.3f}')
-    plt.show()
+    # plt.scatter([point.x for point in slip_patches_center.geoms], [point.y for point in slip_patches_center.geoms], c=edge_distances.values, s=50, vmin=0, vmax=taper_length, cmap='tab20c')
+    # plt.plot(convex_hull.xy[0], convex_hull.xy[1], label='Convex Hull', color='black', linestyle=':')
+    # plt.plot(slip_boundary_check.xy[0], slip_boundary_check.xy[1], label='Boundary check', color='black', linestyle='--')
+    # plt.plot(slip_boundary.xy[0], slip_boundary.xy[1], label='Boundary', color='red')
+    # plt.legend()
+    # plt.colorbar()
+    # plt.title(f'{os.path.basename(rupture_file)}:\n{taper_aim}, ratio={ratio:.3f}')
+    # plt.show()
 
     # First untaper if that is needed
     if untaper:
