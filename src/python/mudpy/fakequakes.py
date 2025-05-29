@@ -533,7 +533,7 @@ def rectify_slip(slip_unrectified,percent_reject=10):
 def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     force_area,no_shallow_epi=True,hypo_depth=10,param_norm=(0.0451,0.1681),no_random=False,
     subfault_hypocenter=None,use_hypo_fraction=True,option=0, NZNSHM_scaling=True, patch_coupling=None,
-    force_magnitude=False):
+    force_magnitude=False,sub_fault_start=0,sub_fault_end=-1):
     '''
     Select a random fault to be the hypocenter then based on scaling laws and a 
     target magnitude select only faults within the expected area plus some 
@@ -556,8 +556,7 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
         hypo_fault=subfault_hypocenter
     
     if force_area==True and no_random==False: #Use entire fault model  nothing more to do here folks
-        
-        selected_faults =  arange(len(whole_fault))
+        selected_faults = arange(len(whole_fault))
         Lmax=Dstrike[selected_faults,:][:,selected_faults].max()    
         Wmax=Ddip[selected_faults,:][:,selected_faults].max()
         #Convert to effective length/width
@@ -565,189 +564,197 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
         Weff=0.85*Wmax
         
         return selected_faults,hypo_fault,Lmax,Wmax,Leff,Weff,0,0,0 #extra zeros after Yu-Sheng's updates, see return call below
+
+    faults_in_range=False  # Flag to indicate if rupture covers the region of interest
+    if sub_fault_end == -1:
+        sub_fault_end = len(whole_fault) - 1
+
+    # Run while loop to select subfaults in ruptures than will cross into region of interest
+    while not faults_in_range:
+        # This needs to be included in while loop in case the user has specified a subfault_hypocenter, so length and width may be changed in next loop
+        if force_area==False and no_random==True: #Use the Blasser median L and W
+            if scaling_law.upper()=='T':
+                length=10**(-2.37+0.57*target_Mw)
+                width=10**(-1.86+0.46*target_Mw)
+            elif scaling_law.upper()=='S':
+                length=10**(-2.69+0.64*target_Mw)
+                width=10**(-1.12+0.3*target_Mw) 
+            elif scaling_law.upper()=='N':
+                length=10**(-1.91+0.52*target_Mw)
+                width=10**(-1.2+0.36*target_Mw)
         
-    
-    if force_area==False and no_random==True: #Use the Blasser median L and W
-        if scaling_law.upper()=='T':
-            length=10**(-2.37+0.57*target_Mw)
-            width=10**(-1.86+0.46*target_Mw)
-        elif scaling_law.upper()=='S':
-            length=10**(-2.69+0.64*target_Mw)
-            width=10**(-1.12+0.3*target_Mw) 
-        elif scaling_law.upper()=='N':
-            length=10**(-1.91+0.52*target_Mw)
-            width=10**(-1.2+0.36*target_Mw)
-    
-    if force_area==False and no_random==False: #Use scaling laws from Blaser et al 2010
-        if scaling_law.upper()=='T':
-            length_mean=-2.37+0.57*target_Mw
-            length_std=0.18
-            length=10**normal(length_mean,length_std)
-            width_mean=-1.86+0.46*target_Mw
-            width_std=0.17
-            width=10**normal(width_mean,width_std)
-        elif scaling_law.upper()=='S':
-            length_mean=-2.69+0.64*target_Mw
-            length_std=0.18
-            length=10**normal(length_mean,length_std)
-            width_mean=-1.12+0.3*target_Mw
-            width_std=0.15
-            width=10**normal(width_mean,width_std) 
-        elif scaling_law.upper()=='N':
-            length_mean=-1.91+0.52*target_Mw
-            length_std=0.18
-            length=10**normal(length_mean,length_std)
-            width_mean=-1.2+0.36*target_Mw
-            width_std=0.16
-            width=10**normal(width_mean,width_std)           
-        elif scaling_law.upper()=='SSE':
-            if target_Mw>6.74: # Mw=6.74
-                length_mean=-4.4848+1.0564*target_Mw
-                length_std=0.1506
+        if force_area==False and no_random==False: #Use scaling laws from Blaser et al 2010
+            if scaling_law.upper()=='T':
+                length_mean=-2.37+0.57*target_Mw
+                length_std=0.18
                 length=10**normal(length_mean,length_std)
-                width_mean=-0.4532+0.3593*target_Mw
-                width_std=0.0930
-                width=10**normal(width_mean,width_std) # Schmidt & Gai 2010, M - T
-                option=1
-            elif target_Mw<5.88: # Mw=5.80
-                length_mean=-2.5864+0.7948*target_Mw
-                length_std=0.0849
+                width_mean=-1.86+0.46*target_Mw
+                width_std=0.17
+                width=10**normal(width_mean,width_std)
+            elif scaling_law.upper()=='S':
+                length_mean=-2.69+0.64*target_Mw
+                length_std=0.18
                 length=10**normal(length_mean,length_std)
-                width_mean=-0.2750+0.3163*target_Mw
-                width_std=0.0653
-                width=10**normal(width_mean,width_std) # Michel et al. 2019, M - T^3
-                option=2
-            else:
-                option=[1,2]
-                option=choice(option)
-                if option==1:
+                width_mean=-1.12+0.3*target_Mw
+                width_std=0.15
+                width=10**normal(width_mean,width_std) 
+            elif scaling_law.upper()=='N':
+                length_mean=-1.91+0.52*target_Mw
+                length_std=0.18
+                length=10**normal(length_mean,length_std)
+                width_mean=-1.2+0.36*target_Mw
+                width_std=0.16
+                width=10**normal(width_mean,width_std)           
+            elif scaling_law.upper()=='SSE':
+                if target_Mw>6.74: # Mw=6.74
                     length_mean=-4.4848+1.0564*target_Mw
                     length_std=0.1506
                     length=10**normal(length_mean,length_std)
                     width_mean=-0.4532+0.3593*target_Mw
                     width_std=0.0930
-                    width=10**normal(width_mean,width_std) # Schmidt & Gai 2010
-                elif option==2:
+                    width=10**normal(width_mean,width_std) # Schmidt & Gai 2010, M - T
+                    option=1
+                elif target_Mw<5.88: # Mw=5.80
                     length_mean=-2.5864+0.7948*target_Mw
                     length_std=0.0849
                     length=10**normal(length_mean,length_std)
                     width_mean=-0.2750+0.3163*target_Mw
                     width_std=0.0653
-                    width=10**normal(width_mean,width_std) # Michel et al. 2019
-            if width>60:
-                  option1=[3,4]
-                  option1=choice(option1)
-                  option=option*option1
-                  if option1==4:
-                      a=length*width
-                      width=60+10**normal(0,width_std)
-                      length=a/width
-
-    # #so which subfault ended up being the middle?
-    # center_subfault=hypo_fault  # I'm not sure why this is getting defined here?
-        
-    # hypo_fault=int(hypo_fault)
-    
-    #Get max/min distances from hypocenter to all faults
-    dstrike_max=Dstrike[:,hypo_fault].max()
-    dstrike_min=Dstrike[:,hypo_fault].min()
-    ddip_max=Ddip[:,hypo_fault].max()
-    ddip_min=Ddip[:,hypo_fault].min()
-    
-    #Work on strike first
-#    strike_bounds=array([0,length/2])
-    
-    strike_bounds=array([-length/2,length/2])
-    
-    if strike_bounds[0]<dstrike_min:#Length is outside domain
-        strike_bounds[1]=strike_bounds[1]+abs(dstrike_min-strike_bounds[0])
-        strike_bounds[0]=dstrike_min
-    if strike_bounds[1]>dstrike_max:#Length is outside domain
-        strike_bounds[0]=strike_bounds[0]-abs(dstrike_max-strike_bounds[1])
-        strike_bounds[1]=dstrike_max
-        
-    #Now get dip ranges
-#    dip_bounds=array([0,width/2])
-    dip_bounds=array([-width/2,width/2])
-    
-    if dip_bounds[0]<ddip_min:#Length is outside domain
-        dip_bounds[1]=dip_bounds[1]+abs(ddip_min-dip_bounds[0])
-        dip_bounds[0]=ddip_min
-    if dip_bounds[1]>ddip_max:#Length is outside domain
-        dip_bounds[0]=dip_bounds[0]-abs(ddip_max-dip_bounds[1])
-        dip_bounds[1]=ddip_max
-    
-    Ds=Dstrike[:,hypo_fault]
-    Dd=Ddip[:,hypo_fault]
-    
-    #Now select faults within those distances
-    selected_faults=where((Ds>=strike_bounds[0]) & (Ds<=strike_bounds[1]) & (Dd>=dip_bounds[0]) & (Dd<=dip_bounds[1]))[0]
-
-    # Check that selected patches are within the NZ NSHM area-scaling relation
-    # If also forcing magnitude, then the right number of patches have to be selected first, otherwise the area-scaling relation will be enforced later
-    if NZNSHM_scaling==True and force_magnitude==True:
-        area=(whole_fault[selected_faults,8]*whole_fault[selected_faults,9]).sum() / 1e6  # Convert to km2
-        # From Stirling et al. 2023, NZNSHM, C values often have errors of +/- 0.2 -- 0.3
-        NZNSHM_c = 4
-        target_area = 10**(target_Mw - NZNSHM_c)
-        lower_target_area = 10**(target_Mw - NZNSHM_c - 0.2)
-        upper_target_area = 10**(target_Mw - NZNSHM_c + 0.2)
-
-        # Average down-dip and along strike fault spacing (Assumes fairly uniform fault spacing)
-        deltaDip = median(diff(unique(Dd)))
-        deltaStrike = median(diff(unique(Ds)))
-
-        ix = 0
-        # Allow 5 iterations to find a suitable fault area
-        while any([area < lower_target_area, area > upper_target_area]) and ix < 5:
-            # Find maximum width of the fault along this rupture
-            max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) <= length].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) <= length].min())
-            if width == max_width and area < lower_target_area:
-                # If fault can't get wider, just make it longer by n subfaults
-                n_subfaults = ceil((target_area - area) / (width * deltaStrike))
-                length += n_subfaults * deltaStrike
-            else:
-                # Maintain aspect ratio if possible, but match magnitude-area scaling relation
-                area_scaling = (target_area / area) ** 0.5
-                if width * area_scaling <= max_width:
-                    # Ensures change in width is by at least 1 integer row of subfaults
-                    if area_scaling < 1:
-                        deltaWidth = -(round((1 - area_scaling) * width / deltaDip)) * deltaDip  # Enforce chance in width as integer number of subfaults
-                        deltaWidth = deltaWidth if deltaWidth != 0 else -deltaDip  # Ensures that width is changed by at least 1 subfault
-                        deltaWidth = deltaWidth if width + deltaWidth > 0 else 0  # Check to prevent detlaWidth from making width zero or negative
-                    else:
-                        deltaWidth = (round((area_scaling - 1) * width / deltaDip)) * deltaDip  # Enforce chance in width as integer number of subfaults
-                        deltaWidth = deltaWidth if deltaWidth != 0 else deltaDip  # Ensures that width is changed by at least 1 subfault
-                    width += deltaWidth
+                    width=10**normal(width_mean,width_std) # Michel et al. 2019, M - T^3
+                    option=2
                 else:
-                    width = max_width
-                length = target_area / width
-
-            # Recalculate strike and dip bounds              
-            strike_bounds=array([-length/2,length/2])
+                    option=[1,2]
+                    option=choice(option)
+                    if option==1:
+                        length_mean=-4.4848+1.0564*target_Mw
+                        length_std=0.1506
+                        length=10**normal(length_mean,length_std)
+                        width_mean=-0.4532+0.3593*target_Mw
+                        width_std=0.0930
+                        width=10**normal(width_mean,width_std) # Schmidt & Gai 2010
+                    elif option==2:
+                        length_mean=-2.5864+0.7948*target_Mw
+                        length_std=0.0849
+                        length=10**normal(length_mean,length_std)
+                        width_mean=-0.2750+0.3163*target_Mw
+                        width_std=0.0653
+                        width=10**normal(width_mean,width_std) # Michel et al. 2019
+                if width>60:
+                    option1=[3,4]
+                    option1=choice(option1)
+                    option=option*option1
+                    if option1==4:
+                        a=length*width
+                        width=60+10**normal(0,width_std)
+                        length=a/width
+     
+        #Get max/min distances from hypocenter to all faults
+        dstrike_max=Dstrike[:,hypo_fault].max()
+        dstrike_min=Dstrike[:,hypo_fault].min()
+        ddip_max=Ddip[:,hypo_fault].max()
+        ddip_min=Ddip[:,hypo_fault].min()
+        
+        #Work on strike first
+        strike_bounds=array([-length/2,length/2])
+        
+        if strike_bounds[0]<dstrike_min:#Length is outside domain
+            strike_bounds[1]=strike_bounds[1]+abs(dstrike_min-strike_bounds[0])
+            strike_bounds[0]=dstrike_min
+        if strike_bounds[1]>dstrike_max:#Length is outside domain
+            strike_bounds[0]=strike_bounds[0]-abs(dstrike_max-strike_bounds[1])
+            strike_bounds[1]=dstrike_max
             
-            if strike_bounds[0]<dstrike_min:#Length is outside domain
-                strike_bounds[1]=strike_bounds[1]+abs(dstrike_min-strike_bounds[0])
-                strike_bounds[0]=dstrike_min
-            if strike_bounds[1]>dstrike_max:#Length is outside domain
-                strike_bounds[0]=strike_bounds[0]-abs(dstrike_max-strike_bounds[1])
-                strike_bounds[1]=dstrike_max
+        #Now get dip ranges
+        dip_bounds=array([-width/2,width/2])
+        
+        if dip_bounds[0]<ddip_min:#Length is outside domain
+            dip_bounds[1]=dip_bounds[1]+abs(ddip_min-dip_bounds[0])
+            dip_bounds[0]=ddip_min
+        if dip_bounds[1]>ddip_max:#Length is outside domain
+            dip_bounds[0]=dip_bounds[0]-abs(ddip_max-dip_bounds[1])
+            dip_bounds[1]=ddip_max
+        
+        Ds=Dstrike[:,hypo_fault]
+        Dd=Ddip[:,hypo_fault]
+        
+        #Now select faults within those distances
+        selected_faults=where((Ds>=strike_bounds[0]) & (Ds<=strike_bounds[1]) & (Dd>=dip_bounds[0]) & (Dd<=dip_bounds[1]))[0]
+
+        # Check that selected patches are within the NZ NSHM area-scaling relation
+        # If also forcing magnitude, then the right number of patches have to be selected first, otherwise the area-scaling relation will be enforced later
+        if NZNSHM_scaling==True and force_magnitude==True:
+            area=(whole_fault[selected_faults,8]*whole_fault[selected_faults,9]).sum() / 1e6  # Convert to km2
+            # From Stirling et al. 2023, NZNSHM, C values often have errors of +/- 0.2 -- 0.3
+            NZNSHM_c = 4
+            target_area = 10**(target_Mw - NZNSHM_c)
+            lower_target_area = 10**(target_Mw - NZNSHM_c - 0.2)
+            upper_target_area = 10**(target_Mw - NZNSHM_c + 0.2)
+
+            # Average down-dip and along strike fault spacing (Assumes fairly uniform fault spacing)
+            deltaDip = median(diff(unique(Dd)))
+            deltaStrike = median(diff(unique(Ds)))
+
+            ix = 0
+            # Allow 5 iterations to find a suitable fault area
+            while any([area < lower_target_area, area > upper_target_area]) and ix < 5:
+                # Find maximum width of the fault along this rupture
+                max_width = (Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) <= length].max() -  Ddip[hypo_fault, abs(Dstrike[hypo_fault, :]) <= length].min())
+                if width == max_width and area < lower_target_area:
+                    # If fault can't get wider, just make it longer by n subfaults
+                    n_subfaults = ceil((target_area - area) / (width * deltaStrike))
+                    length += n_subfaults * deltaStrike
+                else:
+                    # Maintain aspect ratio if possible, but match magnitude-area scaling relation
+                    area_scaling = (target_area / area) ** 0.5
+                    if width * area_scaling <= max_width:
+                        # Ensures change in width is by at least 1 integer row of subfaults
+                        if area_scaling < 1:
+                            deltaWidth = -(round((1 - area_scaling) * width / deltaDip)) * deltaDip  # Enforce chance in width as integer number of subfaults
+                            deltaWidth = deltaWidth if deltaWidth != 0 else -deltaDip  # Ensures that width is changed by at least 1 subfault
+                            deltaWidth = deltaWidth if width + deltaWidth > 0 else 0  # Check to prevent detlaWidth from making width zero or negative
+                        else:
+                            deltaWidth = (round((area_scaling - 1) * width / deltaDip)) * deltaDip  # Enforce chance in width as integer number of subfaults
+                            deltaWidth = deltaWidth if deltaWidth != 0 else deltaDip  # Ensures that width is changed by at least 1 subfault
+                        width += deltaWidth
+                    else:
+                        width = max_width
+                    length = target_area / width
+
+                # Recalculate strike and dip bounds              
+                strike_bounds=array([-length/2,length/2])
                 
-            #Now get dip ranges
-            dip_bounds=array([-width/2,width/2])
-            
-            if dip_bounds[0]<ddip_min:#Length is outside domain
-                dip_bounds[1]=dip_bounds[1]+abs(ddip_min-dip_bounds[0])
-                dip_bounds[0]=ddip_min
-            if dip_bounds[1]>ddip_max:#Length is outside domain
-                dip_bounds[0]=dip_bounds[0]-abs(ddip_max-dip_bounds[1])
-                dip_bounds[1]=ddip_max
-            
-            #Now select faults within those distances
-            selected_faults=where((Ds>=strike_bounds[0]) & (Ds<=strike_bounds[1]) & (Dd>=dip_bounds[0]) & (Dd<=dip_bounds[1]))[0]
-            area=(whole_fault[selected_faults,8]*whole_fault[selected_faults,9]).sum() * 1e-6
+                if strike_bounds[0]<dstrike_min:#Length is outside domain
+                    strike_bounds[1]=strike_bounds[1]+abs(dstrike_min-strike_bounds[0])
+                    strike_bounds[0]=dstrike_min
+                if strike_bounds[1]>dstrike_max:#Length is outside domain
+                    strike_bounds[0]=strike_bounds[0]-abs(dstrike_max-strike_bounds[1])
+                    strike_bounds[1]=dstrike_max
+                    
+                #Now get dip ranges
+                dip_bounds=array([-width/2,width/2])
+                
+                if dip_bounds[0]<ddip_min:#Length is outside domain
+                    dip_bounds[1]=dip_bounds[1]+abs(ddip_min-dip_bounds[0])
+                    dip_bounds[0]=ddip_min
+                if dip_bounds[1]>ddip_max:#Length is outside domain
+                    dip_bounds[0]=dip_bounds[0]-abs(ddip_max-dip_bounds[1])
+                    dip_bounds[1]=ddip_max
+                
+                #Now select faults within those distances
+                selected_faults=where((Ds>=strike_bounds[0]) & (Ds<=strike_bounds[1]) & (Dd>=dip_bounds[0]) & (Dd<=dip_bounds[1]))[0]
+                area=(whole_fault[selected_faults,8]*whole_fault[selected_faults,9]).sum() * 1e-6
 
-            ix += 1
+                ix += 1
+            
+        # Check that the resulting rupture at least partically overlaps the region of interest
+        if max(selected_faults) >= sub_fault_start and min(selected_faults) <= sub_fault_end:
+            faults_in_range = True
+        elif subfault_hypocenter is None:
+            # Select a new hypocenter and try again
+            hypo_fault=npchoice(arange(len(whole_fault)), p=probability / sum(probability))
+        elif force_area==False and no_random==True:
+            # Hardcoded hypocenter and length/width. No point re-running the loop
+            faults_in_range = True
 
     ## This code block is for selecting any random subfault as the hypocenter as oppsoed to something
     ## based on lieklihood of strike fraction and dip fraction
@@ -1526,11 +1533,6 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             else:
                 patch_coupling = ones(len(whole_fault[:,1]))
             
-            # Allow for a specific range of sub_faults to be used to nucleate ruptures
-            nucleation_faults = zeros(len(whole_fault[:,1]))
-            nucleation_faults[sub_fault_start:sub_fault_end] = 1
-            patch_coupling = patch_coupling * nucleation_faults
-
             #Sucess criterion
             success=False
             while success==False:
@@ -1539,7 +1541,8 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff, _, Lbox, Wbox=select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,
                             num_modes,scaling_law,force_area,no_shallow_epi=False,
                             no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,
-                            patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling, force_magnitude=force_magnitude)
+                            patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling, force_magnitude=force_magnitude,
+                            sub_fault_start=sub_fault_start,sub_fault_end=sub_fault_end)
                 
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]

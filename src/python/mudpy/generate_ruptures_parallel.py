@@ -126,7 +126,7 @@ def run_parallel_generate_ruptures(home,project_name,run_name,fault_name,slab_na
                 current_target_Mw=target_Mw[kmag]
                 ifaults,hypo_fault,Lmax,Wmax,Leff,Weff,option,Lmean,Wmean=fakequakes.select_faults(whole_fault,Dstrike,Ddip,current_target_Mw,num_modes,scaling_law,
                                     force_area,no_shallow_epi=False,no_random=no_random,subfault_hypocenter=shypo,use_hypo_fraction=use_hypo_fraction,patch_coupling=patch_coupling, NZNSHM_scaling=NZNSHM_scaling,
-                                    force_magnitude=force_magnitude)
+                                    force_magnitude=force_magnitude,sub_fault_start=sub_fault_start,sub_fault_end=sub_fault_end)
 
                 fault_array=whole_fault[ifaults,:]
                 Dstrike_selected=Dstrike[ifaults,:][:,ifaults]
