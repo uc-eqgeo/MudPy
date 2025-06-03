@@ -362,7 +362,8 @@ if write_islands:
     for file in rupture_file_list:
         ruptures_list.append(pd.read_csv(file, sep='\t', index_col=0))
 
-    ruptures_df = pd.read_csv(rupture_df_file, nrows=n_ruptures)
+    ruptures_df = pd.read_csv(rupture_df_file, nrows=n_ruptures, index_col=0)
+    ruptures_df = ruptures_df.loc[ruptures_df.index.intersection(ruptures.index)]
     i0, i1 = ruptures_df.columns.get_loc('0'), ruptures_df.columns.get_loc(ruptures_df.columns[-1]) + 1
     slip = ruptures_df.iloc[:, i0:i1].values.T * 1000  # Slip in mm, convert from m to mm
 
@@ -410,11 +411,11 @@ if write_islands:
                 rupture_rate = np.array(ruptures[island])
                 rupture_rate[rupture_rate >= zeroed_rate] = 0
                 zeros_deficit = np.matmul(slip, rupture_rate)
-                out_array[:, 8] = zeros_deficit   # Zero Rate into the SS
+                out_array[:, 8] = zeros_deficit   # Below Zero Rate into the SS
                 rupture_rate = np.array(ruptures[island])
                 rupture_rate[rupture_rate < zeroed_rate] = 0
                 reconstructed_deficit = np.matmul(slip, rupture_rate)
-                out_array[:, 9] = reconstructed_deficit   # Zeroed Rate into the DS
+                out_array[:, 9] = reconstructed_deficit   # Above Zeroed Rate into the DS
                 outfile = os.path.join(outdir, f'{results_tag}_zeroed{zero_rate}_isl{island_ix}_deficit.inv')
                 np.savetxt(outfile, out_array, fmt="%.0f\t%.6f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f\t%.0f\t%.6f\t%.6f\t%.0f\t%.0f\t%.0f",
                         header='#No\tlon\tlat\tz(km)\tstrike\tdip\trise\tdura\tss-deficit(mm/yr)\tds-deficit(mm/yr)\trupt_time\trigid\tvel')
