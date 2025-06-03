@@ -35,8 +35,8 @@ max_patch = 6233 # ID of the patch at which to stop (exclusive) using when runni
 rate_weight = 10  # Absolute misfit of slip deficit (int)
 norm_weight = 1  # Relative misfit of slip deficit (int)
 GR_weight = 500 # Mistfit of GR relation (int)
-nrupt_weight = 1000  # Weighting for number of ruptures misfit (int)
-nrupt_cuttoff = -16  # Cutoff for recurrence interval when counting number of ruptures (int, in log10 space, so -16 = 1e-16)
+nrupt_weight = 1  # Weighting for number of ruptures misfit (int)
+nrupt_cuttoff = -10  # Cutoff for recurrence interval when counting number of ruptures (int, in log10 space, so -16 = 1e-16)
 
 # Pygmo requirements
 n_iterations = 500000  # Maximum number of iterations for each inversion
