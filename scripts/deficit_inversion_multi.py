@@ -67,8 +67,8 @@ if not os.path.exists(outdir):
 # %% Pygmo Classes and Functions
 class deficitInversion:
     def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float, nrupt_weight: float,
-                 mu_A: np.ndarray, tapered_gr: bool = True, taper_max_Mw: float = 9.5, alpha_s: float = 1, min_Mw: float = 6, max_Mw: float = 10, max_patch: int = -1,
-                 nrupt_cuttoff: int = -16):
+                 n_iterations: float, mu_A: np.ndarray, tapered_gr: bool = True, taper_max_Mw: float = 9.5, alpha_s: float = 1, min_Mw: float = 6, max_Mw: float = 10,
+                 max_patch: int = -1, nrupt_cuttoff: int = -16):
 
         self.name = "Slip Deficit Inversion"
         self.deficit = deficit  # Slip deficit of ROI (on same grid as ruptures)
@@ -86,6 +86,8 @@ class deficitInversion:
         self.tapered_gr = tapered_gr  # Use tapered GR-rate relation
         self.mu_A = mu_A[:max_patch] # uA contribution of Mo = uAS - used to calculate tapered GR-rate
         self.alpha_s = alpha_s  # Portion of moment taken up by coseismic slip for tapered GR relation
+        self.nIts = n_iterations  # Maximum number of iterations for each inversion
+        self.counter = 0  # Counter for number of iterations
 
         print("Reading rupture dataframe...")
         self.n_ruptures = ruptures_df.shape[0]
@@ -190,11 +192,20 @@ class deficitInversion:
 
         # Minimise number of ruptures
         if self.nrupt_weight > 0:
-            n_rupt = np.sum(x > self.nrupt_cuttoff)
-            n_rupt_rms = n_rupt / self.n_ruptures  # Normalise number of ruptures to the total number of ruptures
+            self.counter += 1
+            dynamic_start = self.nIts * 0.5  # Number of iterations to start the weighting schedule
+            dynamic_end = self.nIts * 0.9  # Number of iterations to end the weighting schedule
+            # Create a dynamic weighting schedule for the number of ruptures misfit so this only starts to have an effect once the inversion is starting to converge
+            if self.counter > dynamic_start:
+                if self.counter < dynamic_end:
+                    weight_schedule = (self.counter - dynamic_start) / (dynamic_end - dynamic_start)  # Linearly increase the weight from 0 to 1 across the dynamic range
+                else:
+                    weight_schedule = 1
+                n_rupt = np.sum(x > self.nrupt_cuttoff)  # Number of rutures with recurrence interval above the cutoff
+                n_rupt_rms = n_rupt / self.n_ruptures  # Normalise number of ruptures to the total number of ruptures
+                n_rupt_rms *= weight_schedule  # Apply the weighting schedule to the number of ruptures misfit
 
         cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight) + (GR_lims_rms) + (n_rupt_rms * self.nrupt_weight)  # Allow for variable weighting between slip deficit and GR-rate
-        print(f"{cum_rms:.0f} {rms * self.rate_weight:.2f} {norm_rms * self.norm_weight:.2f} {GR_rms * self.GR_weight:.2f} {n_rupt_rms:.2f}:{n_rupt_rms * self.nrupt_weight:.2f} {self.nrupt_weight:.0f}")
         return np.array([cum_rms])  
 
 
@@ -241,14 +252,14 @@ def write_results(ix, archi, inversion, outtag, deficit_file, archipeligo_island
     preferred_rate = 10 ** (np.array(archi.get_champions_x()).T[:, f_ix])
 
     # Reconstruct the slip deficit
-    if initial_rates == inversion.n_ruptures:
-        out[:, 1] = initial_rates
+    reconstructed_deficit = np.matmul(inversion.slip, preferred_rate[:, 0])
 
     # Output results
     outfile = os.path.join(outdir, f'{outtag}_inverted_ruptures.csv')
     out = np.zeros((inversion.n_ruptures, archipeligo_islands + 5))
     out[:, 0] = inversion.Mw
-    out[:, 1] = initial_rates
+    if len(initial_rates) == inversion.n_ruptures:
+        out[:, 1] = initial_rates
     out[:, 2] = inversion.mfd(tapered_gr, inversion.Mw, inversion.deficit)  # Target GR-rate
     out[:, 3], out[:, 4] = 10 ** lower_lim, 10 ** upper_lim
     out[:, 5:] = preferred_rate
@@ -375,7 +386,7 @@ if __name__ == "__main__":
 
     inversion_list = []
     for ruptures_df, mu_A in zip(ruptures_df_list, mu_A_list):
-        inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, nrupt_weight, tapered_gr=tapered_gr, taper_max_Mw=taper_max_Mw, mu_A=mu_A, max_patch=max_patch, nrupt_cuttoff=nrupt_cuttoff))
+        inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, nrupt_weight, tapered_gr=tapered_gr, taper_max_Mw=taper_max_Mw, n_iterations=n_iterations, mu_A=mu_A, max_patch=max_patch, nrupt_cuttoff=nrupt_cuttoff))
 
     # %% Write out starting conditions
     inversion = inversion_list[0]
