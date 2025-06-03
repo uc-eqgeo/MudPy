@@ -857,8 +857,7 @@ def select_faults(whole_fault,Dstrike,Ddip,target_Mw,num_modes,scaling_law,
     
     return selected_faults,hypo_fault,Lmax,Wmax,Leff,Weff,option,length,width
 
-    
-        
+
 def get_rise_times(M0,slip,fault_array,rise_time_depths,stoc_rake,rise_time='MH2017',rise_time_std=0.1,option=0):
     '''
     Calculate individual subfault rise times
@@ -1486,7 +1485,6 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
         velmod = TauPyModel(model=home+project_name+'/structure/'+model_name.split('.')[0])
 
     #Now loop over the number of realizations
-    realization=0
     print('Generating rupture scenarios')
     for kmag in range(len(target_Mw)):
         print('... Calculating ruptures for target magnitude Mw = '+str(target_Mw[kmag]))
@@ -1496,7 +1494,6 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             no_overwriting = True
             if os.path.exists(outfile) and os.path.exists(outfile.replace('.rupt', '.log')) and no_overwriting:  # Skip premade files
                 print('... ... rupture '+str(kfault)+' of '+str(Nrealizations), f'({os.path.basename(outfile)}) already exists')
-                realization += 1
                 continue          
             
             if kfault%1==0:
@@ -1535,6 +1532,8 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             
             #Sucess criterion
             success=False
+            skip_rupture=False
+            counter = 0
             while success==False:
                 #Select only a subset of the faults based on magnitude scaling
                 current_target_Mw=target_Mw[kmag]
@@ -1624,6 +1623,10 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 else:  # This will produce depth-dependent slip (uniform if velocity model doesn't change)
                     slip=mean_slip
                     success=True
+                
+                # Check if KL_slip was successful
+                if success==False:
+                    continue
             
                 #Slip pattern sucessfully made, moving on.
                 #Rigidities
@@ -1643,7 +1646,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                     
                     if slip.max() > max_slip_tolerance*max_slip_from_rule:
                         success = False
-                        print('... ... ... max slip condition violated max_slip_rule, recalculating...', slip.max(), max_slip_tolerance*max_slip_from_rule)
+                        print(f'... ... ... max slip condition violated max_slip_rule, recalculating... {slip.max():.3f}, {max_slip_tolerance*max_slip_from_rule:.3f}, hypocenter: {hypo_fault}, {len(ifaults)} subfaults, attempt {counter}')
                 
                 if force_magnitude==True or NZNSHM_scaling==True:
                     #Force to target magnitude
@@ -1658,11 +1661,31 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                     #Recalculate
                     M0=sum(slip*fault_out[ifaults,10]*fault_out[ifaults,11]*mu[ifaults])
                     Mw=(2./3)*(log10(M0)-9.1)
-                    
+
+                #Check max_slip_rule
+                if max_slip_rule==True:
+                    if slip.max() > max_slip_tolerance*max_slip_from_rule:
+                        if success:
+                            success = False
+                            print(f'... ... ... max slip condition violated max_slip_rule due to forcing, recalculating... {M0_ratio:.2f} {slip.max():.3f} {max_slip_tolerance*max_slip_from_rule:.3f}, hypocenter: {hypo_fault}, {len(ifaults)} subfaults, attempt {counter}')
+                    elif success == False:
+                        print(f'... ... ... RUPTURE SAVED! Max Slip reduced after forcing... {M0_ratio:.2f} {slip.max():.3f} {max_slip_tolerance*max_slip_from_rule:.3f}, hypocenter: {hypo_fault}, {len(ifaults)} subfaults, attempt {counter}')
+                        success = True
+
                 #check max_slip again
                 if slip.max() > max_slip:
                     success=False
-                    print('... ... ... max slip condition violated due to force_magnitude=True, recalculating...', slip.max(), max_slip)
+                    print(f'... ... ... max slip condition violated due to force_magnitude=True, recalculating... {slip.max():.3f}, {max_slip:.3f}, hypocenter: {hypo_fault}, {len(ifaults)} subfaults, attempt {counter}')
+
+                if success==False:
+                    counter += 1
+                    if counter == 5:
+                        success = True
+                        skip_rupture = True
+            
+            if skip_rupture:
+                print('... ... ... ... Too many attempts to generate a valid rupture, skipping this realization\n')
+                continue        
             
             #Get stochastic rake vector if only one rake is given, else variable fault rakes
             if isinstance(rake,(int,float)):
@@ -1726,7 +1749,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             f.write('Project name: '+project_name+'\n')
             f.write('Run name: '+run_name+'\n')
             f.write('Run number: '+run_number+'\n')
-            f.write('Realization: '+str(realization).rjust(6,'0')+'\n')
+            f.write('Realization: '+str(kfault).rjust(6,'0')+'\n')
             f.write('Velocity model: '+model_name+'\n')
             f.write('No. of KL modes: '+str(num_modes)+'\n')
             f.write('Hurst exponent: '+str(hurst)+'\n')
@@ -1745,7 +1768,5 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             f.write('Source time function type: %s\n' % source_time_function)
             f.write('Rupture Area: '+str(rupture_area)+' m^2\n')
             f.close()
-                        
-            realization+=1
     
     print('... Done generating rupture scenarios')
