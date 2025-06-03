@@ -35,6 +35,8 @@ max_patch = 6233 # ID of the patch at which to stop (exclusive) using when runni
 rate_weight = 10  # Absolute misfit of slip deficit (int)
 norm_weight = 1  # Relative misfit of slip deficit (int)
 GR_weight = 500 # Mistfit of GR relation (int)
+nrupt_weight = 1000  # Weighting for number of ruptures misfit (int)
+nrupt_cuttoff = -16  # Cutoff for recurrence interval when counting number of ruptures (int, in log10 space, so -16 = 1e-16)
 
 # Pygmo requirements
 n_iterations = 500000  # Maximum number of iterations for each inversion
@@ -64,8 +66,9 @@ if not os.path.exists(outdir):
 
 # %% Pygmo Classes and Functions
 class deficitInversion:
-    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float,
-                 mu_A: np.ndarray, tapered_gr: bool = True, taper_max_Mw: float = 9.5, alpha_s: float = 1, min_Mw: float = 6, max_Mw: float = 10, max_patch: int = -1):
+    def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float, nrupt_weight: float,
+                 mu_A: np.ndarray, tapered_gr: bool = True, taper_max_Mw: float = 9.5, alpha_s: float = 1, min_Mw: float = 6, max_Mw: float = 10, max_patch: int = -1,
+                 nrupt_cuttoff: int = -16):
 
         self.name = "Slip Deficit Inversion"
         self.deficit = deficit  # Slip deficit of ROI (on same grid as ruptures)
@@ -76,6 +79,8 @@ class deficitInversion:
         self.rate_weight = rate_weight  # Weighting for rate misfit over GR-rate misfit
         self.norm_weight = norm_weight  # Weighting of the normalised GR-rate misfit
         self.GR_weight = GR_weight  # Weighting for GR-rate misfit
+        self.nrupt_weight = nrupt_weight  # Weighting for number of ruptures misfit
+        self.nrupt_cuttoff = nrupt_cuttoff  # Cutoff for recurrence interval when counting number of ruptures
         self.min_Mw = min_Mw  # Minimum magnitude to use for GR-rate
         self.max_Mw = max_Mw  # Maximum magnitude to use for GR-rate
         self.tapered_gr = tapered_gr  # Use tapered GR-rate relation
@@ -158,7 +163,7 @@ class deficitInversion:
 
     def fitness(self, x: np.ndarray):
 
-        rms, norm_rms, GR_rms, GR_lims_rms = 0, 0, 0, 0
+        rms, norm_rms, GR_rms, GR_lims_rms, n_rupt_rms = 0, 0, 0, 0, 0
 
         # Calculate slip-deficit component (Based on NSHM SRM constraint weights)
         if any([self.rate_weight > 0, self.norm_weight > 0]):
@@ -183,8 +188,13 @@ class deficitInversion:
             if any(GR_lims_ix):
                 GR_lims_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_lims_ix]) - np.log10(target_GR_rate[GR_lims_ix])) ** 2))  # Penalise for deviating from log(N)
 
-        cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight) + (GR_lims_rms)  # Allow for variable weighting between slip deficit and GR-rate
+        # Minimise number of ruptures
+        if self.nrupt_weight > 0:
+            n_rupt = np.sum(x > self.nrupt_cuttoff)
+            n_rupt_rms = n_rupt / self.n_ruptures  # Normalise number of ruptures to the total number of ruptures
 
+        cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight) + (GR_lims_rms) + (n_rupt_rms * self.nrupt_weight)  # Allow for variable weighting between slip deficit and GR-rate
+        print(f"{cum_rms:.0f} {rms * self.rate_weight:.2f} {norm_rms * self.norm_weight:.2f} {GR_rms * self.GR_weight:.2f} {n_rupt_rms:.2f}:{n_rupt_rms * self.nrupt_weight:.2f} {self.nrupt_weight:.0f}")
         return np.array([cum_rms])  
 
 
@@ -282,7 +292,7 @@ if __name__ == "__main__":
 
     taper_tag = f"_taper{taper_max_Mw}Mw_alphas{alpha_s:.1f}".replace('.', '-') if tapered_gr else ""
     gr_tag = f"b{str(b).replace('.','-')}" if tapered_gr else f"b{str(b).replace('.','-')}_N{str(N).replace('.','-')}" 
-    outtag = f"n{n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}{taper_tag}_{gr_tag}_pMax{max_patch}"
+    outtag = f"n{n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nr{int(nrupt_weight)}{int(nrupt_cuttoff)}{taper_tag}_{gr_tag}_pMax{max_patch}"
 
     # Check there is the correct number of ruptures available to invert
     if archipeligo and n_ruptures > total_ruptures:
@@ -358,7 +368,7 @@ if __name__ == "__main__":
 
     inversion_list = []
     for ruptures_df, mu_A in zip(ruptures_df_list, mu_A_list):
-        inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, tapered_gr=tapered_gr, taper_max_Mw=taper_max_Mw, mu_A=mu_A, max_patch=max_patch))
+        inversion_list.append(deficitInversion(ruptures_df, deficit, b, N, rate_weight, norm_weight, GR_weight, nrupt_weight, tapered_gr=tapered_gr, taper_max_Mw=taper_max_Mw, mu_A=mu_A, max_patch=max_patch, nrupt_cuttoff=nrupt_cuttoff))
 
     # %% Write out starting conditions
     inversion = inversion_list[0]
@@ -444,4 +454,5 @@ if __name__ == "__main__":
         archi.wait()
         write_results(ix, archi, inversion_list[ix], outtag, deficit_file, archipeligo_islands, tapered_gr)
 
+    print(f"Final results written to {os.path.join(outdir, f'{outtag}')}")
     print(f'All complete :)   ({int((time() - start)/3600):0>2}:{int(((time() - start)/60)%60):0>2}:{int((time() - start)%60):0>2})')
