@@ -16,7 +16,8 @@ bn_dict = {1: [0.95, 16.5],
 start = time()
 # %% Define Parameters
 # Naming and inputs
-inversion_name = 'hk_lock'  # Name of directory results will be stored in
+procdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerm\\output"
+inversion_name = 'hk_lock_nrupt'  # Name of directory results will be stored in
 deficit_file = "hk_lock.slip"  # Name of the file containing the target slip rate deficit (must be same patch geometry as the rupture sets)
 rigidity_file = "wuatom.mu"
 rupture_file = "hikkerm_lock_wuatom_NSHMarea_df_n50000.csv"  # Name of the file containing the rupture slips (must be same patch geometry as the slip deficits, assumes ruptures stored in random Mw order)
@@ -47,16 +48,13 @@ define_population = False  # Predefine the starting population, either randomly 
 starting_rate_file = None # Set to None for random initialisation
 
 # %% No more user inputs below here
-if 'rccuser' in os.getcwd():
-    procdir = "/home/rccuser/MudPy/hires_ruptures"
-    model_info_dir = f"{procdir}/model_info"
-elif 'uc03610' in os.getcwd():
-    procdir = "/nesi/nobackup/uc03610/jack/fakequakes/hikkerm/output"
-    model_info_dir = f"{procdir}/../data/model_info"
-else:
-    procdir = "Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk3D_hires\\output"
-    model_info_dir = f"{procdir}/../data\\model_info"
-
+if 'uc03610' in os.getcwd():
+    procdir = '/'.join(["/nesi/nobackup/uc03610/jack/fakequakes", procdir.split('\\')[-2], procdir.split('\\')[-1]])
+elif 'mnt' in os.getcwd().split(os.sep)[:2]:
+    root = procdir.split(':')[0].lower() + os.sep
+    procdir = '/mnt/' + root + (os.sep).join(procdir.split('\\')[1:])
+    
+model_info_dir = f"{procdir}/../data\\model_info"
 deficit_file = os.path.join(model_info_dir, deficit_file)
 rigidity_file = os.path.abspath(os.path.join(model_info_dir, '..', '..', 'structure', rigidity_file))
 
