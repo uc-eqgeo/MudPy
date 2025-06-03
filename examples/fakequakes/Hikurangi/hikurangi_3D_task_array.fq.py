@@ -139,5 +139,6 @@ if __name__ == "__main__":
             force_magnitude=force_magnitude,force_area=force_area,hypocenter=hypocenter,
             force_hypocenter=force_hypocenter,
             max_slip_rule=max_slip_rule,use_hypo_fraction=use_hypo_fraction, 
-            calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling,
-            stochastic_slip=stochastic_slip, sub_fault_end=sub_fault_end,Nstart=int(Nstart))
+            calculate_rupture_onset=calculate_rupture_onset,NZNSHM_scaling=NZNSHM_scaling,
+            stochastic_slip=stochastic_slip, sub_fault_end=sub_fault_end,Nstart=int(Nstart),
+            nucleate_on_coupling=nucleate_on_coupling)
