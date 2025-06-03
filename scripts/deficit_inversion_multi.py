@@ -230,12 +230,19 @@ def write_results(ix, archi, inversion, outtag, deficit_file, archipeligo_island
 
     outtag += f"_archi{ix}"
 
+    # Reproduce randomised initial rates
+    if not define_population:
+        lower_lim, upper_lim = inversion.get_bounds()
+        lower_lim, upper_lim = np.array(lower_lim).astype(np.float64), np.array(upper_lim).astype(np.float64)
+        initial_rates = 10 ** ((upper_lim - lower_lim.min()) * np.random.rand(inversion.n_ruptures) + lower_lim.min())  # Randomly initialise rates to values between lower and upper limit (for when working in log space)
+
     # Best slip distribution
     f_ix = np.array([champion[0] for champion in archi.get_champions_f()]).argsort()
     preferred_rate = 10 ** (np.array(archi.get_champions_x()).T[:, f_ix])
 
     # Reconstruct the slip deficit
-    reconstructed_deficit = np.matmul(inversion.slip, preferred_rate[:, 0])
+    if initial_rates == inversion.n_ruptures:
+        out[:, 1] = initial_rates
 
     # Output results
     outfile = os.path.join(outdir, f'{outtag}_inverted_ruptures.csv')
@@ -381,7 +388,7 @@ if __name__ == "__main__":
     if starting_rate_file:
         print(f"Loading initial rates from {starting_rate_file}")
         initial_rates = pd.read_csv(starting_rate_file, sep='\t', index_col=0)['inverted_rate_0'].values[:inversion.n_ruptures]
-        if len(initial_rates) < inversion.n_ruptures:
+        if len(initial_rates) != inversion.n_ruptures:
             raise Exception(f"Initial rates file contains {len(initial_rates)} rates, expected {inversion.n_ruptures}")
         if define_population:
             # Add labeling, if using pre-defined population
