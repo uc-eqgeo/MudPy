@@ -1407,14 +1407,16 @@ def run_generate_ruptures_parallel(home,project_name,run_name,fault_name,slab_na
     
     if ncpus==1:
         shypo = None
-        run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
-        load_distances,distances_name,UTM_zone,target_Mw,model_name,hurst,Ldip,
-        Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
-        max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
-        force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
-        no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule,
-        nucleate_on_coupling, calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling,
-        stochastic_slip=stochastic_slip,sub_fault_start=sub_fault_start,sub_fault_end=sub_fault_end,Nstart=Nstart)
+        success = False
+        while not success:
+            success = run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_name,
+                                            load_distances,distances_name,UTM_zone,target_Mw,model_name,hurst,Ldip,
+                                            Lstrike,num_modes,Nrealizations,rake,rise_time,rise_time_depths,time_epi,
+                                            max_slip,source_time_function,lognormal,slip_standard_deviation,scaling_law,
+                                            force_magnitude,force_area,mean_slip_name,hypocenter,slip_tol,force_hypocenter,
+                                            no_random,shypo,use_hypo_fraction,shear_wave_fraction_deep,max_slip_rule,
+                                            nucleate_on_coupling, calculate_rupture_onset=calculate_rupture_onset, NZNSHM_scaling=NZNSHM_scaling,
+                                            stochastic_slip=stochastic_slip,sub_fault_start=sub_fault_start,sub_fault_end=sub_fault_end,Nstart=Nstart)
     else:
         #Make mpi system call
         print("MPI: Starting " + str(Nrealizations_parallel*ncpus) + " FakeQuakes Rupture Generations on ", ncpus, "CPUs")
@@ -1486,6 +1488,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
 
     #Now loop over the number of realizations
     print('Generating rupture scenarios')
+    all_success=True
     for kmag in range(len(target_Mw)):
         print('... Calculating ruptures for target magnitude Mw = '+str(target_Mw[kmag]))
         for kfault in range(Nstart,Nrealizations):
@@ -1626,6 +1629,7 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
                 
                 # Check if KL_slip was successful
                 if success==False:
+                    all_success=False
                     continue
             
                 #Slip pattern sucessfully made, moving on.
@@ -1679,12 +1683,13 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
 
                 if success==False:
                     counter += 1
-                    if counter == 5:
+                    if counter == 10:
                         success = True
                         skip_rupture = True
             
             if skip_rupture:
                 print('... ... ... ... Too many attempts to generate a valid rupture, skipping this realization\n')
+                all_success = False
                 continue        
             
             #Get stochastic rake vector if only one rake is given, else variable fault rakes
@@ -1770,3 +1775,5 @@ def run_generate_ruptures(home,project_name,run_name,fault_name,slab_name,mesh_n
             f.close()
     
     print('... Done generating rupture scenarios')
+
+    return all_success
