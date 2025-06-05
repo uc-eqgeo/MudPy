@@ -15,14 +15,18 @@ import meshio
 from pyproj import Transformer
 from scipy.spatial import KDTree
 from matplotlib.collections import PolyCollection
+import sys
+sys.path.append(os.path.dirname(__file__))
+from helper_scripts import get_inv_results_tag, get_rupture_df_name
 
 bn_dict = {1: [0.95, 16.5],
            2: [1.1, 21.5],
            3: [1.24, 27.9]}
 
 
-fault_name = "hikkerk"
-velmod = "3e10"  # Velocity/Slip deficit model
+fault_name = "hikkerm"
+velmod = "wuatom"  # Velocity/Rigidity deficit model
+deficit_model = "lock"  # Slip deficit model
 locking = False  # Was locking used in the rupture generation
 NZNSHMscaling = True # Was NZNSHM scaling used in the rupture generation
 uniformSlip = False # Was uniform slip used in the rupture generation
@@ -33,6 +37,7 @@ taper_max_Mw = 9.5  # Max Mw used for the tapered MFD
 alpha_s = 1  # Tapered MFD alpha value
 max_patch = 6233  # Patch number of max ROI (-1 for all patches)
 dir_suffix = '_GR70-90'  # Extra identifier for the directory name (e.g. '_test')
+old_format = False  # Use old version of the rupture_df_file name
 
 lock = "_locking" if locking else "_nolocking"
 NZNSHM = "_NZNSHMscaling" if NZNSHMscaling else ""
@@ -47,7 +52,9 @@ n_ruptures = 5000
 slip_weight = 10
 norm_weight = 1
 GR_weight = 500
-max_iter = 500100
+nrupt_weight = 1
+nrupt_cuttoff = -9
+max_iter = 500000
 bn_combo = 2
 b, N = bn_dict[bn_combo]
 plot_ruptures = False   # Plot sample ruptures
@@ -79,8 +86,8 @@ rupt_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerm\\output\\ruptures'
 deficit_file = f"{procdir}\\data\\model_info\\hk_lock.slip"
 outdir = f"{procdir}\\output\\{inversion_name}"
 
-rupture_df_file = os.path.abspath(os.path.join(outdir, "..", f'{fault_name}_{velmod}{lock}{NZNSHM}{uniform}_df_n50000.csv'))
-rupture_df_file = os.path.abspath(os.path.join(outdir, "..", f'hikkerm_lock_wuatom_NSHMarea_df_n50000.csv'))
+rupture_df_file = get_rupture_df_name(fault_id=fault_name, deficit_mod=deficit_model, velmod=velmod, rupt_lock=locking, NZNSHMscaling=NZNSHMscaling, uniformSlip=uniformSlip, old_format=old_format)
+rupture_df_file = os.path.abspath(os.path.join(outdir, "..", rupture_df_file))
 print(rupture_df_file)
 print(inversion_name)
 
@@ -89,18 +96,10 @@ if max_iter == 0:
 
 slip_weight, norm_weight, GR_weight, max_iter = [int(val) for val in [slip_weight, norm_weight, GR_weight, max_iter]]
 
-if tapered_gr:
-    taper_tag = f"_taper{taper_max_Mw}Mw_alphas{alpha_s:.1f}".replace('.', '-') if tapered_gr else ""
-
-if max_patch == -1:
-    pMax = ''
-else:
-    pMax = f"_pMax{max_patch}"
-
-if norm_weight is not None:
-    results_tag = f"n{n_ruptures}_S{slip_weight}_N{norm_weight}_GR{GR_weight}{taper_tag}_b{str(b).replace('.','-')}{pMax}_nIt{max_iter}"
-else:
-    results_tag = f"n{n_ruptures}_S{slip_weight}_GR{GR_weight}{taper_tag}_b{str(b).replace('.','-')}_N{str(N).replace('.','-')}{pMax}_nIt{max_iter}"
+results_tag = get_inv_results_tag(n_ruptures=n_ruptures, slip_weight=slip_weight, GR_weight=GR_weight,
+                                  norm_weight=norm_weight, nrupt_weight=nrupt_weight, nrupt_cuttoff=nrupt_cuttoff,
+                                  taper_max_Mw=taper_max_Mw, alpha_s= alpha_s, b=b, N=N, pMax=max_patch,
+                                  max_iter=max_iter)
 
 if init:
     results_tag += f"-init{init}"

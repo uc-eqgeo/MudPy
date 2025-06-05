@@ -5,6 +5,9 @@ import pandas as pd
 import os
 from scipy.sparse import bsr_array
 from time import time
+import sys
+sys.path.append(os.path.dirname(__file__))
+from helper_scripts import get_inv_results_tag
 
 """
 Script for running multiple subsets of full rupture catalgoue
@@ -308,9 +311,9 @@ if __name__ == "__main__":
 
     rupture_csv = os.path.join(procdir, rupture_file)
 
-    taper_tag = f"_taper{taper_max_Mw}Mw_alphas{alpha_s:.1f}".replace('.', '-') if tapered_gr else ""
-    gr_tag = f"b{str(b).replace('.','-')}" if tapered_gr else f"b{str(b).replace('.','-')}_N{str(N).replace('.','-')}" 
-    outtag = f"n{n_ruptures}_S{int(rate_weight)}_N{int(norm_weight)}_GR{int(GR_weight)}_nr{int(nrupt_weight)}{int(nrupt_cuttoff)}{taper_tag}_{gr_tag}_pMax{max_patch}"
+    outtag = get_inv_results_tag(n_ruptures=n_ruptures, slip_weight=int(rate_weight), GR_weight=int(GR_weight),
+                                  norm_weight=int(norm_weight), nrupt_weight=int(nrupt_weight), nrupt_cuttoff=int(nrupt_cuttoff),
+                                  taper_max_Mw=taper_max_Mw, alpha_s= alpha_s, b=b, N=N, pMax=max_patch, max_iter=None)
 
     # Check there is the correct number of ruptures available to invert
     if archipeligo and n_ruptures > total_ruptures:
