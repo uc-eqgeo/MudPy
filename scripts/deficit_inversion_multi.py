@@ -39,7 +39,7 @@ rate_weight = 10  # Absolute misfit of slip deficit (int)
 norm_weight = 1  # Relative misfit of slip deficit (int)
 GR_weight = 500 # Mistfit of GR relation (int)
 nrupt_weight = 1  # Weighting for number of ruptures misfit (int)
-nrupt_cuttoff = -10  # Cutoff for recurrence interval when counting number of ruptures (int, in log10 space, so -16 = 1e-16)
+nrupt_cuttoff = -6  # Cutoff for recurrence interval when counting number of ruptures (int, in log10 space, so -16 = 1e-16)
 
 # Pygmo requirements
 n_iterations = 500000  # Maximum number of iterations for each inversion
@@ -70,8 +70,7 @@ if not os.path.exists(outdir):
 # %% Pygmo Classes and Functions
 class deficitInversion:
     def __init__(self, ruptures_df: pd.DataFrame, deficit: np.ndarray, b: float, N: float, rate_weight: float, norm_weight: float, GR_weight: float, nrupt_weight: float,
-                 n_iterations: float, mu_A: np.ndarray, tapered_gr: bool = True, taper_max_Mw: float = 9.5, alpha_s: float = 1, min_Mw: float = 6, max_Mw: float = 10,
-                 max_patch: int = -1, nrupt_cuttoff: int = -16):
+                 n_iterations: float, mu_A: np.ndarray, tapered_gr: bool = True, taper_max_Mw: float = 9.5, alpha_s: float = 1, max_patch: int = -1, nrupt_cuttoff: int = -16):
 
         self.name = "Slip Deficit Inversion"
         self.deficit = deficit  # Slip deficit of ROI (on same grid as ruptures)
@@ -84,8 +83,6 @@ class deficitInversion:
         self.GR_weight = GR_weight  # Weighting for GR-rate misfit
         self.nrupt_weight = nrupt_weight  # Weighting for number of ruptures misfit
         self.nrupt_cuttoff = nrupt_cuttoff  # Cutoff for recurrence interval when counting number of ruptures
-        self.min_Mw = min_Mw  # Minimum magnitude to use for GR-rate
-        self.max_Mw = max_Mw  # Maximum magnitude to use for GR-rate
         self.tapered_gr = tapered_gr  # Use tapered GR-rate relation
         self.mu_A = mu_A[:max_patch] # uA contribution of Mo = uAS - used to calculate tapered GR-rate
         self.alpha_s = alpha_s  # Portion of moment taken up by coseismic slip for tapered GR relation
@@ -168,7 +165,7 @@ class deficitInversion:
 
     def fitness(self, x: np.ndarray):
 
-        rms, norm_rms, GR_rms, GR_lims_rms, n_rupt_rms = 0, 0, 0, 0, 0
+        rms, norm_rms, GR_rms, n_rupt_rms = 0, 0, 0, 0
 
         # Calculate slip-deficit component (Based on NSHM SRM constraint weights)
         if any([self.rate_weight > 0, self.norm_weight > 0]):
@@ -181,17 +178,13 @@ class deficitInversion:
 
         # Calculate GR-rate component
         if self.GR_weight > 0:
-            GR_ix = np.where((self.Mw_bins >= self.min_Mw) & (self.Mw_bins <= self.max_Mw), True, False)  # Only use bins up to the maximum magnitude (so that few high Mw events aren't overweighted)
-            GR_lims_ix = np.where((self.Mw_bins >= self.min_Mw) & (self.Mw_bins <= self.max_Mw), False, True)  # Use bins outside min-max magnitude (that that few high Mw events aren't totally unweighted)
             if self.tapered_gr and self.max_patch != -1:
                 extra_slip = self.extra_slip @ (10 ** x)  # Calculate the slip on patches outside the ROI (in mm/yr) to calulate extra moment rate
                 target_GR_rate = self.mfd(self.tapered_gr, self.Mw_bins, self.deficit, self.extra_mu_A, extra_slip) # Calculate Tapered GR-rate for each magnitude bin based on inverted slip rates and new moment
             else:
                 target_GR_rate = self.GR_rate
             inv_GR = self.sparse_gr_matrix @ (10 ** x)  # Calculate GR-rate for each magnitude bin based on inverted slip rates
-            GR_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_ix]) - np.log10(target_GR_rate[GR_ix])) ** 2))  # Penalise for deviating from log(N)
-            if any(GR_lims_ix):
-                GR_lims_rms = np.sqrt(np.mean((np.log10(inv_GR[GR_lims_ix]) - np.log10(target_GR_rate[GR_lims_ix])) ** 2))  # Penalise for deviating from log(N)
+            GR_rms = np.sqrt(np.mean((np.log10(inv_GR) - np.log10(target_GR_rate)) ** 2))  # Penalise for deviating from log(N)
 
         # Minimise number of ruptures
         if self.nrupt_weight > 0:
@@ -208,7 +201,7 @@ class deficitInversion:
                 n_rupt_rms = n_rupt / self.n_ruptures  # Normalise number of ruptures to the total number of ruptures
                 n_rupt_rms *= weight_schedule  # Apply the weighting schedule to the number of ruptures misfit
 
-        cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight) + (GR_lims_rms) + (n_rupt_rms * self.nrupt_weight)  # Allow for variable weighting between slip deficit and GR-rate
+        cum_rms = (rms * self.rate_weight) + (norm_rms * self.norm_weight) + (GR_rms * self.GR_weight) + (n_rupt_rms * self.nrupt_weight)  # Allow for variable weighting between slip deficit and GR-rate
         return np.array([cum_rms])  
 
 
