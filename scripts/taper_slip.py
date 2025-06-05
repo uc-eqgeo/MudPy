@@ -60,7 +60,7 @@ for ix, rupture_file in enumerate(rupture_list[::-1]):
 
     mw = float(rupture_id.split('_')[0].strip('Mw').replace('-','.'))
     if mw < min_mw or mw > max_mw:
-        print(f'\t{ix}/{len(rupture_list)}:', end='\r')
+        print(f'\t\t{ix}/{len(rupture_list)}:', end='\r')
         continue
 
     untaper = True if int(taper_length) == 0 else False
@@ -76,7 +76,7 @@ for ix, rupture_file in enumerate(rupture_list[::-1]):
         previous_taper = 0
 
     if previous_taper == float(taper_length):
-        print(f'\t{ix}/{len(rupture_list)}:', end='\r')
+        print(f'\t\t{ix}/{len(rupture_list)}:', end='\r')
         continue
     else:
         if previous_taper != 0:
@@ -113,7 +113,8 @@ for ix, rupture_file in enumerate(rupture_list[::-1]):
     # plt.legend()
     # plt.colorbar()
     # plt.title(f'{os.path.basename(rupture_file)}:\n{taper_aim}, ratio={ratio:.3f}')
-    # plt.show()
+    # plt.savefig(rupture_file.replace('.rupt', '_boundary.png'), dpi=300)
+    # plt.close()
 
     # First untaper if that is needed
     if untaper:
@@ -148,6 +149,6 @@ for ix, rupture_file in enumerate(rupture_list[::-1]):
         if write_method:
             fid.write(f'Taper method: {taper_method}\n')
     
-    print(f'\t{ix}/{len(rupture_list)}: {rupture_id} {taper_aim}', end='\r')
+    print(f'\t\t{ix}/{len(rupture_list)}: {rupture_id} {taper_aim}', end='\r')
 
 print('\nComplete :)')

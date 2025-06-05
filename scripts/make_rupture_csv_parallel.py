@@ -157,4 +157,6 @@ if __name__ == '__main__':
             rupture_df.to_csv(compiled_csv, mode='a', header=False, index=False)
             total_ruptures += rupture_df.shape[0]
 
+    if total_ruptures != n_ruptures:
+        os.rename(compiled_csv, compiled_csv.replace(str(n_ruptures), str(total_ruptures)))
     print(f"\nCompleted {total_ruptures} ruptures! :) ", compiled_csv)
