@@ -44,3 +44,13 @@ def get_inv_results_tag(n_ruptures: float, slip_weight: int, GR_weight: int, nor
     results_tag = f"n{n_ruptures}_S{slip_weight}{norm_tag}_GR{GR_weight}{nrupt_tag}{taper_tag}_b{str(b).replace('.','-')}{n5}{pMax_tag}{max_iter_tag}"
 
     return results_tag
+
+def get_occ_directory(tag: str, sz: str, velmod: str, deficit:str, n_archipeligos: int, max_Mw_tag: str, occ_suffix: str = ''):
+    """
+    Function to generate the tag for the OCC directory
+    """
+    if occ_suffix != '' and not occ_suffix.startswith('_'):
+        occ_suffix = '_' + occ_suffix
+    occ_dir = f"FQ_{sz}_{deficit}_{velmod}{tag}_narchi{n_archipeligos}{max_Mw_tag}{occ_suffix}"
+
+    return occ_dir

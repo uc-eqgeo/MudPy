@@ -59,7 +59,7 @@ elif 'mnt' in os.getcwd().split(os.sep)[:2]:
     root = procdir.split(':')[0].lower() + os.sep
     procdir = '/mnt/' + root + (os.sep).join(procdir.split('\\')[1:])
     
-model_info_dir = f"{procdir}/../data\\model_info"
+model_info_dir = f"{procdir}/../data/model_info"
 deficit_file = os.path.join(model_info_dir, deficit_file)
 rigidity_file = os.path.abspath(os.path.join(model_info_dir, '..', '..', 'structure', rigidity_file))
 
