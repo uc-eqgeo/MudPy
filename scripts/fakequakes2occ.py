@@ -58,8 +58,8 @@ if 'mnt' in os.getcwd():
     drive = occ_home_dir.split(':\\')[0]
     occ_home_dir = '/mnt/' + drive.lower() + '/' + '/'.join(occ_home_dir.split(':\\')[1].split('\\'))
 elif 'uc03610' in os.getcwd():
-    procdir = os.path.join('/nesi', 'nobackup', 'uc03610', 'HikurangiFakeQuakes', procdir.split('\\')[-1])
-    occ_home_dir = os.path.join('/nesi', 'nobackup', 'uc03610', 'POSTAL')
+    procdir = os.path.join('/nesi', 'nobackup', 'uc03610', 'jack', 'fakequakes', procdir.split('\\')[-1])
+    occ_home_dir = os.path.join('/nesi', 'nobackup', 'uc03610', 'jack', 'POSTAL')
 
 rupture_dir = os.path.join(procdir, 'output', inversion_name)
 model_dir = os.path.join(procdir, 'data', 'model_info')
