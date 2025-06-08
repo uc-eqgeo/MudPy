@@ -16,7 +16,7 @@ bn_combo = 2
 b, N = bn_dict[bn_combo]
 
 fault_name = "hikkerm"
-inversion_name = "hk_lock_nrupt_dynamic"  # Name of inversion folder
+inversion_name = "hk_lock"  # Name of inversion folder
 velmod = "wuatom"  # Velocity/Rigidity deficit model
 deficit_model = "lock"  # Slip deficit model
 locking = False  # Was locking used in the rupture generation
@@ -43,7 +43,7 @@ nrupt_weight = 1
 nrupt_cuttoff = -6
 n_iterations = 500000
 b, N = bn_dict[bn_combo]
-n_archipeligos = 5
+n_archipeligos = 10
 island = 0
 zero_rate = 1e-6
 
@@ -57,6 +57,9 @@ if 'mnt' in os.getcwd():
     procdir = '/mnt/' + drive.lower() + '/' + '/'.join(procdir.split(':\\')[1].split('\\'))
     drive = occ_home_dir.split(':\\')[0]
     occ_home_dir = '/mnt/' + drive.lower() + '/' + '/'.join(occ_home_dir.split(':\\')[1].split('\\'))
+elif 'uc03610' in os.getcwd():
+    procdir = os.path.join('/nesi', 'nobackup', 'uc03610', 'HikurangiFakeQuakes', procdir.split('\\')[-1])
+    occ_home_dir = os.path.join('/nesi', 'nobackup', 'uc03610', 'POSTAL')
 
 rupture_dir = os.path.join(procdir, 'output', inversion_name)
 model_dir = os.path.join(procdir, 'data', 'model_info')
