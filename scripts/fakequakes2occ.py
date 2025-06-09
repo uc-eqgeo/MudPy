@@ -59,7 +59,7 @@ if 'mnt' in os.getcwd():
     occ_home_dir = '/mnt/' + drive.lower() + '/' + '/'.join(occ_home_dir.split(':\\')[1].split('\\'))
 elif 'uc03610' in os.getcwd():
     procdir = os.path.join('/nesi', 'nobackup', 'uc03610', 'jack', 'fakequakes', procdir.split('\\')[-1])
-    occ_home_dir = os.path.join('/nesi', 'nobackup', 'uc03610', 'jack', 'POSTAL')
+    occ_home_dir = os.path.join('/nesi', 'project', 'uc03610', 'jack', 'occ-coseismic')
 
 rupture_dir = os.path.join(procdir, 'output', inversion_name)
 model_dir = os.path.join(procdir, 'data', 'model_info')
@@ -141,7 +141,6 @@ if remove_zero_rates:
     ruptures_df = ruptures_df.iloc[rupture_ix, :]
 else:
     rupture_ix = np.arange(n_ruptures)
-
 # %% Create average_slip.csv
 if prep_occ:
     print(f'\nWriting OCC data to {os.path.basename(occ_proc_dir)}')

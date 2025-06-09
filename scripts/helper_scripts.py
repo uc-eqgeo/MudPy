@@ -51,6 +51,6 @@ def get_occ_directory(tag: str, sz: str, velmod: str, deficit:str, n_archipeligo
     """
     if occ_suffix != '' and not occ_suffix.startswith('_'):
         occ_suffix = '_' + occ_suffix
-    occ_dir = f"FQ_{sz}_{deficit}_{velmod}{tag}_narchi{n_archipeligos}{max_Mw_tag}{occ_suffix}"
+    occ_dir = f"FQ_{sz}_{deficit}_{velmod}_{tag}_narchi{n_archipeligos}{max_Mw_tag}{occ_suffix}"
 
     return occ_dir
