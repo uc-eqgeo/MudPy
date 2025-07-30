@@ -18,7 +18,6 @@ def get_rupture_df_name(fault_id:str , deficit_mod:str, velmod:str, rupt_lock:bo
 
     if old_format:
         rupture_df_file = f'{fault_id}_{velmod}{lock}{NZNSHM}{uniform}_df_n50000.csv'
-
     else:
         NZNSHM = "_NSHMarea" if NZNSHMscaling else ""
         rupture_df_file = f'{fault_id}_{deficit_mod}_{velmod}{NZNSHM}{uniform}_df_n{nrupts}.csv'
@@ -45,12 +44,15 @@ def get_inv_results_tag(n_ruptures: float, slip_weight: int, GR_weight: int, nor
 
     return results_tag
 
-def get_occ_directory(tag: str, sz: str, velmod: str, deficit:str, n_archipeligos: int, max_Mw_tag: str, occ_suffix: str = ''):
+def get_occ_directory(tag: str, sz: str, velmod: str, deficit:str, n_archipeligos: int, max_Mw_tag: str, occ_suffix: str = '', uniformSlip: str = '', old_format: bool = False):
     """
     Function to generate the tag for the OCC directory
     """
     if occ_suffix != '' and not occ_suffix.startswith('_'):
         occ_suffix = '_' + occ_suffix
-    occ_dir = f"FQ_{sz}_{deficit}_{velmod}_{tag}_narchi{n_archipeligos}{max_Mw_tag}{occ_suffix}"
+    if old_format:
+        occ_dir = f"FQ_{sz}_{velmod}_{deficit}{uniformSlip}_{tag}_narchi{n_archipeligos}{max_Mw_tag}{occ_suffix}"
+    else:
+        occ_dir = f"FQ_{sz}_{deficit}_{velmod}_{tag}_narchi{n_archipeligos}{max_Mw_tag}{occ_suffix}"
 
     return occ_dir

@@ -53,7 +53,7 @@ slip_weight = 10
 norm_weight = 1
 GR_weight = 500
 nrupt_weight = 1
-nrupt_cuttoff = -9
+nrupt_cuttoff = -7
 max_iter = 500000
 bn_combo = 2
 b, N = bn_dict[bn_combo]
@@ -147,7 +147,10 @@ rupture_bin_matrix = np.zeros((ruptures_list[0].shape[0], ruptures_list[0].shape
 
 # Create a GR matrix for each magnitude bin
 for ix, mag in enumerate(bins_list[0]['Mw_bin']):
-    gr_matrix[ix, :] = (ruptures_list[0]['Mw'] >= mag)
+    if 'Mw' in ruptures_list[0].columns:
+        gr_matrix[ix, :] = (ruptures_list[0]['Mw'] >= mag)
+    else:
+        gr_matrix[ix, :] = (ruptures_list[0].index.values >= mag)
 gr_matrix = gr_matrix.astype('int')
 
 # Create a GR matrix for each individual ruputure
@@ -441,12 +444,16 @@ if len(islands) > 1:
     sns.histplot(df, x='log10(Rate)', y='Rupture number', binwidth=(0.1, 1), binrange=[(zero_rate, df['log10(Rate)'].max()), (-0.5, df['Rupture number'].max())], cbar=True)
 # %% Load ruptures_df
 if plot_distributions or plot_hypocenters:
+    print(f"Loading ruptures_df from {rupture_df_file}")
     if archi == '-merged':
-        ruptures_df = pd.read_csv(rupture_df_file)
+        ruptures_df = pd.read_csv(rupture_df_file, index_col=0)
     else:
-        ruptures_df = pd.read_csv(rupture_df_file, nrows=n_ruptures)
+        ruptures_df = pd.read_csv(rupture_df_file, nrows=n_ruptures, index_col=0)
+    print(f"Loaded {ruptures_df.shape[0]} ruptures")
+    ruptures_df = ruptures_df.loc[ruptures_df.index.intersection(ruptures_list[0].index)]
+    print(f"Trimmed to {ruptures_df.shape[0]} ruptures")
     # % Plot patch specific GR relations
-    patch_numbers = np.arange(0, 6300, 3)
+    patch_numbers = np.arange(0, 6300, 5)
     # patch_numbers = np.arange(0, 14800, 100)
     island_to_use = 0
 
@@ -543,7 +550,7 @@ if plot_distributions or plot_hypocenters:
         for ix, rupture in ruptures.iterrows():
             if rupture[island_to_use] < 10 ** zero_rate:
                 continue
-            rupt_log = f"{fault_name}_{velmod}{lock}{NZNSHM}{uniform}.Mw{rupture.name}.log"
+            rupt_log = f"{fault_name.replace('hikkerk', 'hikkerm')}_{velmod}{lock}{NZNSHM}{uniform}.Mw{rupture.name}.log"
             with open(os.path.join(rupt_dir, rupt_log), 'r') as f:
                 lines = f.readlines()
                 lon, lat, depth = [float(coord.strip('()')) for coord in lines[17].split()[2].split(',')]

@@ -9,7 +9,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Define directories
-inversion_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\output\\'
+inversion_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerm\\output\\'
 
 velmod = 'prem'
 locking = True
@@ -62,21 +62,23 @@ else:
 inv_file = os.path.join(inversion_dir, inv_file)
 patch_file = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerk\\data\\model_info\\hk.fault'
 
-inv_df = pd.read_csv(inv_file, sep='\t')
+inv_df = pd.read_csv(inv_file, sep='\t', index_col=0)
 
 # Load data
 n_ruptures = inv_df.shape[0]
 
-rupture_df = pd.read_csv(rupture_csv, nrows=n_ruptures)
+rupture_df = pd.read_csv(rupture_csv, index_col=0)
+
+rupture_df = rupture_df.loc[rupture_df.index.intersection(inv_df.index)]
 
 #%% Prepare for calculating patch participations
 patch_xy = np.genfromtxt(os.path.abspath(patch_file))
 patch_xy[:, 1] = np.mod(patch_xy[:, 1], 360)
 
-patch_ids = rupture_df.columns.to_list()[3:]
+patch_ids = rupture_df.columns.to_list()[2:]
 
 # Create a grid to record the rupture rate of each rupture at each patch
-participation_grid = np.array(rupture_df.iloc[:, 3:] > 0, dtype=np.float64)  # Identify which ruptures effect each patch
+participation_grid = np.array(rupture_df.iloc[:, 2:] > 0, dtype=np.float64)  # Identify which ruptures effect each patch
 participation_grid *= np.array(inv_df['inverted_rate_0']).reshape(n_ruptures, 1)  # Get patch rupture rates
 
 # Get Magnitude limits for GR and plotting

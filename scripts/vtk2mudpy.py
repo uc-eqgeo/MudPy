@@ -25,6 +25,10 @@ sub_type = 'hk'
 outdir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerm\\data\\model_info'
 outname = 'hk_lw2025'
 
+min_deficit = 1  # Minimum amount of slip deficit to allow (mm)
+
+outname = f"{outname}_{str(min_deficit).replace('.', '-')}mm"
+
 data = np.load(f'{mesh_folder}\\subduction_quads\\{sub_type}_tile_outlines.npy')
 
 vtk = meshio.read(vtk_file)
@@ -88,8 +92,8 @@ if write_to_slip:
             lat, lon = transformer.transform(cell[1], cell[0])
             z = cell[2]
             deficit = vtk.cell_data['slip'][0][ix]
-            if deficit == 0:
-                deficit = 0.001
+            if deficit < min_deficit:
+                deficit = min_deficit
             fid.write(f"{ix+1}\t{lon:.6f}\t{lat:.6f}\t{-z:.6f}\t{vector_to_bearing(strikes[ix]):.2f}\t{dips[ix]}\t0\t0\t0\t{deficit:.6f}\t0\t0\t0\n")
 
             if lon < 0:

@@ -84,7 +84,10 @@ class deficitInversion:
         self.nrupt_weight = nrupt_weight  # Weighting for number of ruptures misfit
         self.nrupt_cuttoff = nrupt_cuttoff  # Cutoff for recurrence interval when counting number of ruptures
         self.tapered_gr = tapered_gr  # Use tapered GR-rate relation
-        self.mu_A = mu_A[:max_patch] # uA contribution of Mo = uAS - used to calculate tapered GR-rate
+        if max_patch == -1:
+            self.mu_A = mu_A
+        else:
+            self.mu_A = mu_A[:max_patch] # uA contribution of Mo = uAS - used to calculate tapered GR-rate
         self.alpha_s = alpha_s  # Portion of moment taken up by coseismic slip for tapered GR relation
         self.nIts = n_iterations  # Maximum number of iterations for each inversion
         self.counter = 0  # Counter for number of iterations

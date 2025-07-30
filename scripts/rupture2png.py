@@ -95,17 +95,17 @@ locking_model = locking_model.replace('hk_', '')
 area = '_NSHMarea' if NZNSHM_scaling else '_noNSHMArea'
 uniform = '_uniformSlip' if uniform_slip else ''
 
-rupt_name = f"{run_name}_{locking_model}_{velmod}{area}{uniform}.*.rupt"
+rupt_name = f"{run_name}_{locking_model}_{velmod}{area}{uniform}"
 
 
 vtk = meshio.read(f'{mesh_folder}\\{mesh_name}')
 vtk = meshio.read('C:\\Users\\jmc753\\Work\\RSQSim\\Aotearoa\\fault_vtks\\subduction_quads\\hk_tiles.vtk')
-rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerm\\output\\ruptures\\'
+rupture_dir = 'Z:\\McGrath\\HikurangiFakeQuakes\\hikkerm\\output\\ruptures'
 rupture_png_dir = os.path.abspath(os.path.dirname(rupture_dir) + '/..\\rupture_pngs\\')
 os.makedirs(rupture_png_dir, exist_ok=True)
 
-keyword = ''
-rupture_list = glob(f'{rupture_dir}\\{rupt_name}')
+keyword = '9-33_000052'
+rupture_list = glob(f'{rupture_dir}\\{rupt_name}.*{keyword}*.rupt')
 rupture_list.sort()
 
 # xmin, ymin, xmax, ymax

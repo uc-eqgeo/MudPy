@@ -33,14 +33,14 @@ old_format = False  # Use old version of the rupture_df_file name
 max_Mw = None  # Trim maximum Mw
 min_Mw = None
 
-sz = "hk" if fault_name == "hikkerm" else ""
+sz = "hk" if fault_name in ["hikkerm", "hikkerk"] else ""
 
 n_ruptures = 5000
 slip_weight = 10
 norm_weight = 1
 GR_weight = 500
 nrupt_weight = 1
-nrupt_cuttoff = -6
+nrupt_cuttoff = -7
 n_iterations = 500000
 b, N = bn_dict[bn_combo]
 n_archipeligos = 10
@@ -76,8 +76,10 @@ tag = get_inv_results_tag(n_ruptures=n_ruptures, slip_weight=slip_weight, GR_wei
                           taper_max_Mw=taper_max_Mw, alpha_s= alpha_s, b=b, N=N, pMax=max_patch,
                           max_iter=n_iterations)
 
+deficit_model = 'locking' if locking and old_format else 'nolocking'
+uniformSlip = '_uniformSlip' if uniformSlip and old_format else ''
 
-occ_proc_dir = get_occ_directory(tag=tag, sz=sz, velmod=velmod, deficit=deficit_model, n_archipeligos=n_archipeligos, max_Mw_tag=max_Mw_tag, occ_suffix=occ_suffix)
+occ_proc_dir = get_occ_directory(tag=tag, sz=sz, velmod=velmod, deficit=deficit_model, n_archipeligos=n_archipeligos, max_Mw_tag=max_Mw_tag, occ_suffix=occ_suffix, uniformSlip=uniformSlip, old_format=old_format)
 occ_proc_dir = os.path.join(occ_home_dir, 'data', 'sz_solutions', occ_proc_dir)
 
 # Write rupture inversion file to occ
@@ -110,7 +112,7 @@ if max_Mw is not None:
 if min_Mw is not None:
     rates[archi_df['Mw'] < min_Mw] = 0
     archi_df.loc[archi_df['Mw'] < min_Mw, 'inverted_rate_0'] = 0
-archi_df.to_csv(os.path.join(rupture_dir, f"{tag}{max_Mw_tag}_archi-merged_inverted_ruptures.csv"), sep='\t', index=False)
+archi_df.to_csv(os.path.join(rupture_dir, f"{tag}{max_Mw_tag}_archi-merged_inverted_ruptures.csv"), sep='\t')
 
 deficit = np.genfromtxt(deficit_file)
 deficit = deficit[:, 9]  # d in d=Gm, keep in mm/yr
