@@ -84,6 +84,7 @@ class deficitInversion:
         self.nrupt_weight = nrupt_weight  # Weighting for number of ruptures misfit
         self.nrupt_cuttoff = nrupt_cuttoff  # Cutoff for recurrence interval when counting number of ruptures
         self.tapered_gr = tapered_gr  # Use tapered GR-rate relation
+        self.max_patch = max_patch  # Maximum patch to use in the inversion (-1 for all patches)
         if max_patch == -1:
             self.mu_A = mu_A
         else:
@@ -291,10 +292,14 @@ def write_results(ix, archi, inversion, outtag, deficit_file, archipeligo_island
     if tapered_gr:
         header += "\ttransition_deficit(mm/yr)\ttransition_rel(mm/yr)\ttransition_abs(mm/yr)"
         format += "\t%.6f\t%.6f\t%.6f"
-        transitional_deficit = np.hstack([reconstructed_deficit, np.matmul(inversion.extra_slip.toarray(), preferred_rate[:, 0])]).T.reshape(-1, 1)
-        transitional_rel = transitional_deficit / deficit[:, 9].reshape(-1, 1)
-        transitional_abs = transitional_deficit - deficit[:, 9].reshape(-1, 1)
-        out = np.hstack([out, transitional_deficit, transitional_rel, transitional_abs])
+        if inversion.max_patch != -1:
+            # If using tapered GR, add the extra slip patches to the output
+            transitional_deficit = np.hstack([reconstructed_deficit, np.matmul(inversion.extra_slip.toarray(), preferred_rate[:, 0])]).T.reshape(-1, 1)
+            transitional_rel = transitional_deficit / deficit[:, 9].reshape(-1, 1)
+            transitional_abs = transitional_deficit - deficit[:, 9].reshape(-1, 1)
+            out = np.hstack([out, transitional_deficit, transitional_rel, transitional_abs])
+        else:
+            out = np.hstack([out, np.zeros((out.shape[0], 3))])  # Add empty columns for the transitional deficit, relative and absolute misfit
 
     outfile = os.path.join(outdir, f"{outtag}_inversion_results.inv")
     np.savetxt(outfile, out, fmt=format, header=header)
