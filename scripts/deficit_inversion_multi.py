@@ -39,12 +39,13 @@ rate_weight = 10  # Absolute misfit of slip deficit (int)
 norm_weight = 1  # Relative misfit of slip deficit (int)
 GR_weight = 500 # Mistfit of GR relation (int)
 nrupt_weight = 1  # Weighting for number of ruptures misfit (int)
-nrupt_cuttoff = -6  # Cutoff for recurrence interval when counting number of ruptures (int, in log10 space, so -16 = 1e-16)
+nrupt_cuttoff = -7  # Cutoff for recurrence interval when counting number of ruptures (int, in log10 space, so -16 = 1e-16)
 
 # Pygmo requirements
 n_iterations = 500000  # Maximum number of iterations for each inversion
 ftol = 0.0001  # Stopping Criteria
-n_islands = 10  # Number of islands
+single_island = None  # None for all islands, else island number for running a single island (starting from 0)
+n_islands = 10  # Number of islands total
 pop_size = 20  # Number of populations per island
 archipeligo = False  # True - Consider all islands as part of an archipeligo, using same rupture set. False: Run islands individually, with different rupture sets
 topology_name = 'None'  # 'None', 'Ring', 'FullyConnected'
@@ -336,9 +337,13 @@ if __name__ == "__main__":
         full_df = pd.read_csv(rupture_csv, header=0, nrows=n_islands * n_ruptures)
         if n_islands * n_ruptures < full_df.shape[0]:
             raise Exception(f"Only {full_df.shape[0]} ruptures in {rupture_csv} - need {n_islands * n_ruptures}")
-        for island in range(n_islands):
-            print(f"Extracting {n_ruptures} ruptures for island {island + 1}/{n_islands}...", end="\r")
-            ruptures_df_list.append(full_df.iloc[island * n_ruptures:(island + 1) * n_ruptures])
+        if single_island is not None:
+            print(f"Extracting {n_ruptures} ruptures only for island {single_island}...", end="\r")
+            ruptures_df_list.append(full_df.iloc[single_island * n_ruptures:(single_island + 1) * n_ruptures])
+        else:
+            for island in range(n_islands):
+                print(f"Extracting {n_ruptures} ruptures for island {island + 1}/{n_islands}...", end="\r")
+                ruptures_df_list.append(full_df.iloc[island * n_ruptures:(island + 1) * n_ruptures])
 
         print("")
 
